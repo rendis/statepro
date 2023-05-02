@@ -1,0 +1,4 @@
+scanner:
+  file-prefix: ''
+  paths:
+    - 'example/source/source.json'

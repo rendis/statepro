@@ -1,14 +1,18 @@
 package piece
 
-type GTransition[CTX any] struct {
-	Guards []*GGuard[CTX]
+type GTransition[T any] struct {
+	Guards []*GGuard[T] // At least one guard is required
 }
 
-func (t *GTransition[CTX]) resolve(c CTX, e GEvent) string {
+func (t *GTransition[T]) resolve(c T, e Event) (*string, error) {
 	for _, g := range t.Guards {
-		if ok, target := g.check(c, e); ok {
-			return target
+		target, ok, err := g.check(c, e)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			return &target, nil
 		}
 	}
-	return ""
+	return nil, nil
 }

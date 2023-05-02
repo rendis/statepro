@@ -2,62 +2,71 @@ package piece
 
 import "fmt"
 
-type TInvocation[CTX any] func(CTX, GEvent) (any, error)
-
-type GInvocationResponse struct {
-	Target string
-	Event  GEvent
+type ServiceResponse struct {
+	Response any
+	Err      error
 }
 
-type Service[CTX any] struct {
-	Id         string
-	Src        string
-	Invocation *TInvocation[CTX]
-	OnDone     *GTransition[CTX]
-	OnError    *GTransition[CTX]
+type TInvocation[T any] func(T, Event) ServiceResponse
+
+type InvocationResponse struct {
+	Target *string
+	Event  Event
+	Err    error
 }
 
-func (s *Service[CTX]) invoke(c CTX, e GEvent, respCh chan<- *GInvocationResponse) {
-	evt := GEvent{
-		Name:    "OnDone",
-		Data:    e.Data,
-		Err:     nil,
-		EvtType: EventTypeOnDone,
+type GService[T any] struct {
+	Id      *string // Mandatory
+	Src     *string // Mandatory
+	Inv     TInvocation[T]
+	OnDone  *GTransition[T]
+	OnError *GTransition[T]
+}
+
+func (s *GService[T]) invoke(c T, e Event, respCh chan<- *InvocationResponse) {
+	evt := &GEvent{
+		name:    "OnDone",
+		err:     nil,
+		evtType: EventTypeOnDone,
 	}
 
-	var target string
-	if s.Invocation != nil {
-		resp, err := (*s.Invocation)(c, e)
-		if err != nil {
-			evt.Name = "OnError"
-			evt.Err = err
-			evt.EvtType = EventTypeOnError
-			target = s.done(c, evt)
-		} else {
-			evt.Data = resp
-			target = s.error(c, evt)
-		}
+	var target *string
+	var err error
+	r := s.Inv(c, e)
+	if r.Err != nil {
+		evt.name = "OnError"
+		evt.err = r.Err
+		evt.evtType = EventTypeOnError
+		target, err = s.error(c, evt)
+	} else {
+		evt.data = r.Response
+		target, err = s.done(c, evt)
 	}
 
 	// TODO: Kill the service if respCh was closed
 	select {
-	case respCh <- &GInvocationResponse{Target: target, Event: evt}:
-		fmt.Printf("Service %s invoked\n", s.Id)
+	case respCh <- &InvocationResponse{Target: target, Event: evt, Err: err}:
 	default:
-		fmt.Printf("Service %s Invocation response channel is full or closed\n", s.Id)
 	}
 }
 
-func (s *Service[CTX]) done(c CTX, e GEvent) string {
+func (s *GService[T]) done(c T, e Event) (*string, error) {
 	if s.OnDone != nil {
 		return s.OnDone.resolve(c, e)
 	}
-	return ""
+	return nil, nil
 }
 
-func (s *Service[CTX]) error(c CTX, e GEvent) string {
+func (s *GService[T]) error(c T, e Event) (*string, error) {
 	if s.OnError != nil {
 		return s.OnError.resolve(c, e)
 	}
-	return ""
+	return nil, nil
+}
+
+func CastToSrv[T any](i any) (TInvocation[T], error) {
+	if f, ok := i.(func(T, Event) ServiceResponse); ok {
+		return f, nil
+	}
+	return nil, fmt.Errorf("service '%s' with wrong type", i)
 }
