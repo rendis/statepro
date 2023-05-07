@@ -2,16 +2,16 @@ package piece
 
 import "fmt"
 
-type TPredicate[T any] func(T, Event) (bool, error)
+type TPredicate[ContextType any] func(ContextType, Event) (bool, error)
 
-type GGuard[T any] struct {
+type GGuard[ContextType any] struct {
 	Condition *string
 	Target    *string // Mandatory
-	Actions   []*GAction[T]
-	Predicate TPredicate[T]
+	Actions   []*GAction[ContextType]
+	Predicate TPredicate[ContextType]
 }
 
-func (g *GGuard[T]) check(c T, e Event) (string, bool, error) {
+func (g *GGuard[ContextType]) check(c ContextType, e Event) (string, bool, error) {
 	// (Else || Directly) GGuard
 	if g.Condition == nil {
 		err := g.doActions(c, e)
@@ -42,7 +42,7 @@ func (g *GGuard[T]) check(c T, e Event) (string, bool, error) {
 	return "", false, nil
 }
 
-func (g *GGuard[T]) doActions(c T, e Event) error {
+func (g *GGuard[ContextType]) doActions(c ContextType, e Event) error {
 	for _, a := range g.Actions {
 		if err := a.do(c, e); err != nil {
 			return err
@@ -51,15 +51,15 @@ func (g *GGuard[T]) doActions(c T, e Event) error {
 	return nil
 }
 
-func CastPredicate[T any](i any) (TPredicate[T], error) {
-	if f, ok := i.(func(T, Event) (bool, error)); ok {
+func CastPredicate[ContextType any](i any) (TPredicate[ContextType], error) {
+	if f, ok := i.(func(ContextType, Event) (bool, error)); ok {
 		return f, nil
 	}
 	return nil, fmt.Errorf("predicate '%s' with wrong type", i)
 }
 
 /*
-func (g *GGuard[T]) check(c T, e Event, supplier GSupplier[T]) (string, bool, error) {
+func (g *GGuard[ContextType]) check(c ContextType, e Event, supplier GSupplier[ContextType]) (string, bool, error) {
 	// (Else || Directly) GGuard
 	if g.Condition == nil {
 		err := g.doActions(c, e, supplier)
@@ -91,7 +91,7 @@ func (g *GGuard[T]) check(c T, e Event, supplier GSupplier[T]) (string, bool, er
 	return "", false, nil
 }
 
-func (g *GGuard[T]) doActions(c T, e Event, supplier GSupplier[T]) error {
+func (g *GGuard[ContextType]) doActions(c ContextType, e Event, supplier GSupplier[ContextType]) error {
 	for _, a := range g.Actions {
 		if err := a.do(c, e, supplier); err != nil {
 			return err

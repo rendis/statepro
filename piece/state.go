@@ -15,13 +15,13 @@ const (
 	StateTypeShared  StateType = "shared"
 )
 
-type GState[T any] struct {
+type GState[ContextType any] struct {
 	Name      *string // Mandatory
-	Always    *GTransition[T]
-	Entry     []*GAction[T]
-	Exit      []*GAction[T]
-	On        map[string]*GTransition[T]
-	Services  []*GService[T]
+	Always    *GTransition[ContextType]
+	Entry     []*GAction[ContextType]
+	Exit      []*GAction[ContextType]
+	On        map[string]*GTransition[ContextType]
+	Services  []*GService[ContextType]
 	StateType StateType
 
 	srvChMtx sync.Mutex
@@ -30,7 +30,7 @@ type GState[T any] struct {
 
 // onEntry is called when the state is entered.
 // return
-func (s *GState[T]) onEntry(c T, e Event) (*string, bool, error) {
+func (s *GState[ContextType]) onEntry(c ContextType, e Event) (*string, bool, error) {
 	target, err := s.always(c, e)
 	if err != nil {
 		return nil, false, err
@@ -55,21 +55,21 @@ func (s *GState[T]) onEntry(c T, e Event) (*string, bool, error) {
 }
 
 // onEvent is called
-func (s *GState[T]) onEvent(c T, e Event) (*string, error) {
+func (s *GState[ContextType]) onEvent(c ContextType, e Event) (*string, error) {
 	if s.On != nil && s.On[e.GetName()] != nil {
 		return s.On[e.GetName()].resolve(c, e)
 	}
 	return nil, nil
 }
 
-func (s *GState[T]) always(c T, e Event) (*string, error) {
+func (s *GState[ContextType]) always(c ContextType, e Event) (*string, error) {
 	if s.Always != nil {
 		return s.Always.resolve(c, e)
 	}
 	return nil, nil
 }
 
-func (s *GState[T]) execEntry(c T, e Event) error {
+func (s *GState[ContextType]) execEntry(c ContextType, e Event) error {
 	for _, a := range s.Entry {
 		err := a.do(c, e)
 		if err != nil {
@@ -79,7 +79,7 @@ func (s *GState[T]) execEntry(c T, e Event) error {
 	return nil
 }
 
-func (s *GState[T]) execExit(c T, e Event) error {
+func (s *GState[ContextType]) execExit(c ContextType, e Event) error {
 	if s.StateType == StateTypeFinal {
 		return nil
 	}
@@ -95,7 +95,7 @@ func (s *GState[T]) execExit(c T, e Event) error {
 	return nil
 }
 
-func (s *GState[T]) invokeServices(c T, e Event) {
+func (s *GState[ContextType]) invokeServices(c ContextType, e Event) {
 	s.srvCh = make(chan *InvocationResponse, 1)
 	for _, srv := range s.Services {
 		go srv.invoke(c, e, s.srvCh)
@@ -109,6 +109,6 @@ func (s *GState[T]) invokeServices(c T, e Event) {
 	}
 }
 
-func (s *GState[T]) isFinalState() bool {
+func (s *GState[ContextType]) isFinalState() bool {
 	return s.StateType == StateTypeFinal
 }

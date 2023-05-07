@@ -23,8 +23,8 @@ func GetXMachine(file string) (*XMachine, error) {
 	return xm, nil
 }
 
-func ParseXMachineToGMachine[T any](x *XMachine) (*piece.GMachine[T], error) {
-	gMachine := &piece.GMachine[T]{}
+func ParseXMachineToGMachine[ContextType any](x *XMachine) (*piece.GMachine[ContextType], error) {
+	gMachine := &piece.GMachine[ContextType]{}
 	err := validateXMachine(x)
 	if err != nil {
 		return nil, err
@@ -34,9 +34,9 @@ func ParseXMachineToGMachine[T any](x *XMachine) (*piece.GMachine[T], error) {
 	gMachine.Context = nil
 
 	if x.States != nil {
-		gMachine.States = make(map[string]*piece.GState[T], len(*x.States))
+		gMachine.States = make(map[string]*piece.GState[ContextType], len(*x.States))
 		for xname, xstate := range *x.States {
-			gstate, err := parseXState[T](xname, xstate, gMachine)
+			gstate, err := parseXState[ContextType](xname, xstate, gMachine)
 			if err != nil {
 				return nil, err
 			}
@@ -53,8 +53,8 @@ func ParseXMachineToGMachine[T any](x *XMachine) (*piece.GMachine[T], error) {
 	return gMachine, nil
 }
 
-func parseXState[T any](xStateName string, xs XState, pm *piece.GMachine[T]) (*piece.GState[T], error) {
-	gs := piece.GState[T]{}
+func parseXState[ContextType any](xStateName string, xs XState, pm *piece.GMachine[ContextType]) (*piece.GState[ContextType], error) {
+	gs := piece.GState[ContextType]{}
 	gs.Name = &xStateName
 
 	// Always
@@ -62,7 +62,7 @@ func parseXState[T any](xStateName string, xs XState, pm *piece.GMachine[T]) (*p
 	if err != nil {
 		return nil, err
 	}
-	tAlways, err := parseXEvent[T](xAlways, pm)
+	tAlways, err := parseXEvent[ContextType](xAlways, pm)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func parseXState[T any](xStateName string, xs XState, pm *piece.GMachine[T]) (*p
 		return nil, err
 	}
 
-	gs.Entry, err = parseXActions[T](xEntry, pm)
+	gs.Entry, err = parseXActions[ContextType](xEntry, pm)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func parseXState[T any](xStateName string, xs XState, pm *piece.GMachine[T]) (*p
 		return nil, err
 	}
 
-	gs.Exit, err = parseXActions[T](xExit, pm)
+	gs.Exit, err = parseXActions[ContextType](xExit, pm)
 	if err != nil {
 		return nil, err
 	}
@@ -96,9 +96,9 @@ func parseXState[T any](xStateName string, xs XState, pm *piece.GMachine[T]) (*p
 		return nil, err
 	}
 	if len(xon) > 0 {
-		gs.On = make(map[string]*piece.GTransition[T], len(xon))
+		gs.On = make(map[string]*piece.GTransition[ContextType], len(xon))
 		for evtName, xts := range xon {
-			gts, err := parseXEvent[T](xts, pm)
+			gts, err := parseXEvent[ContextType](xts, pm)
 			if err != nil {
 				return nil, err
 			}
@@ -112,7 +112,7 @@ func parseXState[T any](xStateName string, xs XState, pm *piece.GMachine[T]) (*p
 	if err != nil {
 		return nil, err
 	}
-	gss, err := parseXInvoke[T](xis, pm)
+	gss, err := parseXInvoke[ContextType](xis, pm)
 	if err != nil {
 		return nil, err
 	}
@@ -140,10 +140,10 @@ func parseXState[T any](xStateName string, xs XState, pm *piece.GMachine[T]) (*p
 	return &gs, nil
 }
 
-func parseXInvoke[T any](xis []XInvoke, pm *piece.GMachine[T]) ([]*piece.GService[T], error) {
-	var gss = make([]*piece.GService[T], len(xis))
+func parseXInvoke[ContextType any](xis []XInvoke, pm *piece.GMachine[ContextType]) ([]*piece.GService[ContextType], error) {
+	var gss = make([]*piece.GService[ContextType], len(xis))
 	for i, xi := range xis {
-		gs := &piece.GService[T]{}
+		gs := &piece.GService[ContextType]{}
 		srcName := strings.ToLower(strings.TrimSpace(*xi.Src))
 
 		if xi.Id != nil {
@@ -153,19 +153,19 @@ func parseXInvoke[T any](xis []XInvoke, pm *piece.GMachine[T]) ([]*piece.GServic
 		}
 		gs.Src = &srcName
 
-		srv, err := GetSrv[T](srcName)
+		srv, err := GetSrv[ContextType](srcName)
 		if err != nil {
 			return nil, err
 		}
 
-		gs.Inv, err = piece.CastToSrv[T](srv)
+		gs.Inv, err = piece.CastToSrv[ContextType](srv)
 		if err != nil {
 			return nil, err
 		}
 
 		// OnDone
 		if xi.OnDone != nil {
-			gOnDone, err := parseXEvent[T](*xi.OnDone, pm)
+			gOnDone, err := parseXEvent[ContextType](*xi.OnDone, pm)
 			if err != nil {
 				return nil, err
 			}
@@ -174,7 +174,7 @@ func parseXInvoke[T any](xis []XInvoke, pm *piece.GMachine[T]) ([]*piece.GServic
 
 		// OnError
 		if xi.OnError != nil {
-			gOnError, err := parseXEvent[T](*xi.OnError, pm)
+			gOnError, err := parseXEvent[ContextType](*xi.OnError, pm)
 			if err != nil {
 				return nil, err
 			}
@@ -186,30 +186,30 @@ func parseXInvoke[T any](xis []XInvoke, pm *piece.GMachine[T]) ([]*piece.GServic
 	return gss, nil
 }
 
-func parseXEvent[T any](xts []XTransition, pm *piece.GMachine[T]) (*piece.GTransition[T], error) {
-	gt := piece.GTransition[T]{}
-	gt.Guards = make([]*piece.GGuard[T], len(xts))
+func parseXEvent[ContextType any](xts []XTransition, pm *piece.GMachine[ContextType]) (*piece.GTransition[ContextType], error) {
+	gt := piece.GTransition[ContextType]{}
+	gt.Guards = make([]*piece.GGuard[ContextType], len(xts))
 	for i, xt := range xts {
-		gg := piece.GGuard[T]{}
+		gg := piece.GGuard[ContextType]{}
 		gg.Condition = xt.Condition
 		gg.Target = xt.Target
 		xActs, err := xt.GetActions()
 		if err != nil {
 			return nil, err
 		}
-		gg.Actions, err = parseXActions[T](xActs, pm)
+		gg.Actions, err = parseXActions[ContextType](xActs, pm)
 		if err != nil {
 			return nil, err
 		}
 
 		if xt.Condition != nil && len(*xt.Condition) > 0 {
 			condName := strings.ToLower(strings.TrimSpace(*xt.Condition))
-			predicate, err := GetPredicate[T](condName)
+			predicate, err := GetPredicate[ContextType](condName)
 			if err != nil {
 				return nil, err
 			}
 
-			gg.Predicate, err = piece.CastPredicate[T](predicate)
+			gg.Predicate, err = piece.CastPredicate[ContextType](predicate)
 			if err != nil {
 				return nil, fmt.Errorf("failed to cast predicate '%s': %s", *xt.Condition, err)
 			}
@@ -220,22 +220,22 @@ func parseXEvent[T any](xts []XTransition, pm *piece.GMachine[T]) (*piece.GTrans
 	return &gt, nil
 }
 
-func parseXActions[T any](xacts []string, pm *piece.GMachine[T]) ([]*piece.GAction[T], error) {
-	var gActs = make([]*piece.GAction[T], len(xacts))
-	for i, xAct := range xacts {
+func parseXActions[ContextType any](xActs []string, pm *piece.GMachine[ContextType]) ([]*piece.GAction[ContextType], error) {
+	var gActs = make([]*piece.GAction[ContextType], len(xActs))
+	for i, xAct := range xActs {
 		xActName := strings.ToLower(strings.TrimSpace(xAct))
-		gAct := piece.GAction[T]{}
+		gAct := piece.GAction[ContextType]{}
 		gAct.Name = xActName
 		gActs[i] = &gAct
 
 		// Get actions from Register Actions
-		f, err := GetAction[T](xActName)
+		f, err := GetAction[ContextType](xActName)
 		if err != nil {
 			return nil, err
 		}
 
 		// Cast to piece.GAction
-		gAct.Act, err = piece.CastToAct[T](f)
+		gAct.Act, err = piece.CastToAct[ContextType](f)
 		if err != nil {
 			return nil, fmt.Errorf("failed to cast action '%s': %s", xAct, err)
 		}

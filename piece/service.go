@@ -7,7 +7,7 @@ type ServiceResponse struct {
 	Err      error
 }
 
-type TInvocation[T any] func(T, Event) ServiceResponse
+type TInvocation[ContextType any] func(ContextType, Event) ServiceResponse
 
 type InvocationResponse struct {
 	Target *string
@@ -15,15 +15,15 @@ type InvocationResponse struct {
 	Err    error
 }
 
-type GService[T any] struct {
+type GService[ContextType any] struct {
 	Id      *string // Mandatory
 	Src     *string // Mandatory
-	Inv     TInvocation[T]
-	OnDone  *GTransition[T]
-	OnError *GTransition[T]
+	Inv     TInvocation[ContextType]
+	OnDone  *GTransition[ContextType]
+	OnError *GTransition[ContextType]
 }
 
-func (s *GService[T]) invoke(c T, e Event, respCh chan<- *InvocationResponse) {
+func (s *GService[ContextType]) invoke(c ContextType, e Event, respCh chan<- *InvocationResponse) {
 	evt := &GEvent{
 		name:    "OnDone",
 		err:     nil,
@@ -50,22 +50,22 @@ func (s *GService[T]) invoke(c T, e Event, respCh chan<- *InvocationResponse) {
 	}
 }
 
-func (s *GService[T]) done(c T, e Event) (*string, error) {
+func (s *GService[ContextType]) done(c ContextType, e Event) (*string, error) {
 	if s.OnDone != nil {
 		return s.OnDone.resolve(c, e)
 	}
 	return nil, nil
 }
 
-func (s *GService[T]) error(c T, e Event) (*string, error) {
+func (s *GService[ContextType]) error(c ContextType, e Event) (*string, error) {
 	if s.OnError != nil {
 		return s.OnError.resolve(c, e)
 	}
 	return nil, nil
 }
 
-func CastToSrv[T any](i any) (TInvocation[T], error) {
-	if f, ok := i.(func(T, Event) ServiceResponse); ok {
+func CastToSrv[ContextType any](i any) (TInvocation[ContextType], error) {
+	if f, ok := i.(func(ContextType, Event) ServiceResponse); ok {
 		return f, nil
 	}
 	return nil, fmt.Errorf("service '%s' with wrong type", i)

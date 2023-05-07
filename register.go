@@ -26,21 +26,20 @@ var predicatesRegistry = make(logicRegistry)
 var actionsRegistry = make(logicRegistry)
 var srvRegistry = make(logicRegistry)
 
-type MachineDefinition[T any] interface {
+type MachineDefinition[ContextType any] interface {
 	GetMachineId() string
 }
 
-func AddMachine[T any](d MachineDefinition[T]) {
-	key := buildKey[T](d.GetMachineId())
-	xid := d.GetMachineId()
+func AddMachine[ContextType any](d MachineDefinition[ContextType]) {
+	key := buildKey[ContextType](d)
 	if _, ok := xchans[key]; ok {
-		log.Fatalf("Machine definition id '%s' for type '%s' already exists.", xid, key.typ)
+		log.Fatalf("Machine definition id '%s' for type '%s' already exists.", d.GetMachineId(), key.typ)
 	}
 	xchan := make(chan *XMachine, 1)
 	xchans[key] = xchan
 	xchanWait.Add(1)
-	loadImplementation[T](d)
-	go asyncBuilder[T](key, xchan)
+	loadImplementation[ContextType](d)
+	go asyncBuilder[ContextType](key, xchan)
 }
 
 func loadXMachines() {
@@ -74,10 +73,10 @@ func notifyXMachines() {
 	xchanWait.Wait()
 }
 
-func asyncBuilder[T any](key machineKey, xchan <-chan *XMachine) {
+func asyncBuilder[ContextType any](key machineKey, xchan <-chan *XMachine) {
 	defer xchanWait.Done()
 	xm := <-xchan
-	gm, err := ParseXMachineToGMachine[T](xm)
+	gm, err := ParseXMachineToGMachine[ContextType](xm)
 	if err != nil {
 		log.Fatalf("Error parsing machine '%s': %s", *xm.Id, err)
 	}
@@ -86,8 +85,10 @@ func asyncBuilder[T any](key machineKey, xchan <-chan *XMachine) {
 	proMutex.Unlock()
 }
 
-func buildKey[T any](id string) machineKey {
-	return machineKey{id, reflect.TypeOf(new(T)).Elem()}
+func buildKey[ContextType any](d MachineDefinition[ContextType]) machineKey {
+	id := d.GetMachineId()
+	ctxTyp := reflect.TypeOf(new(ContextType)).Elem()
+	return machineKey{id, ctxTyp}
 }
 
 func appendLogic(l logic, typ reflect.Type, reg logicRegistry) error {
@@ -124,30 +125,35 @@ func appendSrv(l logic, typ reflect.Type) {
 	}
 }
 
-func loadImplementation[T any](d MachineDefinition[T]) {
+func loadImplementation[ContextType any](d MachineDefinition[ContextType]) {
 	id := d.GetMachineId()
 	log.Printf("Loading implementation for machine '%s'", id)
 	typ := reflect.TypeOf(d)
 	val := reflect.ValueOf(d)
 
-	tParam := reflect.TypeOf((*T)(nil)).Elem()
+	tParam := reflect.TypeOf((*ContextType)(nil)).Elem()
 	evtParam := reflect.TypeOf((*piece.Event)(nil)).Elem()
-	actToolParam := reflect.TypeOf((*piece.ActionTool[T])(nil)).Elem()
+	actToolParam := reflect.TypeOf((*piece.ActionTool[ContextType])(nil)).Elem()
 
 	for i := 0; i < typ.NumMethod(); i++ {
 		if m := typ.Method(i); m.Name != "GetMachineId" {
 			name := strings.ToLower(m.Name)
 			l := logic{name, i, &val}
 			switch {
-			// type TPredicate[T any] func(T, Event) (bool, error)
+
+			// type TPredicate[ContextType any] func(ContextType, Event) (bool, error)
 			case isPredicate(m.Type, tParam, evtParam):
 				appendPredicate(l, tParam)
-			// type TAction[T any] func(T, Event, ActionTool[T]) error
+
+			// type TAction[ContextType any] func(ContextType, Event, ActionTool[ContextType]) error
 			case isAction(m.Type, tParam, evtParam, actToolParam):
 				appendAction(l, tParam)
-			// type TInvocation[T any] func(T, Event) ServiceResponse
+
+			// type TInvocation[ContextType any] func(ContextType, Event) ServiceResponse
 			case isService(m.Type, tParam, evtParam):
 				appendSrv(l, tParam)
+
+			// default case is ignored
 			default:
 				log.Printf("Skipping method '%s' of type '%s' in machine '%s'\n", m.Name, m.Type, id)
 			}
@@ -173,8 +179,8 @@ func isService(typ, tParam, evtParam reflect.Type) bool {
 	return in && out
 }
 
-func getBehavior[T any](name, behavior string, reg logicRegistry) (any, error) {
-	typ := reflect.TypeOf((*T)(nil)).Elem()
+func getBehavior[ContextType any](name, behavior string, reg logicRegistry) (any, error) {
+	typ := reflect.TypeOf((*ContextType)(nil)).Elem()
 	r, ok := reg[typ]
 	if !ok {
 		return nil, fmt.Errorf("no %s registered for name '%s' and type '%s'", behavior, name, typ)
@@ -188,14 +194,14 @@ func getBehavior[T any](name, behavior string, reg logicRegistry) (any, error) {
 	return b.val.Method(b.pos).Interface(), nil
 }
 
-func GetAction[T any](name string) (any, error) {
-	return getBehavior[T](name, "action", actionsRegistry)
+func GetAction[ContextType any](name string) (any, error) {
+	return getBehavior[ContextType](name, "action", actionsRegistry)
 }
 
-func GetPredicate[T any](name string) (any, error) {
-	return getBehavior[T](name, "predicate", predicatesRegistry)
+func GetPredicate[ContextType any](name string) (any, error) {
+	return getBehavior[ContextType](name, "predicate", predicatesRegistry)
 }
 
-func GetSrv[T any](name string) (any, error) {
-	return getBehavior[T](name, "service", srvRegistry)
+func GetSrv[ContextType any](name string) (any, error) {
+	return getBehavior[ContextType](name, "service", srvRegistry)
 }

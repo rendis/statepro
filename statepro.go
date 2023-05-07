@@ -14,22 +14,22 @@ type machineKey struct {
 // var xMachines = make(map[string]*xparse.XMachine)
 // var proMachines = make(map[machineKey]any)
 
-//func GetMachine[T any](id string) (*piece.GMachine[T], error) {
-//	if ptrPM, ok := proMachines[buildKey[T](id)]; ok {
-//		if pm, ok := ptrPM.(*piece.GMachine[T]); ok {
+//func GetMachine[ContextType any](id string) (*piece.GMachine[ContextType], error) {
+//	if ptrPM, ok := proMachines[buildKey[ContextType](id)]; ok {
+//		if pm, ok := ptrPM.(*piece.GMachine[ContextType]); ok {
 //			return pm, nil
 //		}
 //	}
 //	return nil, fmt.Errorf("machine '%s' does not exist", id)
 //}
 
-func GetMachine[T any](id string) (piece.ProMachine[T], error) {
-	if ptrPM, ok := proMachines[buildKey[T](id)]; ok {
-		if pm, ok := ptrPM.(*piece.GMachine[T]); ok {
+func GetMachine[ContextType any](d MachineDefinition[ContextType]) (piece.ProMachine[ContextType], error) {
+	if ptrPM, ok := proMachines[buildKey(d)]; ok {
+		if pm, ok := ptrPM.(*piece.GMachine[ContextType]); ok {
 			return pm, nil
 		}
 	}
-	return nil, fmt.Errorf("machine '%s' does not exist", id)
+	return nil, fmt.Errorf("machine '%s' does not exist for type '%s'", d.GetMachineId(), reflect.TypeOf(d))
 }
 
 func InitMachines() {
@@ -38,13 +38,13 @@ func InitMachines() {
 }
 
 /*
-func BuildProMachine[T any](id string) {
+func BuildProMachine[ContextType any](id string) {
 	if xm, ok := xMachines[id]; ok {
-		gm, err := xparse.ParseXMachine[T](xm)
+		gm, err := xparse.ParseXMachine[ContextType](xm)
 		if err != nil {
 			log.Fatalf("Error parsing machine '%s': %s", id, err)
 		}
-		proMachines[buildKey[T](id)] = gm
+		proMachines[buildKey[ContextType](id)] = gm
 		return
 	}
 	log.Fatalf("GMachine definition id '%s' does not exist.", id)
@@ -54,8 +54,8 @@ func BuildProMachine[T any](id string) {
 /*
 var machineRegistry = make(map[string]any)
 
-func RegisterMachine[T any](id string) {
-	m := &piece.GMachine[T]{}
+func RegisterMachine[ContextType any](id string) {
+	m := &piece.GMachine[ContextType]{}
 	if _, ok := machineRegistry[id]; ok {
 		log.Fatalf("GMachine %s already registered", id)
 	}
@@ -85,22 +85,22 @@ func LoadXMachines() {
 	}
 }
 
-func GetMachine[T any](id string) *piece.GMachine[T] {
+func GetMachine[ContextType any](id string) *piece.GMachine[ContextType] {
 	if m, ok := machineRegistry[id]; ok {
-		return m.(*piece.GMachine[T])
+		return m.(*piece.GMachine[ContextType])
 	}
 	return nil
 }
 */
 
 /*
-type MachineBuilder[T any] interface {
-	WithState(stateName string) MachineBuilder[T]
-	WithContext(context T) MachineBuilder[T]
-	Start() StatePro[T]
+type MachineBuilder[ContextType any] interface {
+	WithState(stateName string) MachineBuilder[ContextType]
+	WithContext(context ContextType) MachineBuilder[ContextType]
+	Start() StatePro[ContextType]
 }
 
-type StatePro[T any] interface {
+type StatePro[ContextType any] interface {
 	PossibleEvents() []string
 	ContainsEvent(eventName string) bool
 	Send(eventName string) error
