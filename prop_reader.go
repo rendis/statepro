@@ -1,103 +1,51 @@
 package statepro
 
 import (
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
 )
 
-const jsonExt = ".json"
+const stateProYml = "statepro.yml"
 
-var deepFileRegex = regexp.MustCompile(`^.*\*/?$`)
-
-func GetDefinitionPaths(prefix string, paths []string) []string {
-	defsSet := map[string]struct{}{}
-
-	for _, path := range paths {
-		deep := false
-		if deepFileRegex.MatchString(path) {
-			deep = true
-			path = strings.Split(path, "**")[0]
-		}
-
-		if _, err := os.Stat(path); err != nil {
-			log.Fatalf("[ERROR] Cannot find machine directory/file: %s", path)
-		}
-
-		subDefs := processPath(path, prefix, deep)
-		for _, def := range subDefs {
-			if _, ok := defsSet[def]; !ok {
-				defsSet[def] = struct{}{}
-			}
-		}
-	}
-
-	defPaths := make([]string, 0, len(defsSet))
-	for path := range defsSet {
-		defPaths = append(defPaths, path)
-	}
-
-	return defPaths
+type Props struct {
+	*Scanner `yaml:"scanner"`
 }
 
-func processPath(path, prefix string, deep bool) []string {
-	if !isDirectory(path) {
-		if isDefPath(path, prefix) {
-			return []string{path}
-		}
-		log.Fatalf("[ERROR] Invalid machine path: %s", path)
-	}
-	if !deep {
-		return plainScan(path, prefix)
-	} else {
-		return deepScan(path, prefix)
-	}
+type Scanner struct {
+	FilePrefix *string  `yaml:"file-prefix"`
+	Paths      []string `yaml:"paths"`
 }
 
-func plainScan(path, prefix string) []string {
-	files, err := ioutil.ReadDir(path)
+func (p *Props) getPrefix() string {
+	if p.FilePrefix == nil {
+		return ""
+	}
+	return *p.FilePrefix
+}
+
+func loadProp() *Props {
+	p := &Props{}
+	arr := readYml()
+	env := []byte(os.ExpandEnv(string(arr)))
+	err := yaml.Unmarshal(env, p)
 	if err != nil {
-		log.Fatalf("[ERROR] Cannot find machine directory/info: %s", path)
+		log.Fatalf("Error parsing statepro yml file '%s': %s", stateProYml, err)
 	}
-	var defs []string
-	for _, info := range files {
-		if !info.IsDir() && isDefPath(info.Name(), prefix) {
-			defs = append(defs, filepath.Join(path, info.Name()))
-		}
-	}
-	return defs
+	return p
 }
 
-func deepScan(path, prefix string) []string {
-	var defs []string
-	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			log.Fatalf("[ERROR] An error occurred while scanning '%s': %s", path, err)
-			return err
-		}
-		if !info.IsDir() && isDefPath(info.Name(), prefix) {
-			defs = append(defs, path)
-		}
-		return nil
-	})
+func readYml() []byte {
+	filename, err := filepath.Abs(stateProYml)
 	if err != nil {
-		log.Fatalf("[ERROR] An error occurred while scanning directory '%s': %s", path, err)
+		log.Fatalf("Error getting statepro yml file '%s'. %s", filename, err)
 	}
-	return defs
-}
 
-func isDirectory(path string) bool {
-	fileInfo, err := os.Stat(path)
+	b, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Fatalf("[ERROR] Cannot find machine directory/file: %s", path)
+		log.Fatalf("Error reading statepro yml file '%s'. %s", filename, err)
 	}
-	return fileInfo.IsDir()
-}
-
-func isDefPath(path, prefix string) bool {
-	fileName := filepath.Base(path)
-	return strings.HasPrefix(fileName, prefix) && strings.HasSuffix(fileName, jsonExt)
+	return b
 }

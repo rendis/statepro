@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func GetXMachine(file string) (*XMachine, error) {
+func getXMachine(file string) (*XMachine, error) {
 	xm := &XMachine{}
 
 	byteArr, err := ioutil.ReadFile(file)
@@ -23,7 +23,7 @@ func GetXMachine(file string) (*XMachine, error) {
 	return xm, nil
 }
 
-func ParseXMachineToGMachine[ContextType any](x *XMachine) (*piece.GMachine[ContextType], error) {
+func parseXMachineToGMachine[ContextType any](x *XMachine) (*piece.GMachine[ContextType], error) {
 	gMachine := &piece.GMachine[ContextType]{}
 	err := validateXMachine(x)
 	if err != nil {
@@ -153,7 +153,7 @@ func parseXInvoke[ContextType any](xis []XInvoke, pm *piece.GMachine[ContextType
 		}
 		gs.Src = &srcName
 
-		srv, err := GetSrv[ContextType](srcName)
+		srv, err := getSrv[ContextType](srcName)
 		if err != nil {
 			return nil, err
 		}
@@ -204,7 +204,7 @@ func parseXEvent[ContextType any](xts []XTransition, pm *piece.GMachine[ContextT
 
 		if xt.Condition != nil && len(*xt.Condition) > 0 {
 			condName := strings.ToLower(strings.TrimSpace(*xt.Condition))
-			predicate, err := GetPredicate[ContextType](condName)
+			predicate, err := getPredicate[ContextType](condName)
 			if err != nil {
 				return nil, err
 			}
@@ -229,7 +229,7 @@ func parseXActions[ContextType any](xActs []string, pm *piece.GMachine[ContextTy
 		gActs[i] = &gAct
 
 		// Get actions from Register Actions
-		f, err := GetAction[ContextType](xActName)
+		f, err := getAction[ContextType](xActName)
 		if err != nil {
 			return nil, err
 		}

@@ -2,6 +2,7 @@ package statepro
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/rendis/statepro/piece"
 	"log"
 	"reflect"
@@ -9,45 +10,53 @@ import (
 	"sync"
 )
 
-type logic struct {
+type definitionMethodInfo struct {
 	name string
 	pos  int
 	val  *reflect.Value
 }
 
-type logicRegistry map[reflect.Type]map[string]logic
+var loadPropOnce sync.Once // used to load prop only once
 
-var proMutex sync.Mutex
-var xchanWait sync.WaitGroup
-var xchans = make(map[machineKey]chan *XMachine)
-var xMachines = make(map[string]*XMachine)
-var proMachines = make(map[machineKey]any)
-var predicatesRegistry = make(logicRegistry)
-var actionsRegistry = make(logicRegistry)
-var srvRegistry = make(logicRegistry)
+type definitionMethodInfoRegistry map[reflect.Type]map[string]definitionMethodInfo
 
-type MachineDefinition[ContextType any] interface {
-	GetMachineId() string
-}
+var xMachines = make(map[string]*XMachine)                  // templateId -> *XMachine
+var xChannelsByTemplate = make(map[string][]chan *XMachine) // templateId -> []chan *XMachine, used to send XMachine to all channels that are waiting for it
+var xChannelsByTemplateWait sync.WaitGroup                  // used to wait for all channels on xChannelsByTemplate to be closed
 
-func AddMachine[ContextType any](d MachineDefinition[ContextType]) {
-	key := buildKey[ContextType](d)
-	if _, ok := xchans[key]; ok {
-		log.Fatalf("Machine definition id '%s' for type '%s' already exists.", d.GetMachineId(), key.typ)
+var proMachinesMutex sync.Mutex
+var proMachines = make(map[string]any) // machineId -> *piece.GMachine[ContextType]
+
+var predicatesRegistry = make(definitionMethodInfoRegistry)
+var actionsRegistry = make(definitionMethodInfoRegistry)
+var srvRegistry = make(definitionMethodInfoRegistry)
+
+type DefinitionTypeDef[T any] interface{}
+
+func AddMachine[DefinitionType DefinitionTypeDef[ContextType], ContextType any](templateId string) string {
+	var machineId = uuid.New().String() + ":" + templateId
+
+	// load machine implementation defined in DefinitionType and register it
+	loadMachineImplementation[DefinitionType, ContextType](machineId)
+
+	if _, ok := xChannelsByTemplate[templateId]; !ok {
+		xChannelsByTemplate[templateId] = make([]chan *XMachine, 0)
 	}
-	xchan := make(chan *XMachine, 1)
-	xchans[key] = xchan
-	xchanWait.Add(1)
-	loadImplementation[ContextType](d)
-	go asyncBuilder[ContextType](key, xchan)
+	ch := make(chan *XMachine, 1)
+	xChannelsByTemplate[templateId] = append(xChannelsByTemplate[templateId], ch)
+
+	xChannelsByTemplateWait.Add(1)
+	go asyncGMachineBuilder[ContextType](machineId, ch)
+
+	return machineId
 }
 
 func loadXMachines() {
-	p := LoadProp()
-	defPaths := GetDefinitionPaths(p.GetPrefix(), p.Scanner.Paths)
+	p := loadProp()
+	defPaths := getDefinitionPaths(p.getPrefix(), p.Scanner.Paths)
 
 	for _, path := range defPaths {
-		m, err := GetXMachine(path)
+		m, err := getXMachine(path)
 
 		if err != nil {
 			log.Fatalf("Error loading machine '%s': %s", path, err)
@@ -62,101 +71,98 @@ func loadXMachines() {
 }
 
 func notifyXMachines() {
-	for k, xchan := range xchans {
-		xm, ok := xMachines[k.id]
+	for templateId, xChannels := range xChannelsByTemplate {
+		xm, ok := xMachines[templateId]
 		if !ok {
-			log.Fatalf("Definition for machine '%s' does not exist.", k.id)
+			log.Fatalf("Definition for machine '%s' does not exist.", templateId)
 		}
-		xchan <- xm
-		close(xchan)
+
+		for _, ch := range xChannels {
+			ch <- xm
+			close(ch)
+		}
 	}
-	xchanWait.Wait()
+	xChannelsByTemplateWait.Wait()
 }
 
-func asyncBuilder[ContextType any](key machineKey, xchan <-chan *XMachine) {
-	defer xchanWait.Done()
-	xm := <-xchan
-	gm, err := ParseXMachineToGMachine[ContextType](xm)
+func asyncGMachineBuilder[ContextType any](machineId string, xChan <-chan *XMachine) {
+	defer xChannelsByTemplateWait.Done()
+	xm := <-xChan
+	gm, err := parseXMachineToGMachine[ContextType](xm)
 	if err != nil {
 		log.Fatalf("Error parsing machine '%s': %s", *xm.Id, err)
 	}
-	proMutex.Lock()
-	proMachines[key] = gm
-	proMutex.Unlock()
+	proMachinesMutex.Lock()
+	proMachines[machineId] = gm
+	proMachinesMutex.Unlock()
 }
 
-func buildKey[ContextType any](d MachineDefinition[ContextType]) machineKey {
-	id := d.GetMachineId()
-	ctxTyp := reflect.TypeOf(new(ContextType)).Elem()
-	return machineKey{id, ctxTyp}
-}
-
-func appendLogic(l logic, typ reflect.Type, reg logicRegistry) error {
+func appendMachineMethodInfo(methodInfo definitionMethodInfo, typ reflect.Type, reg definitionMethodInfoRegistry) error {
 	if _, ok := reg[typ]; !ok {
-		reg[typ] = make(map[string]logic)
+		reg[typ] = make(map[string]definitionMethodInfo)
 	}
 
-	if _, ok := reg[typ][l.name]; ok {
-		return fmt.Errorf("'%s' already registered for type '%s'", l.name, typ)
+	if _, ok := reg[typ][methodInfo.name]; ok {
+		return fmt.Errorf("'%s' already registered for type '%s'", methodInfo.name, typ)
 	}
 
-	reg[typ][l.name] = l
+	reg[typ][methodInfo.name] = methodInfo
 	return nil
 }
 
-func appendPredicate(l logic, typ reflect.Type) {
-	err := appendLogic(l, typ, predicatesRegistry)
+func appendPredicate(methodInfo definitionMethodInfo, typ reflect.Type) {
+	err := appendMachineMethodInfo(methodInfo, typ, predicatesRegistry)
 	if err != nil {
 		log.Fatalf("Error appending predicate: %s", err)
 	}
 }
 
-func appendAction(l logic, typ reflect.Type) {
-	err := appendLogic(l, typ, actionsRegistry)
+func appendAction(methodInfo definitionMethodInfo, typ reflect.Type) {
+	err := appendMachineMethodInfo(methodInfo, typ, actionsRegistry)
 	if err != nil {
 		log.Fatalf("Error appending action: %s", err)
 	}
 }
 
-func appendSrv(l logic, typ reflect.Type) {
-	err := appendLogic(l, typ, srvRegistry)
+func appendSrv(methodInfo definitionMethodInfo, typ reflect.Type) {
+	err := appendMachineMethodInfo(methodInfo, typ, srvRegistry)
 	if err != nil {
 		log.Fatalf("Error appending service: %s", err)
 	}
 }
 
-func loadImplementation[ContextType any](d MachineDefinition[ContextType]) {
-	id := d.GetMachineId()
-	log.Printf("Loading implementation for machine '%s'", id)
-	typ := reflect.TypeOf(d)
-	val := reflect.ValueOf(d)
+func loadMachineImplementation[DefinitionType any, ContextType any](machineId string) {
+	log.Printf("Loading implementation for machine id '%s'", machineId)
 
-	tParam := reflect.TypeOf((*ContextType)(nil)).Elem()
-	evtParam := reflect.TypeOf((*piece.Event)(nil)).Elem()
-	actToolParam := reflect.TypeOf((*piece.ActionTool[ContextType])(nil)).Elem()
+	definitionInstance := new(DefinitionType)
+	defTyp := reflect.TypeOf(definitionInstance)
+	defVal := reflect.ValueOf(definitionInstance)
 
-	for i := 0; i < typ.NumMethod(); i++ {
-		if m := typ.Method(i); m.Name != "GetMachineId" {
-			name := strings.ToLower(m.Name)
-			l := logic{name, i, &val}
-			switch {
+	ctxParamTyp := reflect.TypeOf((*ContextType)(nil)).Elem()
+	evtParamTyp := reflect.TypeOf((*piece.Event)(nil)).Elem()
+	actToolParamTyp := reflect.TypeOf((*piece.ActionTool[ContextType])(nil)).Elem()
 
-			// type TPredicate[ContextType any] func(ContextType, Event) (bool, error)
-			case isPredicate(m.Type, tParam, evtParam):
-				appendPredicate(l, tParam)
+	for i := 0; i < defTyp.NumMethod(); i++ {
+		method := defTyp.Method(i)
+		name := strings.ToLower(method.Name)
+		methodInfo := definitionMethodInfo{name, i, &defVal}
+		switch {
 
-			// type TAction[ContextType any] func(ContextType, Event, ActionTool[ContextType]) error
-			case isAction(m.Type, tParam, evtParam, actToolParam):
-				appendAction(l, tParam)
+		// type TPredicate[ContextType any] func(ContextType, Event) (bool, error)
+		case isPredicate(method.Type, ctxParamTyp, evtParamTyp):
+			appendPredicate(methodInfo, ctxParamTyp)
 
-			// type TInvocation[ContextType any] func(ContextType, Event) ServiceResponse
-			case isService(m.Type, tParam, evtParam):
-				appendSrv(l, tParam)
+		// type TAction[ContextType any] func(ContextType, Event, ActionTool[ContextType]) error
+		case isAction(method.Type, ctxParamTyp, evtParamTyp, actToolParamTyp):
+			appendAction(methodInfo, ctxParamTyp)
 
-			// default case is ignored
-			default:
-				log.Printf("Skipping method '%s' of type '%s' in machine '%s'\n", m.Name, m.Type, id)
-			}
+		// type TInvocation[ContextType any] func(ContextType, Event) ServiceResponse
+		case isService(method.Type, ctxParamTyp, evtParamTyp):
+			appendSrv(methodInfo, ctxParamTyp)
+
+		// default case is ignored
+		default:
+			log.Printf("Skipping method '%s' of type '%s' in machine '%s'\n", method.Name, method.Type, machineId)
 		}
 	}
 }
@@ -179,7 +185,7 @@ func isService(typ, tParam, evtParam reflect.Type) bool {
 	return in && out
 }
 
-func getBehavior[ContextType any](name, behavior string, reg logicRegistry) (any, error) {
+func getBehavior[ContextType any](name, behavior string, reg definitionMethodInfoRegistry) (any, error) {
 	typ := reflect.TypeOf((*ContextType)(nil)).Elem()
 	r, ok := reg[typ]
 	if !ok {
@@ -194,14 +200,14 @@ func getBehavior[ContextType any](name, behavior string, reg logicRegistry) (any
 	return b.val.Method(b.pos).Interface(), nil
 }
 
-func GetAction[ContextType any](name string) (any, error) {
+func getAction[ContextType any](name string) (any, error) {
 	return getBehavior[ContextType](name, "action", actionsRegistry)
 }
 
-func GetPredicate[ContextType any](name string) (any, error) {
+func getPredicate[ContextType any](name string) (any, error) {
 	return getBehavior[ContextType](name, "predicate", predicatesRegistry)
 }
 
-func GetSrv[ContextType any](name string) (any, error) {
+func getSrv[ContextType any](name string) (any, error) {
 	return getBehavior[ContextType](name, "service", srvRegistry)
 }

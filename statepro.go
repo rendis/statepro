@@ -3,38 +3,25 @@ package statepro
 import (
 	"fmt"
 	"github.com/rendis/statepro/piece"
-	"reflect"
+	"log"
 )
 
-type machineKey struct {
-	id  string
-	typ reflect.Type
-}
-
-// var xMachines = make(map[string]*xparse.XMachine)
-// var proMachines = make(map[machineKey]any)
-
-//func GetMachine[ContextType any](id string) (*piece.GMachine[ContextType], error) {
-//	if ptrPM, ok := proMachines[buildKey[ContextType](id)]; ok {
-//		if pm, ok := ptrPM.(*piece.GMachine[ContextType]); ok {
-//			return pm, nil
-//		}
-//	}
-//	return nil, fmt.Errorf("machine '%s' does not exist", id)
-//}
-
-func GetMachine[ContextType any](d MachineDefinition[ContextType]) (piece.ProMachine[ContextType], error) {
-	if ptrPM, ok := proMachines[buildKey(d)]; ok {
+func GetMachineById[ContextType any](machineId string) (piece.ProMachine[ContextType], error) {
+	if ptrPM, ok := proMachines[machineId]; ok {
 		if pm, ok := ptrPM.(*piece.GMachine[ContextType]); ok {
 			return pm, nil
 		}
 	}
-	return nil, fmt.Errorf("machine '%s' does not exist for type '%s'", d.GetMachineId(), reflect.TypeOf(d))
+	return nil, fmt.Errorf("machine '%s' does not exist", machineId)
 }
 
 func InitMachines() {
-	loadXMachines()
-	notifyXMachines()
+	loadPropOnce.Do(func() {
+		log.Print("Loading statepro properties")
+		loadXMachines()
+		notifyXMachines()
+		log.Print("Statepro properties loaded")
+	})
 }
 
 /*
@@ -44,7 +31,7 @@ func BuildProMachine[ContextType any](id string) {
 		if err != nil {
 			log.Fatalf("Error parsing machine '%s': %s", id, err)
 		}
-		proMachines[buildKey[ContextType](id)] = gm
+		proMachines[buildKeyFromDefinition[ContextType](id)] = gm
 		return
 	}
 	log.Fatalf("GMachine definition id '%s' does not exist.", id)
@@ -85,7 +72,7 @@ func LoadXMachines() {
 	}
 }
 
-func GetMachine[ContextType any](id string) *piece.GMachine[ContextType] {
+func GetMachineFromDefinition[ContextType any](id string) *piece.GMachine[ContextType] {
 	if m, ok := machineRegistry[id]; ok {
 		return m.(*piece.GMachine[ContextType])
 	}
