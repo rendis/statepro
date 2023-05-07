@@ -12,19 +12,21 @@ type XMachine struct {
 }
 
 type XState struct {
-	Always any             `json:"always"` // any = XTransition | []XTransition
-	On     *map[string]any `json:"on"`     // any = XTransition | []XTransition
-	After  *map[int]any    `json:"after"`  // any = XTransition | []XTransition
-	Type   *string         `json:"type"`
-	Invoke any             `json:"invoke"` // any = XInvoke | []XInvoke
-	Entry  any             `json:"entry"`  // any = XActionName | []XActionName
-	Exit   any             `json:"exit"`   // any = XActionName | []XActionName
+	Always      any             `json:"always"` // any = XTransition | []XTransition
+	On          *map[string]any `json:"on"`     // any = XTransition | []XTransition
+	After       *map[int]any    `json:"after"`  // any = XTransition | []XTransition
+	Type        *string         `json:"type"`
+	Invoke      any             `json:"invoke"` // any = XInvoke | []XInvoke
+	Entry       any             `json:"entry"`  // any = XActionName | []XActionName
+	Exit        any             `json:"exit"`   // any = XActionName | []XActionName
+	Description *string         `json:"description"`
 }
 
 type XTransition struct {
-	Condition *string `json:"cond"`
-	Target    *string `json:"target"`
-	Actions   any     `json:"actions"` // any = XActionName | []XActionName  (X)
+	Condition   *string `json:"cond"`
+	Target      *string `json:"target"`
+	Actions     any     `json:"actions"` // any = XActionName | []XActionName  (X)
+	Description *string `json:"description"`
 }
 
 type XInvoke struct {

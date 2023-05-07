@@ -3,7 +3,7 @@ package statepro
 import (
 	"encoding/json"
 	"fmt"
-	piece2 "github.com/rendis/statepro/piece"
+	"github.com/rendis/statepro/piece"
 	"io/ioutil"
 	"strings"
 )
@@ -23,69 +23,69 @@ func GetXMachine(file string) (*XMachine, error) {
 	return xm, nil
 }
 
-func ParseXMachineToGMachine[T any](x *XMachine) (*piece2.GMachine[T], error) {
-	gmachine := &piece2.GMachine[T]{}
+func ParseXMachineToGMachine[T any](x *XMachine) (*piece.GMachine[T], error) {
+	gMachine := &piece.GMachine[T]{}
 	err := validateXMachine(x)
 	if err != nil {
 		return nil, err
 	}
 
-	gmachine.Id = *x.Id
-	gmachine.Context = nil
+	gMachine.Id = *x.Id
+	gMachine.Context = nil
 
 	if x.States != nil {
-		gmachine.States = make(map[string]*piece2.GState[T], len(*x.States))
+		gMachine.States = make(map[string]*piece.GState[T], len(*x.States))
 		for xname, xstate := range *x.States {
-			gstate, err := parseXState[T](xname, xstate, gmachine)
+			gstate, err := parseXState[T](xname, xstate, gMachine)
 			if err != nil {
 				return nil, err
 			}
-			gmachine.States[xname] = gstate
+			gMachine.States[xname] = gstate
 		}
 
-		if _, ok := gmachine.States[*x.Initial]; !ok {
+		if _, ok := gMachine.States[*x.Initial]; !ok {
 			return nil, fmt.Errorf("initial state '%s' does not exist", *x.Initial)
 		}
-		gmachine.EntryState = gmachine.States[*x.Initial]
-		gmachine.CurrentState = gmachine.EntryState
+		gMachine.EntryState = gMachine.States[*x.Initial]
+		gMachine.CurrentState = gMachine.EntryState
 	}
 
-	return gmachine, nil
+	return gMachine, nil
 }
 
-func parseXState[T any](xStateName string, xs XState, pm *piece2.GMachine[T]) (*piece2.GState[T], error) {
-	gs := piece2.GState[T]{}
+func parseXState[T any](xStateName string, xs XState, pm *piece.GMachine[T]) (*piece.GState[T], error) {
+	gs := piece.GState[T]{}
 	gs.Name = &xStateName
 
 	// Always
-	xalways, err := xs.GetAlways()
+	xAlways, err := xs.GetAlways()
 	if err != nil {
 		return nil, err
 	}
-	talways, err := parseXEvent[T](xalways, pm)
+	tAlways, err := parseXEvent[T](xAlways, pm)
 	if err != nil {
 		return nil, err
 	}
-	gs.Always = talways
+	gs.Always = tAlways
 
 	// Entry
-	xentry, err := xs.GetEntryActions()
+	xEntry, err := xs.GetEntryActions()
 	if err != nil {
 		return nil, err
 	}
 
-	gs.Entry, err = parseXActions[T](xentry, pm)
+	gs.Entry, err = parseXActions[T](xEntry, pm)
 	if err != nil {
 		return nil, err
 	}
 
 	// Exit
-	xexit, err := xs.GetExitActions()
+	xExit, err := xs.GetExitActions()
 	if err != nil {
 		return nil, err
 	}
 
-	gs.Exit, err = parseXActions[T](xexit, pm)
+	gs.Exit, err = parseXActions[T](xExit, pm)
 	if err != nil {
 		return nil, err
 	}
@@ -96,13 +96,13 @@ func parseXState[T any](xStateName string, xs XState, pm *piece2.GMachine[T]) (*
 		return nil, err
 	}
 	if len(xon) > 0 {
-		gs.On = make(map[string]*piece2.GTransition[T], len(xon))
+		gs.On = make(map[string]*piece.GTransition[T], len(xon))
 		for evtName, xts := range xon {
 			gts, err := parseXEvent[T](xts, pm)
 			if err != nil {
 				return nil, err
 			}
-			xEvtName := string(evtName)
+			xEvtName := evtName
 			gs.On[xEvtName] = gts
 		}
 	}
@@ -120,18 +120,18 @@ func parseXState[T any](xStateName string, xs XState, pm *piece2.GMachine[T]) (*
 
 	// Type of state
 	if xs.Type == nil {
-		gs.StateType = piece2.StateTypeNormal
+		gs.StateType = piece.StateTypeNormal
 	}
 	if xs.Type != nil {
 		switch *xs.Type {
 		case "initial":
-			gs.StateType = piece2.StateTypeInitial
+			gs.StateType = piece.StateTypeInitial
 		case "final":
-			gs.StateType = piece2.StateTypeFinal
+			gs.StateType = piece.StateTypeFinal
 		case "history":
-			gs.StateType = piece2.StateTypeHistory
+			gs.StateType = piece.StateTypeHistory
 		case "shared":
-			gs.StateType = piece2.StateTypeShared
+			gs.StateType = piece.StateTypeShared
 		default:
 			return nil, fmt.Errorf("unknown state type: %s", *xs.Type)
 		}
@@ -140,10 +140,10 @@ func parseXState[T any](xStateName string, xs XState, pm *piece2.GMachine[T]) (*
 	return &gs, nil
 }
 
-func parseXInvoke[T any](xis []XInvoke, pm *piece2.GMachine[T]) ([]*piece2.GService[T], error) {
-	var gss = make([]*piece2.GService[T], len(xis))
+func parseXInvoke[T any](xis []XInvoke, pm *piece.GMachine[T]) ([]*piece.GService[T], error) {
+	var gss = make([]*piece.GService[T], len(xis))
 	for i, xi := range xis {
-		gs := &piece2.GService[T]{}
+		gs := &piece.GService[T]{}
 		srcName := strings.ToLower(strings.TrimSpace(*xi.Src))
 
 		if xi.Id != nil {
@@ -158,7 +158,7 @@ func parseXInvoke[T any](xis []XInvoke, pm *piece2.GMachine[T]) ([]*piece2.GServ
 			return nil, err
 		}
 
-		gs.Inv, err = piece2.CastToSrv[T](srv)
+		gs.Inv, err = piece.CastToSrv[T](srv)
 		if err != nil {
 			return nil, err
 		}
@@ -186,18 +186,18 @@ func parseXInvoke[T any](xis []XInvoke, pm *piece2.GMachine[T]) ([]*piece2.GServ
 	return gss, nil
 }
 
-func parseXEvent[T any](xts []XTransition, pm *piece2.GMachine[T]) (*piece2.GTransition[T], error) {
-	gt := piece2.GTransition[T]{}
-	gt.Guards = make([]*piece2.GGuard[T], len(xts))
+func parseXEvent[T any](xts []XTransition, pm *piece.GMachine[T]) (*piece.GTransition[T], error) {
+	gt := piece.GTransition[T]{}
+	gt.Guards = make([]*piece.GGuard[T], len(xts))
 	for i, xt := range xts {
-		gg := piece2.GGuard[T]{}
+		gg := piece.GGuard[T]{}
 		gg.Condition = xt.Condition
 		gg.Target = xt.Target
-		xacts, err := xt.GetActions()
+		xActs, err := xt.GetActions()
 		if err != nil {
 			return nil, err
 		}
-		gg.Actions, err = parseXActions[T](xacts, pm)
+		gg.Actions, err = parseXActions[T](xActs, pm)
 		if err != nil {
 			return nil, err
 		}
@@ -209,7 +209,7 @@ func parseXEvent[T any](xts []XTransition, pm *piece2.GMachine[T]) (*piece2.GTra
 				return nil, err
 			}
 
-			gg.Predicate, err = piece2.CastPredicate[T](predicate)
+			gg.Predicate, err = piece.CastPredicate[T](predicate)
 			if err != nil {
 				return nil, fmt.Errorf("failed to cast predicate '%s': %s", *xt.Condition, err)
 			}
@@ -220,29 +220,29 @@ func parseXEvent[T any](xts []XTransition, pm *piece2.GMachine[T]) (*piece2.GTra
 	return &gt, nil
 }
 
-func parseXActions[T any](xacts []string, pm *piece2.GMachine[T]) ([]*piece2.GAction[T], error) {
-	var gacts = make([]*piece2.GAction[T], len(xacts))
-	for i, xact := range xacts {
-		xactName := strings.ToLower(strings.TrimSpace(xact))
-		gact := piece2.GAction[T]{}
-		gact.Name = xactName
-		gacts[i] = &gact
+func parseXActions[T any](xacts []string, pm *piece.GMachine[T]) ([]*piece.GAction[T], error) {
+	var gActs = make([]*piece.GAction[T], len(xacts))
+	for i, xAct := range xacts {
+		xActName := strings.ToLower(strings.TrimSpace(xAct))
+		gAct := piece.GAction[T]{}
+		gAct.Name = xActName
+		gActs[i] = &gAct
 
 		// Get actions from Register Actions
-		f, err := GetAction[T](xactName)
+		f, err := GetAction[T](xActName)
 		if err != nil {
 			return nil, err
 		}
 
 		// Cast to piece.GAction
-		gact.Act, err = piece2.CastToAct[T](f)
+		gAct.Act, err = piece.CastToAct[T](f)
 		if err != nil {
-			return nil, fmt.Errorf("failed to cast action '%s': %s", xact, err)
+			return nil, fmt.Errorf("failed to cast action '%s': %s", xAct, err)
 		}
 
-		gact.Tool = pm
+		gAct.Tool = pm
 	}
-	return gacts, nil
+	return gActs, nil
 }
 
 func validateXMachine(x *XMachine) error {

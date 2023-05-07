@@ -26,11 +26,11 @@ var predicatesRegistry = make(logicRegistry)
 var actionsRegistry = make(logicRegistry)
 var srvRegistry = make(logicRegistry)
 
-type MachineDefinitions[T any] interface {
+type MachineDefinition[T any] interface {
 	GetMachineId() string
 }
 
-func AddMachine[T any](d MachineDefinitions[T]) {
+func AddMachine[T any](d MachineDefinition[T]) {
 	key := buildKey[T](d.GetMachineId())
 	xid := d.GetMachineId()
 	if _, ok := xchans[key]; ok {
@@ -124,7 +124,7 @@ func appendSrv(l logic, typ reflect.Type) {
 	}
 }
 
-func loadImplementation[T any](d MachineDefinitions[T]) {
+func loadImplementation[T any](d MachineDefinition[T]) {
 	id := d.GetMachineId()
 	log.Printf("Loading implementation for machine '%s'", id)
 	typ := reflect.TypeOf(d)
