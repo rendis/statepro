@@ -142,13 +142,13 @@ func (pm *proMachineImpl[ContextType]) GetContext() ContextType {
 	return *pm.context
 }
 
-func (pm *proMachineImpl[ContextType]) setCurrenEvent(event Event) {
+func (pm *proMachineImpl[ContextType]) setCurrenEvent(event Event, eventChanged bool) {
 	pm.evtMtx.Lock()
 	defer pm.evtMtx.Unlock()
 	evtCasted, _ := event.(*GEvent)
 	evtCasted.from = *pm.currentState.Name
 	pm.currentEvent = evtCasted
-	pm.eventChanged = true
+	pm.eventChanged = eventChanged
 }
 
 func (pm *proMachineImpl[ContextType]) getCurrentEvent() (*GEvent, bool) {
@@ -161,8 +161,9 @@ func (pm *proMachineImpl[ContextType]) getCurrentEvent() (*GEvent, bool) {
 }
 
 type ActionTool[ContextType any] interface {
-	Assign(context ContextType)
-	Send(event Event)
+	Assign(context ContextType) // assign context to machine
+	Send(event Event)           // send event to current state
+	Propagate(event Event)      // propagate event with new data and error
 }
 
 func (pm *proMachineImpl[ContextType]) Assign(context ContextType) {
@@ -172,11 +173,15 @@ func (pm *proMachineImpl[ContextType]) Assign(context ContextType) {
 }
 
 func (pm *proMachineImpl[ContextType]) Send(event Event) {
-	pm.setCurrenEvent(event)
+	pm.setCurrenEvent(event, true)
+}
+
+func (pm *proMachineImpl[ContextType]) Propagate(event Event) {
+	pm.setCurrenEvent(event, false)
 }
 
 type TransitionResponse interface {
-	LastEvent() Event
+	GetLastEvent() Event
 	Error() error
 }
 
@@ -186,7 +191,7 @@ type transitionResponse struct {
 	lastEvent Event
 }
 
-func (t *transitionResponse) LastEvent() Event {
+func (t *transitionResponse) GetLastEvent() Event {
 	return t.lastEvent
 }
 
