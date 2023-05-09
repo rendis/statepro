@@ -61,6 +61,7 @@ type Event interface {
 	GetDataAsMap() (map[string]any, error)
 	GetErr() error
 	GetEvtType() EventType
+	ToBuilder() EventBuilder
 }
 
 type GEvent struct {
@@ -102,4 +103,12 @@ func (e *GEvent) GetErr() error {
 
 func (e *GEvent) GetEvtType() EventType {
 	return e.evtType
+}
+
+func (e *GEvent) ToBuilder() EventBuilder {
+	return &GEventBuilder{
+		name: e.name,
+		data: e.data,
+		err:  e.err,
+	}
 }
