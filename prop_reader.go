@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 )
 
-const stateProYml = "statepro.yml"
+const defaultStateProYml = "statepro.yml"
 
 type Props struct {
 	*Scanner `yaml:"scanner"`
@@ -32,13 +32,13 @@ func loadProp() *Props {
 	env := []byte(os.ExpandEnv(string(arr)))
 	err := yaml.Unmarshal(env, p)
 	if err != nil {
-		log.Fatalf("Error parsing statepro yml file '%s': %s", stateProYml, err)
+		log.Fatalf("Error parsing statepro yml file '%s': %s", defaultStateProYml, err)
 	}
 	return p
 }
 
 func readYml() []byte {
-	filename, err := filepath.Abs(stateProYml)
+	filename, err := filepath.Abs(defaultStateProYml)
 	if err != nil {
 		log.Fatalf("Error getting statepro yml file '%s'. %s", filename, err)
 	}
