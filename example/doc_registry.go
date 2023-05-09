@@ -21,8 +21,16 @@ func (DogMachineDefinitions[T]) NotifySleeping(_ Dog, _ piece.Event, _ piece.Act
 }
 
 // 01 - Basic example
-func (DogMachineDefinitions[T]) IncreaseEnergy(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
+//func (DogMachineDefinitions[T]) IncreaseEnergy(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
+//	fmt.Println("- (A) Dog is increasing energy")
+//	return nil
+//}
+
+// 02 - Read example
+func (DogMachineDefinitions[T]) IncreaseEnergy(dog Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is increasing energy")
+	fmt.Println("      · Dog name: ", dog.Name)
+	fmt.Println("      · Dog energy level: ", dog.EnergyLevel)
 	return nil
 }
 
@@ -32,8 +40,19 @@ func (DogMachineDefinitions[T]) NotifyMovement(_ Dog, _ piece.Event, _ piece.Act
 }
 
 // 01 - Basic example
-func (DogMachineDefinitions[T]) StartEating(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
+//func (DogMachineDefinitions[T]) StartEating(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
+//	fmt.Println("- (A) Dog is eating")
+//	return nil
+//}
+
+// 02 - Read example
+func (DogMachineDefinitions[T]) StartEating(dog Dog, evt piece.Event, _ piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is eating")
+	fmt.Println("      · Dog name: ", dog.Name)
+	fmt.Println("      · Dog energy level: ", dog.EnergyLevel)
+	fmt.Println("      · Event name: ", evt.GetName())
+	fmt.Println("      · Event from: ", evt.GetFrom())
+	fmt.Println("      · Event type: ", evt.GetEvtType())
 	return nil
 }
 
