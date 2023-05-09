@@ -1,172 +1,201 @@
 package piece
 
-import "log"
-
-/*
-type MachineBuilder[ContextType any] interface {
-	WithContext(context ContextType) MachineBuilder[ContextType]
-	WithState(stateName string) MachineBuilder[ContextType]
-	Build() *GMachine[ContextType]
-}
-
-type MachineBuilderImpl[ContextType any] struct {
-	machine *GMachine[ContextType]
-}
-
-func (b *MachineBuilderImpl[ContextType]) WithContext(context ContextType) MachineBuilder[ContextType] {
-	b.machine.Context = &context
-	return b
-}
-
-func (b *MachineBuilderImpl[ContextType]) WithState(stateName string) MachineBuilder[ContextType] {
-	if s, ok := b.machine.States[stateName]; ok {
-		b.machine.CurrentState = s
-		return b
-	}
-	panic(fmt.Sprintf("GState '%s' not found", stateName))
-}
-
-func (b *MachineBuilderImpl[ContextType]) Build() *GMachine[ContextType] {
-	return b.machine
-}
-*/
-
-//------------------------------------------------------------------------------
+import (
+	"sync"
+)
 
 type GMachine[ContextType any] struct {
-	Id           string
-	Context      *ContextType
-	EntryState   *GState[ContextType]
-	CurrentState *GState[ContextType]
-	States       map[string]*GState[ContextType]
+	Id         string
+	EntryState *GState[ContextType]
+	States     map[string]*GState[ContextType]
+}
+
+type ProMachine[ContextType any] interface {
+	PlaceOn(stateName string) error
+	SendEvent(event Event) TransitionResponse
+	GetNextEvents() []string
+	GetState() string
+	IsFinalState() bool
+	GetContext() ContextType
+}
+
+func NewProMachine[ContextType any](machine *GMachine[ContextType], context *ContextType) ProMachine[ContextType] {
+	return &proMachineImpl[ContextType]{
+		context:      context,
+		gMachine:     machine,
+		currentState: machine.EntryState,
+	}
+}
+
+type proMachineImpl[ContextType any] struct {
+	pmMtx      sync.Mutex
+	gMachine   *GMachine[ContextType]
+	processing bool
+
+	ctxMtx  sync.RWMutex
+	context *ContextType
+
+	evtMtx       sync.Mutex
+	currentEvent *GEvent
+	eventChanged bool
+
+	currentState *GState[ContextType]
+	prevState    *GState[ContextType]
+}
+
+func (pm *proMachineImpl[ContextType]) PlaceOn(stateName string) error {
+	pm.pmMtx.Lock()
+	defer pm.pmMtx.Unlock()
+
+	if s, ok := pm.gMachine.States[stateName]; ok {
+		pm.currentState = s
+		return nil
+	}
+	return &EventNotFountError{EventName: stateName}
+}
+
+func (pm *proMachineImpl[ContextType]) SendEvent(event Event) TransitionResponse {
+	pm.pmMtx.Lock()
+	defer func() {
+		pm.processing = false
+		pm.pmMtx.Unlock()
+	}()
+	pm.processing = true
+
+	// set event from value
+	var evtFilled = event.(*GEvent)
+	evtFilled.from = *pm.currentState.Name
+	pm.currentEvent = evtFilled
+
+	// running first onEvent
+	target, err := pm.currentState.onEvent(*pm.context, evtFilled, pm)
+	if err != nil {
+		ce, _ := pm.getCurrentEvent()
+		return &transitionResponse{lastEvent: ce, err: err}
+	}
+
+	// get current event to check if an action in onEvent has been changed the event
+	evtFilled, doOnEvent := pm.getCurrentEvent()
+
+	// while target != nil
+	for target != nil && *target != *pm.currentState.Name {
+
+		// if doOnEvent == true => an action has been changed the event
+		if doOnEvent {
+			target, err = pm.currentState.onEvent(*pm.context, evtFilled, pm)
+			if err != nil {
+				ce, _ := pm.getCurrentEvent()
+				return &transitionResponse{lastEvent: ce, err: err}
+			}
+
+			// get current event to check if an action in onEvent has been changed the event
+			evtFilled, doOnEvent = pm.getCurrentEvent()
+			continue
+		}
+
+		// update previous and current state
+		pm.prevState = pm.currentState
+		pm.currentState = pm.gMachine.States[*target]
+
+		evtFilled, doOnEvent = pm.getCurrentEvent()
+		// if doOnEvent == true => an action in onEvent has been changed the event
+		if doOnEvent {
+			continue
+		}
+		if err = pm.prevState.execExit(*pm.context, evtFilled, pm); err != nil {
+			return &transitionResponse{lastEvent: evtFilled, err: err}
+		}
+
+		evtFilled, doOnEvent = pm.getCurrentEvent()
+		if doOnEvent {
+			continue
+		}
+		target, _, err = pm.currentState.onEntry(*pm.context, evtFilled, pm)
+
+		if err != nil {
+			ce, _ := pm.getCurrentEvent()
+			return &transitionResponse{lastEvent: ce, err: err}
+		}
+	}
+
+	ce, _ := pm.getCurrentEvent()
+	return &transitionResponse{
+		lastEvent: ce,
+	}
+}
+
+func (pm *proMachineImpl[ContextType]) GetNextEvents() []string {
+	return pm.currentState.getNextEvents()
+}
+
+func (pm *proMachineImpl[ContextType]) GetState() string {
+	return *pm.currentState.Name
+}
+
+func (pm *proMachineImpl[ContextType]) IsFinalState() bool {
+	return pm.currentState.isFinalState()
+}
+
+func (pm *proMachineImpl[ContextType]) GetContext() ContextType {
+	pm.ctxMtx.RLock()
+	defer pm.ctxMtx.RUnlock()
+	return *pm.context
+}
+
+func (pm *proMachineImpl[ContextType]) setCurrenEvent(event Event) {
+	pm.evtMtx.Lock()
+	defer pm.evtMtx.Unlock()
+	evtCasted, _ := event.(*GEvent)
+	pm.currentEvent = evtCasted
+	pm.eventChanged = true
+}
+
+func (pm *proMachineImpl[ContextType]) getCurrentEvent() (*GEvent, bool) {
+	pm.evtMtx.Lock()
+	defer func() {
+		pm.eventChanged = false
+		pm.evtMtx.Unlock()
+	}()
+	return pm.currentEvent, pm.eventChanged
+}
+
+func (pm *proMachineImpl[ContextType]) setCurrentState(state *GState[ContextType]) {
+	pm.pmMtx.Lock()
+	defer pm.pmMtx.Unlock()
+	pm.prevState = pm.currentState
+	pm.currentState = state
 }
 
 type ActionTool[ContextType any] interface {
 	Assign(context ContextType)
 	Send(event Event)
-	Raise(event Event)
 }
 
-func (m *GMachine[ContextType]) Assign(context ContextType) {
-	// m.Context = &context
-	log.Println("Assign")
+func (pm *proMachineImpl[ContextType]) Assign(context ContextType) {
+	pm.ctxMtx.Lock()
+	defer pm.ctxMtx.Unlock()
+	pm.context = &context
 }
 
-func (m *GMachine[ContextType]) Send(event Event) {
-	log.Println("Send")
-	// TODO: Prevent multiple sends
-	/*
-		if m.CurrentState == nil {
-			panic("GMachine is not initialized")
-		}
-		evt := &GEvent{
-			name:    eventName,
-			evtType: EventTypeTransitional,
-		}
-		m.CurrentState.onEvent(m.Context, evt, m)
-	*/
+func (pm *proMachineImpl[ContextType]) Send(event Event) {
+	pm.setCurrenEvent(event)
 }
 
-func (m *GMachine[ContextType]) Raise(event Event) {
-	log.Println("Raise")
+type TransitionResponse interface {
+	LastEvent() Event
+	Error() error
 }
 
-func (m *GMachine[ContextType]) SendEvent(event Event) TransitionResponse[ContextType] {
-	return nil
+type transitionResponse struct {
+	respCh    chan Event
+	err       error
+	lastEvent Event
 }
 
-func (m *GMachine[ContextType]) PlaceOn(state ProState, context ContextType) ProMachine[ContextType] {
-	return m
+func (t *transitionResponse) LastEvent() Event {
+	return t.lastEvent
 }
 
-type ProState interface {
-	GetState() string
+func (t *transitionResponse) Error() error {
+	return t.err
 }
-
-type TransitionResponse[ContextType any] interface {
-	GetContext() ContextType
-	GetState() ProState
-	GetEvent() Event
-}
-
-type ProMachine[ContextType any] interface {
-	SendEvent(event Event) TransitionResponse[ContextType]
-	PlaceOn(state ProState, context ContextType) ProMachine[ContextType]
-}
-
-type transitionResp[ContextType any] struct {
-	respCh  chan Event
-	context *ContextType
-}
-
-func (t *transitionResp[ContextType]) GetContext() ContextType {
-	select {
-	case resp, ok := <-t.respCh:
-		if ok {
-			close(t.respCh)
-			t.processResponse(resp)
-		}
-	}
-	return *t.context
-}
-
-func (t *transitionResp[ContextType]) processResponse(evt Event) {
-
-}
-
-/*
-type GSupplier[ContextType any] interface {
-	getAction(n string) (TAction[ContextType], ActionTool[ContextType])
-	getGuard(n string) TPredicate[ContextType]
-	getService(n string) TInvocation[ContextType]
-}
-
-func (m *GMachine[ContextType]) getAction(n string) (TAction[ContextType], ActionTool[ContextType]) {
-	return nil, nil
-}
-
-func (m *GMachine[ContextType]) getGuard(n string) TPredicate[ContextType] {
-	return nil
-}
-
-func (m *GMachine[ContextType]) getService(n string) TInvocation[ContextType] {
-	return nil
-}
-*/
-
-//type Assigner[ContextType any] func(context ContextType)
-//type Send func(eventName string)
-
-//func (m *GMachine[ContextType]) WithContext(c ContextType) statepro.MachineBuilder[ContextType] {
-//	m.Context = &c
-//	return m
-//}
-//
-//func (m *GMachine[ContextType]) WithState(stateName string) statepro.MachineBuilder[ContextType] {
-//	if s, ok := m.States[stateName]; ok {
-//		m.CurrentState = s
-//		return m
-//	}
-//	panic(fmt.Sprintf("GState '%s' not found", stateName))
-//}
-//
-//func (m *GMachine[ContextType]) Start() statepro.StatePro[ContextType] {
-//	return nil
-//}
-
-//type ActionTool[ContextType any] struct {
-//	Assign Assigner[ContextType]
-//	Send   Send
-//}
-
-/*
-func (m *GMachine[ContextType]) StartOn(target string, c ContextType) {
-	if s, ok := m.States[target]; ok {
-		m.Context = &c
-		m.CurrentState = s
-		m.CurrentState.onEntry(*m.Context, Event{Data: nil, Err: nil, EvtType: EventTypeTransitional})
-		return
-	}
-	fmt.Printf("Error: GState '%s' does not exist\n", target)
-}
-*/

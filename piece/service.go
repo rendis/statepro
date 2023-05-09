@@ -23,7 +23,7 @@ type GService[ContextType any] struct {
 	OnError *GTransition[ContextType]
 }
 
-func (s *GService[ContextType]) invoke(c ContextType, e Event, respCh chan<- *InvocationResponse) {
+func (s *GService[ContextType]) invoke(c ContextType, e Event, at ActionTool[ContextType], respCh chan<- *InvocationResponse) {
 	evt := &GEvent{
 		name:    "OnDone",
 		err:     nil,
@@ -37,10 +37,10 @@ func (s *GService[ContextType]) invoke(c ContextType, e Event, respCh chan<- *In
 		evt.name = "OnError"
 		evt.err = r.Err
 		evt.evtType = EventTypeOnError
-		target, err = s.error(c, evt)
+		target, err = s.error(c, evt, at)
 	} else {
 		evt.data = r.Response
-		target, err = s.done(c, evt)
+		target, err = s.done(c, evt, at)
 	}
 
 	// TODO: Kill the service if respCh was closed
@@ -50,16 +50,16 @@ func (s *GService[ContextType]) invoke(c ContextType, e Event, respCh chan<- *In
 	}
 }
 
-func (s *GService[ContextType]) done(c ContextType, e Event) (*string, error) {
+func (s *GService[ContextType]) done(c ContextType, e Event, at ActionTool[ContextType]) (*string, error) {
 	if s.OnDone != nil {
-		return s.OnDone.resolve(c, e)
+		return s.OnDone.resolve(c, e, at)
 	}
 	return nil, nil
 }
 
-func (s *GService[ContextType]) error(c ContextType, e Event) (*string, error) {
+func (s *GService[ContextType]) error(c ContextType, e Event, at ActionTool[ContextType]) (*string, error) {
 	if s.OnError != nil {
-		return s.OnError.resolve(c, e)
+		return s.OnError.resolve(c, e, at)
 	}
 	return nil, nil
 }

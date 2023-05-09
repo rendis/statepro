@@ -11,12 +11,14 @@ import (
 )
 
 type definitionMethodInfo struct {
-	name string
-	pos  int
-	val  *reflect.Value
+	fixedName    string
+	originalName string
+	pos          int
+	val          *reflect.Value
 }
 
 var loadPropOnce sync.Once // used to load prop only once
+var isPropLoaded = false   // used to load prop only once
 
 type definitionMethodInfoRegistry map[reflect.Type]map[string]definitionMethodInfo
 
@@ -31,13 +33,29 @@ var predicatesRegistry = make(definitionMethodInfoRegistry)
 var actionsRegistry = make(definitionMethodInfoRegistry)
 var srvRegistry = make(definitionMethodInfoRegistry)
 
-type DefinitionTypeDef[T any] interface{}
+type MachineRegistryDefinitions[ContextType any] interface {
+	GetMachineTemplateId() string
+}
 
-func AddMachine[DefinitionType DefinitionTypeDef[ContextType], ContextType any](templateId string) string {
+func AddMachine[ContextType any](machineRegistry MachineRegistryDefinitions[ContextType]) string {
+
+	// only allow adding machines before statepro properties have been loaded
+	proMachinesMutex.Lock()
+	if isPropLoaded {
+		log.Fatalf("Cannot add machine '%s' after statepro properties have been loaded", machineRegistry.GetMachineTemplateId())
+	}
+	proMachinesMutex.Unlock()
+
+	// validate machine registry definition
+	if err := validateMachineRegistryDefinition[ContextType](machineRegistry); err != nil {
+		log.Fatalf("Error validating machine registry definition: %s", err)
+	}
+
+	templateId := machineRegistry.GetMachineTemplateId()
 	var machineId = uuid.New().String() + ":" + templateId
 
 	// load machine implementation defined in DefinitionType and register it
-	loadMachineImplementation[DefinitionType, ContextType](machineId)
+	loadMachineImplementation[ContextType](machineRegistry)
 
 	if _, ok := xChannelsByTemplate[templateId]; !ok {
 		xChannelsByTemplate[templateId] = make([]chan *XMachine, 0)
@@ -49,6 +67,31 @@ func AddMachine[DefinitionType DefinitionTypeDef[ContextType], ContextType any](
 	go asyncGMachineBuilder[ContextType](machineId, ch)
 
 	return machineId
+}
+
+func validateMachineRegistryDefinition[ContextType any](machineRegistry MachineRegistryDefinitions[ContextType]) error {
+	// non null
+	if machineRegistry == nil {
+		return fmt.Errorf("machine registry definition cannot be null")
+	}
+
+	// templateId not empty
+	templateId := machineRegistry.GetMachineTemplateId()
+	if strings.TrimSpace(templateId) == "" {
+		return fmt.Errorf("machine registry definition cannot have an empty template id")
+	}
+
+	// must be a pointer
+	if reflect.TypeOf(machineRegistry).Kind() != reflect.Ptr {
+		return fmt.Errorf("machine registry definition with id '%s' must be a pointer", templateId)
+	}
+
+	// must be a pointer to a struct
+	if reflect.TypeOf(machineRegistry).Elem().Kind() != reflect.Struct {
+		return fmt.Errorf("machine registry definition with id '%s' must be a pointer to a struct", templateId)
+	}
+
+	return nil
 }
 
 func loadXMachines() {
@@ -102,11 +145,11 @@ func appendMachineMethodInfo(methodInfo definitionMethodInfo, typ reflect.Type, 
 		reg[typ] = make(map[string]definitionMethodInfo)
 	}
 
-	if _, ok := reg[typ][methodInfo.name]; ok {
-		return fmt.Errorf("'%s' already registered for type '%s'", methodInfo.name, typ)
+	if _, ok := reg[typ][methodInfo.fixedName]; ok {
+		return fmt.Errorf("'%s' already registered for type '%s'", methodInfo.fixedName, typ)
 	}
 
-	reg[typ][methodInfo.name] = methodInfo
+	reg[typ][methodInfo.fixedName] = methodInfo
 	return nil
 }
 
@@ -131,12 +174,12 @@ func appendSrv(methodInfo definitionMethodInfo, typ reflect.Type) {
 	}
 }
 
-func loadMachineImplementation[DefinitionType any, ContextType any](machineId string) {
+func loadMachineImplementation[ContextType any](machineRegistry MachineRegistryDefinitions[ContextType]) {
+	machineId := machineRegistry.GetMachineTemplateId()
 	log.Printf("Loading implementation for machine id '%s'", machineId)
 
-	definitionInstance := new(DefinitionType)
-	defTyp := reflect.TypeOf(definitionInstance)
-	defVal := reflect.ValueOf(definitionInstance)
+	defTyp := reflect.TypeOf(machineRegistry)
+	defVal := reflect.ValueOf(machineRegistry)
 
 	ctxParamTyp := reflect.TypeOf((*ContextType)(nil)).Elem()
 	evtParamTyp := reflect.TypeOf((*piece.Event)(nil)).Elem()
@@ -144,8 +187,12 @@ func loadMachineImplementation[DefinitionType any, ContextType any](machineId st
 
 	for i := 0; i < defTyp.NumMethod(); i++ {
 		method := defTyp.Method(i)
-		name := strings.ToLower(method.Name)
-		methodInfo := definitionMethodInfo{name, i, &defVal}
+		if method.Name == "GetMachineTemplateId" {
+			continue
+		}
+
+		lowerName := strings.ToLower(method.Name)
+		methodInfo := definitionMethodInfo{lowerName, method.Name, i, &defVal}
 		switch {
 
 		// type TPredicate[ContextType any] func(ContextType, Event) (bool, error)
@@ -165,6 +212,8 @@ func loadMachineImplementation[DefinitionType any, ContextType any](machineId st
 			log.Printf("Skipping method '%s' of type '%s' in machine '%s'\n", method.Name, method.Type, machineId)
 		}
 	}
+
+	log.Printf("Loaded implementation for machine id '%s'", machineId)
 }
 
 func isPredicate(typ, tParam, evtParam reflect.Type) bool {
@@ -185,29 +234,29 @@ func isService(typ, tParam, evtParam reflect.Type) bool {
 	return in && out
 }
 
-func getBehavior[ContextType any](name, behavior string, reg definitionMethodInfoRegistry) (any, error) {
+func getBehavior[ContextType any](fixedName, originalName, behavior string, reg definitionMethodInfoRegistry) (any, error) {
 	typ := reflect.TypeOf((*ContextType)(nil)).Elem()
 	r, ok := reg[typ]
 	if !ok {
-		return nil, fmt.Errorf("no %s registered for name '%s' and type '%s'", behavior, name, typ)
+		return nil, fmt.Errorf("no %s registered for '%s' and type '%s'", behavior, originalName, typ)
 	}
 
-	b, ok := r[name]
+	b, ok := r[fixedName]
 	if !ok {
-		return nil, fmt.Errorf("no %s registered for name '%s' and type '%s'", behavior, name, typ)
+		return nil, fmt.Errorf("no %s registered for '%s' and type '%s'", behavior, originalName, typ)
 	}
 
 	return b.val.Method(b.pos).Interface(), nil
 }
 
-func getAction[ContextType any](name string) (any, error) {
-	return getBehavior[ContextType](name, "action", actionsRegistry)
+func getAction[ContextType any](fixedName, originalName string) (any, error) {
+	return getBehavior[ContextType](fixedName, originalName, "action", actionsRegistry)
 }
 
-func getPredicate[ContextType any](name string) (any, error) {
-	return getBehavior[ContextType](name, "predicate", predicatesRegistry)
+func getPredicate[ContextType any](fixedName, originalName string) (any, error) {
+	return getBehavior[ContextType](fixedName, originalName, "predicate", predicatesRegistry)
 }
 
-func getSrv[ContextType any](name string) (any, error) {
-	return getBehavior[ContextType](name, "service", srvRegistry)
+func getSrv[ContextType any](fixedName, originalName string) (any, error) {
+	return getBehavior[ContextType](fixedName, originalName, "service", srvRegistry)
 }

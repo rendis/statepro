@@ -13,15 +13,13 @@ func BuildEvent(name string) EventBuilder {
 type EventBuilder interface {
 	WithData(data any) EventBuilder
 	WithErr(err error) EventBuilder
-	WithType(evtType EventType) EventBuilder
 	Build() Event
 }
 
 type GEventBuilder struct {
-	name    string
-	data    any
-	err     error
-	evtType EventType
+	name string
+	data any
+	err  error
 }
 
 func (b *GEventBuilder) WithData(data any) EventBuilder {
@@ -34,17 +32,12 @@ func (b *GEventBuilder) WithErr(err error) EventBuilder {
 	return b
 }
 
-func (b *GEventBuilder) WithType(evtType EventType) EventBuilder {
-	b.evtType = evtType
-	return b
-}
-
 func (b *GEventBuilder) Build() Event {
 	return &GEvent{
 		name:    b.name,
 		data:    b.data,
 		err:     b.err,
-		evtType: b.evtType,
+		evtType: EventTypeTransitional,
 	}
 }
 

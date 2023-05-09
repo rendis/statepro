@@ -106,38 +106,42 @@ func (x *XTransition) GetActions() ([]string, error) {
 	return parseFromAny[string](x.Actions)
 }
 
-func parseFromAny[ContextType any](a any) ([]ContextType, error) {
+func parseFromAny[T any](a any) ([]T, error) {
 	if a == nil {
-		return []ContextType{}, nil
+		return []T{}, nil
 	}
 
 	if c, ok := a.([]any); ok {
-		var r []ContextType
+		var r []T
 		for _, v := range c {
 			if m, ok := v.(map[string]any); ok {
-				t, err := parseFromMap[ContextType](m)
+				t, err := parseFromMap[T](m)
 				if err != nil {
 					return nil, err
 				}
 				r = append(r, *t)
-			} else if m, ok := v.(ContextType); ok {
+			} else if m, ok := v.(T); ok {
 				r = append(r, m)
 			} else {
-				return nil, fmt.Errorf("invalid type %ContextType", v)
+				return nil, fmt.Errorf("invalid type %T", v)
 			}
 		}
 		return r, nil
 	}
 
 	if c, ok := a.(map[string]any); ok {
-		t, err := parseFromMap[ContextType](c)
+		t, err := parseFromMap[T](c)
 		if err != nil {
 			return nil, err
 		}
-		return []ContextType{*t}, nil
+		return []T{*t}, nil
 	}
 
-	return nil, fmt.Errorf("invalid type: %ContextType", a)
+	if c, ok := a.(T); ok {
+		return []T{c}, nil
+	}
+
+	return nil, fmt.Errorf("invalid type: %T", a)
 }
 
 func parseFromMap[ContextType any](m map[string]any) (*ContextType, error) {

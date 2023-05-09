@@ -7,14 +7,13 @@ type TAction[ContextType any] func(ContextType, Event, ActionTool[ContextType]) 
 type GAction[ContextType any] struct {
 	Name string
 	Act  TAction[ContextType]
-	Tool ActionTool[ContextType]
 }
 
-func (a *GAction[ContextType]) do(c ContextType, e Event) error {
+func (a *GAction[ContextType]) do(c ContextType, e Event, at ActionTool[ContextType]) error {
 	if a.Act == nil {
 		return fmt.Errorf("action '%s' not found", a.Name)
 	}
-	return a.Act(c, e, a.Tool)
+	return a.Act(c, e, at)
 }
 
 func CastToAct[ContextType any](i any) (TAction[ContextType], error) {

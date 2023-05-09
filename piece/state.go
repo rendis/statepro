@@ -28,50 +28,40 @@ type GState[ContextType any] struct {
 	srvCh    chan *InvocationResponse
 }
 
-// onEntry is called when the state is entered.
-// return
-func (s *GState[ContextType]) onEntry(c ContextType, e Event) (*string, bool, error) {
-	target, err := s.always(c, e)
+func (s *GState[ContextType]) onEntry(c ContextType, e Event, at ActionTool[ContextType]) (*string, bool, error) {
+	target, err := s.always(c, e, at)
 	if err != nil {
 		return nil, false, err
 	}
 
-	// If always guard returns a target state, then send
+	// if always guard returns a target state, then send
 	if target != nil {
 		return target, false, nil
 	}
 
-	err = s.execEntry(c, e)
+	err = s.execEntry(c, e, at)
 	if err != nil {
 		return nil, false, err
 	}
 
 	if !s.isFinalState() && len(s.Services) > 0 {
-		go s.invokeServices(c, e)
+		go s.invokeServices(c, e, at)
 		return nil, true, nil
 	}
 
 	return nil, false, nil
 }
 
-// onEvent is called
-func (s *GState[ContextType]) onEvent(c ContextType, e Event) (*string, error) {
-	if s.On != nil && s.On[e.GetName()] != nil {
-		return s.On[e.GetName()].resolve(c, e)
-	}
-	return nil, nil
-}
-
-func (s *GState[ContextType]) always(c ContextType, e Event) (*string, error) {
+func (s *GState[ContextType]) always(c ContextType, e Event, at ActionTool[ContextType]) (*string, error) {
 	if s.Always != nil {
-		return s.Always.resolve(c, e)
+		return s.Always.resolve(c, e, at)
 	}
 	return nil, nil
 }
 
-func (s *GState[ContextType]) execEntry(c ContextType, e Event) error {
+func (s *GState[ContextType]) execEntry(c ContextType, e Event, at ActionTool[ContextType]) error {
 	for _, a := range s.Entry {
-		err := a.do(c, e)
+		err := a.do(c, e, at)
 		if err != nil {
 			return err
 		}
@@ -79,26 +69,10 @@ func (s *GState[ContextType]) execEntry(c ContextType, e Event) error {
 	return nil
 }
 
-func (s *GState[ContextType]) execExit(c ContextType, e Event) error {
-	if s.StateType == StateTypeFinal {
-		return nil
-	}
-	//s.srvChMtx.Lock()
-	//close(s.srvCh)
-	//s.srvChMtx.Unlock()
-	for _, a := range s.Exit {
-		err := a.do(c, e)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *GState[ContextType]) invokeServices(c ContextType, e Event) {
+func (s *GState[ContextType]) invokeServices(c ContextType, e Event, at ActionTool[ContextType]) {
 	s.srvCh = make(chan *InvocationResponse, 1)
 	for _, srv := range s.Services {
-		go srv.invoke(c, e, s.srvCh)
+		go srv.invoke(c, e, at, s.srvCh)
 	}
 	select {
 	case resp, open := <-s.srvCh:
@@ -109,6 +83,37 @@ func (s *GState[ContextType]) invokeServices(c ContextType, e Event) {
 	}
 }
 
+func (s *GState[ContextType]) onEvent(c ContextType, e Event, at ActionTool[ContextType]) (*string, error) {
+	// check if the event is defined in the state
+	if s.On == nil || s.On[e.GetName()] == nil {
+		return nil, &EventNotDefinedError{EventName: e.GetName(), StateName: *s.Name}
+	}
+
+	// on event actions
+	return s.On[e.GetName()].resolve(c, e, at)
+}
+
+func (s *GState[ContextType]) execExit(c ContextType, e Event, at ActionTool[ContextType]) error {
+	if s.StateType == StateTypeFinal {
+		return nil
+	}
+	for _, a := range s.Exit {
+		err := a.do(c, e, at)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *GState[ContextType]) isFinalState() bool {
 	return s.StateType == StateTypeFinal
+}
+
+func (s *GState[ContextType]) getNextEvents() []string {
+	var events []string
+	for k := range s.On {
+		events = append(events, k)
+	}
+	return events
 }

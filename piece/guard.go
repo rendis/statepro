@@ -11,17 +11,17 @@ type GGuard[ContextType any] struct {
 	Predicate TPredicate[ContextType]
 }
 
-func (g *GGuard[ContextType]) check(c ContextType, e Event) (string, bool, error) {
-	// (Else || Directly) GGuard
+func (g *GGuard[ContextType]) check(c ContextType, e Event, at ActionTool[ContextType]) (string, bool, error) {
+	// if Condition is nil, then it is an Else or Directly GGuard
 	if g.Condition == nil {
-		err := g.doActions(c, e)
+		err := g.doActions(c, e, at)
 		if err != nil {
 			return "", false, err
 		}
 		return *g.Target, true, nil
 	}
 
-	// (If || ElseIf) GGuard
+	// if Predicate is nil, then it is an If or ElseIf GGuard
 	if g.Predicate == nil {
 		return "", false, fmt.Errorf("guard '%s' not found", *g.Condition)
 	}
@@ -32,7 +32,7 @@ func (g *GGuard[ContextType]) check(c ContextType, e Event) (string, bool, error
 	}
 
 	if ok {
-		err = g.doActions(c, e)
+		err = g.doActions(c, e, at)
 		if err != nil {
 			return "", false, err
 		}
@@ -42,9 +42,9 @@ func (g *GGuard[ContextType]) check(c ContextType, e Event) (string, bool, error
 	return "", false, nil
 }
 
-func (g *GGuard[ContextType]) doActions(c ContextType, e Event) error {
+func (g *GGuard[ContextType]) doActions(c ContextType, e Event, at ActionTool[ContextType]) error {
 	for _, a := range g.Actions {
-		if err := a.do(c, e); err != nil {
+		if err := a.do(c, e, at); err != nil {
 			return err
 		}
 	}
