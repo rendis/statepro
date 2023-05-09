@@ -51,3 +51,10 @@ func (d *Dog) Play() {
 	}
 	d.CurrentState = Playing
 }
+
+// ------------------------------------
+
+type EvtData struct {
+	date            time.Time
+	textToNextState string
+}

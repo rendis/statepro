@@ -101,8 +101,18 @@ func (DogMachineDefinitions[T]) LoseInterest(_ Dog, _ piece.Event, _ piece.Actio
 	return nil
 }
 
-func (DogMachineDefinitions[T]) StartSniffing(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
+// 04 - Events example
+func (DogMachineDefinitions[T]) StartSniffing(_ Dog, evt piece.Event, actTool piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is sniffing")
+
+	evtData, _ := evt.GetData().(EvtData)
+	msgFromPrevState := evtData.textToNextState
+	fmt.Printf("      · Message from state (%s): %s\n", evt.GetFrom(), msgFromPrevState)
+
+	evtData.textToNextState = "I'm a dog and I'm sniffing"
+	evt = evt.ToBuilder().WithData(evtData).Build()
+	actTool.Propagate(evt)
+
 	return nil
 }
 
@@ -111,8 +121,18 @@ func (DogMachineDefinitions[T]) StopSniffing(_ Dog, _ piece.Event, _ piece.Actio
 	return nil
 }
 
-func (DogMachineDefinitions[T]) Investigate(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
+// 04 - Events example
+func (DogMachineDefinitions[T]) Investigate(_ Dog, evt piece.Event, actTool piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is investigating")
+
+	evtData, _ := evt.GetData().(EvtData)
+	msgFromPrevState := evtData.textToNextState
+	fmt.Printf("      · Message from state (%s): %s\n", evt.GetFrom(), msgFromPrevState)
+
+	evtData.textToNextState = "I'm a dog and I'm investigating"
+	evt = evt.ToBuilder().WithData(evtData).Build()
+	actTool.Propagate(evt)
+
 	return nil
 }
 

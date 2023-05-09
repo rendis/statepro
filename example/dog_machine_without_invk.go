@@ -28,7 +28,9 @@ func runDogMachineExamples() {
 	//updateContextValue()
 
 	// ------- 04-events-example -----
-	sendEventInsideAction()
+	//sendEventInsideAction()
+
+	sendDataInEventAndAccessItInAction()
 }
 
 // show how to register a machine and init all machines
@@ -173,6 +175,38 @@ func sendEventInsideAction() {
 	_ = dogMachine.SendEvent(evt)
 
 	printMachineInfo(dogMachine)
+}
+
+// send data in event and access it in action
+func sendDataInEventAndAccessItInAction() {
+	dog := &Dog{}
+	_, dogMachine := getDogMachine(dog)
+
+	printMachineInfo(dogMachine)
+
+	evtData := EvtData{
+		textToNextState: "I'm tired, I want to sleep",
+	}
+	evt := piece.BuildEvent("SMELLS").
+		WithData(evtData).
+		Build()
+	resp := dogMachine.SendEvent(evt)
+
+	printMachineInfo(dogMachine)
+
+	lastEvent := resp.GetLastEvent()
+
+	evt = piece.BuildEvent("FOUND_SOMETHING_INTERESTING").
+		WithData(lastEvent.GetData()).
+		Build()
+
+	resp = dogMachine.SendEvent(evt)
+
+	printMachineInfo(dogMachine)
+
+	lastEvent = resp.GetLastEvent()
+	evtData, _ = lastEvent.GetData().(EvtData)
+	fmt.Printf("\n- (Last evt) Last message: %s\n", evtData.textToNextState)
 }
 
 func printMachineInfo(machine piece.ProMachine[Dog]) {
