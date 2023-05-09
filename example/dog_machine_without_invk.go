@@ -20,6 +20,9 @@ func runDogMachineExamples() {
 	//initDogMachineOnState()
 
 	//selfEventBehavior()
+
+	// ------- 02-read-example-basic -----
+	accessContextAndEventValueBasic()
 }
 
 // show how to register a machine and init all machines
@@ -96,6 +99,25 @@ func selfEventBehavior() {
 	_, dogMachine := getDogMachine(dog)
 
 	evt := piece.BuildEvent("DREAM").Build()
+	_ = dogMachine.SendEvent(evt)
+
+	printMachineInfo(dogMachine)
+}
+
+// access to context and event value, basic
+func accessContextAndEventValueBasic() {
+	dog := &Dog{
+		Name:        "GouGou",
+		EnergyLevel: 50,
+	}
+	_, dogMachine := getDogMachine(dog)
+
+	initOnState := "Awake"
+	_ = dogMachine.PlaceOn(initOnState)
+
+	printMachineInfo(dogMachine)
+
+	evt := piece.BuildEvent("HUNGRY").Build()
 	_ = dogMachine.SendEvent(evt)
 
 	printMachineInfo(dogMachine)
