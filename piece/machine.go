@@ -146,6 +146,7 @@ func (pm *proMachineImpl[ContextType]) setCurrenEvent(event Event) {
 	pm.evtMtx.Lock()
 	defer pm.evtMtx.Unlock()
 	evtCasted, _ := event.(*GEvent)
+	evtCasted.from = *pm.currentState.Name
 	pm.currentEvent = evtCasted
 	pm.eventChanged = true
 }
@@ -157,13 +158,6 @@ func (pm *proMachineImpl[ContextType]) getCurrentEvent() (*GEvent, bool) {
 		pm.evtMtx.Unlock()
 	}()
 	return pm.currentEvent, pm.eventChanged
-}
-
-func (pm *proMachineImpl[ContextType]) setCurrentState(state *GState[ContextType]) {
-	pm.pmMtx.Lock()
-	defer pm.pmMtx.Unlock()
-	pm.prevState = pm.currentState
-	pm.currentState = state
 }
 
 type ActionTool[ContextType any] interface {
