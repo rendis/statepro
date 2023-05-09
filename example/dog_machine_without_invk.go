@@ -25,7 +25,10 @@ func runDogMachineExamples() {
 	//accessContextAndEventValueBasic()
 
 	// ------- 03-write-basic-example -----
-	updateContextValue()
+	//updateContextValue()
+
+	// ------- 04-events-example -----
+	sendEventInsideAction()
 }
 
 // show how to register a machine and init all machines
@@ -149,6 +152,25 @@ func updateContextValue() {
 
 	context := dogMachine.GetContext()
 	fmt.Printf("\n- (Current ctx) Dog energy level after eat: %d\n", context.EnergyLevel)
+
+	printMachineInfo(dogMachine)
+}
+
+// send event inside action
+func sendEventInsideAction() {
+	dog := &Dog{
+		Name:        "GouGou",
+		EnergyLevel: 50,
+	}
+	_, dogMachine := getDogMachine(dog)
+
+	initOnState := "Awake"
+	_ = dogMachine.PlaceOn(initOnState)
+
+	printMachineInfo(dogMachine)
+
+	evt := piece.BuildEvent("TIRED").Build()
+	_ = dogMachine.SendEvent(evt)
 
 	printMachineInfo(dogMachine)
 }

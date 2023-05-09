@@ -39,7 +39,7 @@ func (DogMachineDefinitions[T]) IncreaseEnergy(dog Dog, _ piece.Event, actTool p
 	fmt.Println("- (A) Dog is increasing energy")
 	fmt.Println("      · Dog name: ", dog.Name)
 	fmt.Println("      · Dog energy level before eat: ", dog.EnergyLevel)
-	dog.Eat()
+	//dog.Eat()
 	actTool.Assign(dog)
 	return nil
 }
@@ -126,6 +126,13 @@ func (DogMachineDefinitions[T]) HaveADream(_ Dog, _ piece.Event, _ piece.ActionT
 	return nil
 }
 
+func (DogMachineDefinitions[T]) GoToEat(_ Dog, _ piece.Event, actTool piece.ActionTool[Dog]) error {
+	fmt.Println("- (A) Dog more hungry than tired. Dog is going to eat")
+	goToEatEvt := piece.BuildEvent("HUNGRY").Build()
+	actTool.Send(goToEatEvt)
+	return nil
+}
+
 func (DogMachineDefinitions[T]) IsLoudNoise(_ Dog, _ piece.Event) (bool, error) {
 	response := true
 	fmt.Printf("- (G) Check if noise is loud. Noise is loud: %v\n", response)
@@ -135,5 +142,12 @@ func (DogMachineDefinitions[T]) IsLoudNoise(_ Dog, _ piece.Event) (bool, error) 
 func (DogMachineDefinitions[T]) IsEnergyLow(_ Dog, _ piece.Event) (bool, error) {
 	response := true
 	fmt.Printf("- (G) Check if energy is low. Energy is low: %v\n", response)
+	return response, nil
+}
+
+// 04 - Events example
+func (DogMachineDefinitions[T]) MoreHungryThanTired(_ Dog, _ piece.Event) (bool, error) {
+	response := true
+	fmt.Printf("- (G) Check if dog is more hungry than tired. Dog is more hungry than tired: %v\n", response)
 	return response, nil
 }

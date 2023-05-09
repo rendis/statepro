@@ -36,9 +36,16 @@
         "PLAY": {
           "target": "Playing"
         },
-        "TIRED": {
-          "target": "Sleeping"
-        }
+        "TIRED": [
+          {
+            "target": "Sleeping",
+            "cond": "moreHungryThanTired",
+            "actions": "goToEat"
+          },
+          {
+            "target": "Sleeping"
+          }
+        ]
       }
     },
     "Eating": {
