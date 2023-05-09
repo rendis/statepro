@@ -68,8 +68,9 @@ const (
 
 type Event interface {
 	GetName() string
-	GetData() any
 	GetFrom() string
+	HasData() bool
+	GetData() any
 	GetDataAsMap() (map[string]any, error)
 	GetErr() error
 	GetEvtType() EventType
@@ -88,12 +89,16 @@ func (e *GEvent) GetName() string {
 	return e.name
 }
 
-func (e *GEvent) GetData() any {
-	return e.data
-}
-
 func (e *GEvent) GetFrom() string {
 	return e.from
+}
+
+func (e *GEvent) HasData() bool {
+	return e.data != nil
+}
+
+func (e *GEvent) GetData() any {
+	return e.data
 }
 
 func (e *GEvent) GetDataAsMap() (map[string]any, error) {
