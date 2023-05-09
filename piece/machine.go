@@ -12,6 +12,8 @@ type GMachine[ContextType any] struct {
 
 type ProMachine[ContextType any] interface {
 	PlaceOn(stateName string) error
+	StartOn(stateName string) TransitionResponse
+	StartOnWithEvent(stateName string, event Event) TransitionResponse
 	SendEvent(event Event) TransitionResponse
 	GetNextEvents() []string
 	GetState() string
@@ -45,8 +47,13 @@ type proMachineImpl[ContextType any] struct {
 
 func (pm *proMachineImpl[ContextType]) PlaceOn(stateName string) error {
 	pm.pmMtx.Lock()
-	defer pm.pmMtx.Unlock()
+	defer func() {
+		pm.processing = false
+		pm.pmMtx.Unlock()
+	}()
+	pm.processing = true
 
+	// get new state from machine and set it as current state
 	if s, ok := pm.gMachine.States[stateName]; ok {
 		pm.currentState = s
 		return nil
@@ -54,13 +61,65 @@ func (pm *proMachineImpl[ContextType]) PlaceOn(stateName string) error {
 	return &EventNotFountError{EventName: stateName}
 }
 
-func (pm *proMachineImpl[ContextType]) SendEvent(event Event) TransitionResponse {
+func (pm *proMachineImpl[ContextType]) StartOn(stateName string) TransitionResponse {
+	// build event
+	var evtFilled = &GEvent{
+		from:    *pm.currentState.Name,
+		evtType: EventTypeStartOn,
+	}
+
+	return pm.StartOnWithEvent(stateName, evtFilled)
+}
+
+func (pm *proMachineImpl[ContextType]) StartOnWithEvent(stateName string, event Event) TransitionResponse {
+	// lock processing
 	pm.pmMtx.Lock()
 	defer func() {
 		pm.processing = false
 		pm.pmMtx.Unlock()
 	}()
 	pm.processing = true
+	pm.eventChanged = false
+
+	// get new state from machine and set it as current state
+	if s, ok := pm.gMachine.States[stateName]; ok {
+		pm.currentState = s
+	} else {
+		return &transitionResponse{lastEvent: event, err: &EventNotFountError{EventName: stateName}}
+	}
+
+	// set current event from value
+	var evtFilled = event.(*GEvent)
+	evtFilled.from = *pm.currentState.Name
+	pm.currentEvent = evtFilled
+
+	// running first onEntry
+	target, _, err := pm.currentState.onEntry(*pm.context, evtFilled, pm)
+	if err != nil {
+		ce, _ := pm.getCurrentEvent()
+		return &transitionResponse{lastEvent: ce, err: err}
+	}
+
+	// do transitions until target == nil
+	err = pm.doTransitions(target)
+
+	// build response
+	ce, _ := pm.getCurrentEvent()
+	return &transitionResponse{
+		lastEvent: ce,
+		err:       err,
+	}
+}
+
+func (pm *proMachineImpl[ContextType]) SendEvent(event Event) TransitionResponse {
+	// lock processing
+	pm.pmMtx.Lock()
+	defer func() {
+		pm.processing = false
+		pm.pmMtx.Unlock()
+	}()
+	pm.processing = true
+	pm.eventChanged = false
 
 	// set event from value
 	var evtFilled = event.(*GEvent)
@@ -74,7 +133,19 @@ func (pm *proMachineImpl[ContextType]) SendEvent(event Event) TransitionResponse
 		return &transitionResponse{lastEvent: ce, err: err}
 	}
 
-	// get current event to check if an action in onEvent has been changed the event
+	// do transitions until target == nil
+	err = pm.doTransitions(target)
+
+	// build response
+	ce, _ := pm.getCurrentEvent()
+	return &transitionResponse{
+		lastEvent: ce,
+		err:       err,
+	}
+}
+
+func (pm *proMachineImpl[ContextType]) doTransitions(target *string) (err error) {
+	// get current event to check if an action in onEvent/onEntry has been changed the event
 	evtFilled, doOnEvent := pm.getCurrentEvent()
 
 	// while target != nil
@@ -84,8 +155,7 @@ func (pm *proMachineImpl[ContextType]) SendEvent(event Event) TransitionResponse
 		if doOnEvent {
 			target, err = pm.currentState.onEvent(*pm.context, evtFilled, pm)
 			if err != nil {
-				ce, _ := pm.getCurrentEvent()
-				return &transitionResponse{lastEvent: ce, err: err}
+				return err
 			}
 
 			// get current event to check if an action in onEvent has been changed the event
@@ -103,25 +173,21 @@ func (pm *proMachineImpl[ContextType]) SendEvent(event Event) TransitionResponse
 			continue
 		}
 		if err = pm.prevState.execExit(*pm.context, evtFilled, pm); err != nil {
-			return &transitionResponse{lastEvent: evtFilled, err: err}
+			return err
 		}
 
 		evtFilled, doOnEvent = pm.getCurrentEvent()
 		if doOnEvent {
 			continue
 		}
-		target, _, err = pm.currentState.onEntry(*pm.context, evtFilled, pm)
 
+		target, _, err = pm.currentState.onEntry(*pm.context, evtFilled, pm)
 		if err != nil {
-			ce, _ := pm.getCurrentEvent()
-			return &transitionResponse{lastEvent: ce, err: err}
+			return err
 		}
 	}
 
-	ce, _ := pm.getCurrentEvent()
-	return &transitionResponse{
-		lastEvent: ce,
-	}
+	return nil
 }
 
 func (pm *proMachineImpl[ContextType]) GetNextEvents() []string {
