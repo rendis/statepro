@@ -11,7 +11,7 @@ func (DogMachineDefinitions[T]) GetMachineTemplateId() string {
 	return "DogMachine"
 }
 
-// action -> (dog Dog, evt piece.Event, actTool piece.ActionTool[Dog]) error
+// action -> (dog Dog, evt Event, actTool ActionTool[Dog]) error
 // predicate -> (dog Dog, evt Event) (bool, error)
 // invocation -> (dog Dog, evt Event) ServiceResponse
 

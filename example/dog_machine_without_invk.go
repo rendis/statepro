@@ -19,7 +19,7 @@ func runDogMachineExamples() {
 
 	//initDogMachineOnState()
 
-	//selfEventBehavior()
+	selfEventBehavior()
 }
 
 // show how to register a machine and init all machines
@@ -53,14 +53,14 @@ func getDogMachineInfo() {
 	dog := &Dog{}
 	_, dogMachine := getDogMachine(dog)
 
+	currentState := dogMachine.GetState()
+	fmt.Printf("DogMachine current state: %s\n", currentState)
+
 	nextEvents := dogMachine.GetNextEvents()
 	fmt.Printf("DogMachine next events: %v\n", nextEvents)
 
 	isFinalState := dogMachine.IsFinalState()
 	fmt.Printf("DogMachine is final state: %v\n", isFinalState)
-
-	currentState := dogMachine.GetState()
-	fmt.Printf("DogMachine current state: %s\n", currentState)
 }
 
 // show how to build and send an event
