@@ -30,7 +30,9 @@ func runDogMachineExamples() {
 	// ------- 04-events-example -----
 	//sendEventInsideAction()
 
-	sendDataInEventAndAccessItInAction()
+	//sendDataInEventAndAccessItInAction()
+
+	actionErrorHandling()
 }
 
 // show how to register a machine and init all machines
@@ -207,6 +209,26 @@ func sendDataInEventAndAccessItInAction() {
 	lastEvent = resp.GetLastEvent()
 	evtData, _ = lastEvent.GetData().(EvtData)
 	fmt.Printf("\n- (Last evt) Last message: %s\n", evtData.textToNextState)
+}
+
+// action error handling
+func actionErrorHandling() {
+	dog := &Dog{}
+	_, dogMachine := getDogMachine(dog)
+	_ = dogMachine.PlaceOn("Playing")
+
+	printMachineInfo(dogMachine)
+
+	evt := piece.BuildEvent("TIRED").
+		Build()
+
+	resp := dogMachine.SendEvent(evt)
+
+	if resp.Error() != nil {
+		fmt.Printf("\n- (Error) %s\n", resp.Error().Error())
+	}
+
+	printMachineInfo(dogMachine)
 }
 
 func printMachineInfo(machine piece.ProMachine[Dog]) {

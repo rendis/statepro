@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/rendis/statepro/piece"
 )
@@ -81,9 +82,16 @@ func (DogMachineDefinitions[T]) StopPlaying(_ Dog, _ piece.Event, _ piece.Action
 	return nil
 }
 
+// 01 - Basic example
+//func (DogMachineDefinitions[T]) DecreaseEnergy(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
+//	fmt.Println("- (A) Dog is decreasing energy")
+//	return nil
+//}
+
+// 04 - Events example
 func (DogMachineDefinitions[T]) DecreaseEnergy(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is decreasing energy")
-	return nil
+	return errors.New("the dog is too tired to go to bed (he will stay in the kitchen)")
 }
 
 func (DogMachineDefinitions[T]) StartInvestigating(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
