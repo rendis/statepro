@@ -13,13 +13,15 @@ func BuildEvent(name string) EventBuilder {
 type EventBuilder interface {
 	WithData(data any) EventBuilder
 	WithErr(err error) EventBuilder
+	WithType(eventType EventType) EventBuilder
 	Build() Event
 }
 
 type GEventBuilder struct {
-	name string
-	data any
-	err  error
+	name      string
+	data      any
+	eventType *EventType
+	err       error
 }
 
 func (b *GEventBuilder) WithData(data any) EventBuilder {
@@ -32,12 +34,21 @@ func (b *GEventBuilder) WithErr(err error) EventBuilder {
 	return b
 }
 
+func (b *GEventBuilder) WithType(eventType EventType) EventBuilder {
+	b.eventType = &eventType
+	return b
+}
+
 func (b *GEventBuilder) Build() Event {
+	if b.eventType == nil {
+		tmpEvtType := EventTypeOnEntry
+		b.eventType = &tmpEvtType
+	}
 	return &GEvent{
 		name:    b.name,
 		data:    b.data,
 		err:     b.err,
-		evtType: EventTypeTransitional,
+		evtType: *b.eventType,
 	}
 }
 
@@ -52,6 +63,7 @@ const (
 	EventTypeDoAlways     EventType = "DoAlways"
 	EventTypeOnDone       EventType = "OnDone"
 	EventTypeOnError      EventType = "OnError"
+	EventTypeStartOn      EventType = "StartOn"
 )
 
 type Event interface {
