@@ -27,10 +27,20 @@ func (DogMachineDefinitions[T]) NotifySleeping(_ Dog, _ piece.Event, _ piece.Act
 //}
 
 // 02 - Read example
-func (DogMachineDefinitions[T]) IncreaseEnergy(dog Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
+//func (DogMachineDefinitions[T]) IncreaseEnergy(dog Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
+//	fmt.Println("- (A) Dog is increasing energy")
+//	fmt.Println("      · Dog name: ", dog.Name)
+//	fmt.Println("      · Dog energy level: ", dog.EnergyLevel)
+//	return nil
+//}
+
+// 03 - Write example
+func (DogMachineDefinitions[T]) IncreaseEnergy(dog Dog, _ piece.Event, actTool piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is increasing energy")
 	fmt.Println("      · Dog name: ", dog.Name)
-	fmt.Println("      · Dog energy level: ", dog.EnergyLevel)
+	fmt.Println("      · Dog energy level before eat: ", dog.EnergyLevel)
+	dog.Eat()
+	actTool.Assign(dog)
 	return nil
 }
 
