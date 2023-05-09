@@ -213,7 +213,7 @@ func (pm *proMachineImpl[ContextType]) setCurrenEvent(event Event, eventChanged 
 	defer pm.evtMtx.Unlock()
 	evtCasted, _ := event.(*GEvent)
 	evtCasted.from = *pm.currentState.Name
-	pm.currentEvent = evtCasted
+	*pm.currentEvent = *evtCasted
 	pm.eventChanged = eventChanged
 }
 
