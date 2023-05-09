@@ -16,8 +16,16 @@ func (DogMachineDefinitions[T]) GetMachineTemplateId() string {
 // predicate -> (dog Dog, evt Event) (bool, error)
 // invocation -> (dog Dog, evt Event) ServiceResponse
 
-func (DogMachineDefinitions[T]) NotifySleeping(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
+func (DogMachineDefinitions[T]) NotifySleeping(_ Dog, evt piece.Event, actTool piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is sleeping")
+
+	evtData, _ := evt.GetData().(EvtData)
+	msgFromPrevState := evtData.textToNextState
+	fmt.Printf("      · Message from state (%s): %s\n", evt.GetFrom(), msgFromPrevState)
+
+	evtData.textToNextState = "I'm going to sleep"
+	evt = evt.ToBuilder().WithData(evtData).Build()
+	actTool.Propagate(evt)
 	return nil
 }
 
@@ -36,12 +44,30 @@ func (DogMachineDefinitions[T]) NotifySleeping(_ Dog, _ piece.Event, _ piece.Act
 //}
 
 // 03 - Write example
-func (DogMachineDefinitions[T]) IncreaseEnergy(dog Dog, _ piece.Event, actTool piece.ActionTool[Dog]) error {
+//func (DogMachineDefinitions[T]) IncreaseEnergy(dog Dog, _ piece.Event, actTool piece.ActionTool[Dog]) error {
+//	fmt.Println("- (A) Dog is increasing energy")
+//	fmt.Println("      · Dog name: ", dog.Name)
+//	fmt.Println("      · Dog energy level before eat: ", dog.EnergyLevel)
+//	//dog.Eat()
+//	actTool.Assign(dog)
+//	return nil
+//}
+
+// 04 - Events example
+func (DogMachineDefinitions[T]) IncreaseEnergy(dog Dog, evt piece.Event, actTool piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is increasing energy")
 	fmt.Println("      · Dog name: ", dog.Name)
 	fmt.Println("      · Dog energy level before eat: ", dog.EnergyLevel)
-	//dog.Eat()
 	actTool.Assign(dog)
+
+	evtData, _ := evt.GetData().(EvtData)
+	msgFromPrevState := evtData.textToNextState
+	fmt.Printf("      · Message from state (%s): %s\n", evt.GetFrom(), msgFromPrevState)
+
+	evtData.textToNextState = "While I'm sleeping I'm going to increase my energy"
+	evt = evt.ToBuilder().WithData(evtData).Build()
+	actTool.Propagate(evt)
+
 	return nil
 }
 
@@ -174,8 +200,12 @@ func (DogMachineDefinitions[T]) IsEnergyLow(_ Dog, _ piece.Event) (bool, error) 
 }
 
 // 04 - Events example
-func (DogMachineDefinitions[T]) MoreHungryThanTired(_ Dog, _ piece.Event) (bool, error) {
+func (DogMachineDefinitions[T]) MoreHungryThanTired(_ Dog, evt piece.Event) (bool, error) {
 	response := true
+	if evt.HasData() {
+		evtData, _ := evt.GetData().(EvtData)
+		response = !evtData.tooTired
+	}
 	fmt.Printf("- (G) Check if dog is more hungry than tired. Dog is more hungry than tired: %v\n", response)
 	return response, nil
 }

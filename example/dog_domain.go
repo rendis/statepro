@@ -57,4 +57,5 @@ func (d *Dog) Play() {
 type EvtData struct {
 	date            time.Time
 	textToNextState string
+	tooTired        bool
 }
