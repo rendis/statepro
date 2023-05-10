@@ -58,7 +58,7 @@ func (pm *proMachineImpl[ContextType]) PlaceOn(stateName string) error {
 		pm.currentState = s
 		return nil
 	}
-	return &EventNotFountError{EventName: stateName}
+	return &StateNotFountError{EventName: stateName}
 }
 
 func (pm *proMachineImpl[ContextType]) StartOn(stateName string) TransitionResponse {
@@ -85,7 +85,7 @@ func (pm *proMachineImpl[ContextType]) StartOnWithEvent(stateName string, event 
 	if s, ok := pm.gMachine.States[stateName]; ok {
 		pm.currentState = s
 	} else {
-		return &transitionResponse{lastEvent: event, err: &EventNotFountError{EventName: stateName}}
+		return &transitionResponse{lastEvent: event, err: &StateNotFountError{EventName: stateName}}
 	}
 
 	// set current event from value
