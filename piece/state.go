@@ -45,7 +45,7 @@ func (s *GState[ContextType]) onEntry(c ContextType, e Event, at ActionTool[Cont
 	}
 
 	if !s.isFinalState() && len(s.Services) > 0 {
-		go s.invokeServices(c, e, at)
+		go s.invokeServices(c, e)
 		return nil, true, nil
 	}
 
@@ -69,10 +69,10 @@ func (s *GState[ContextType]) execEntry(c ContextType, e Event, at ActionTool[Co
 	return nil
 }
 
-func (s *GState[ContextType]) invokeServices(c ContextType, e Event, at ActionTool[ContextType]) {
+func (s *GState[ContextType]) invokeServices(c ContextType, e Event) {
 	s.srvCh = make(chan *InvocationResponse, 1)
 	for _, srv := range s.Services {
-		go srv.invoke(c, e, at, s.srvCh)
+		go srv.invoke(c, e)
 	}
 	select {
 	case resp, open := <-s.srvCh:

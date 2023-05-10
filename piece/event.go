@@ -2,56 +2,6 @@ package piece
 
 import "encoding/json"
 
-// Event Builder
-
-func BuildEvent(name string) EventBuilder {
-	return &GEventBuilder{
-		name: name,
-	}
-}
-
-type EventBuilder interface {
-	WithData(data any) EventBuilder
-	WithErr(err error) EventBuilder
-	WithType(eventType EventType) EventBuilder
-	Build() Event
-}
-
-type GEventBuilder struct {
-	name      string
-	data      any
-	eventType *EventType
-	err       error
-}
-
-func (b *GEventBuilder) WithData(data any) EventBuilder {
-	b.data = data
-	return b
-}
-
-func (b *GEventBuilder) WithErr(err error) EventBuilder {
-	b.err = err
-	return b
-}
-
-func (b *GEventBuilder) WithType(eventType EventType) EventBuilder {
-	b.eventType = &eventType
-	return b
-}
-
-func (b *GEventBuilder) Build() Event {
-	if b.eventType == nil {
-		tmpEvtType := EventTypeOnEntry
-		b.eventType = &tmpEvtType
-	}
-	return &GEvent{
-		name:    b.name,
-		data:    b.data,
-		err:     b.err,
-		evtType: *b.eventType,
-	}
-}
-
 // Event
 
 type EventType string
@@ -67,14 +17,14 @@ const (
 )
 
 type Event interface {
-	GetName() string
-	GetFrom() string
-	HasData() bool
-	GetData() any
-	GetDataAsMap() (map[string]any, error)
-	GetErr() error
-	GetEvtType() EventType
-	ToBuilder() EventBuilder
+	GetName() string                       // get event name
+	GetFrom() string                       // get where the event from
+	HasData() bool                         // check if event has data
+	GetData() any                          // get event data
+	GetDataAsMap() (map[string]any, error) // get event data as map <string, any>
+	GetErr() error                         // get event error, if any
+	GetEvtType() EventType                 // get event type
+	ToBuilder() EventBuilder               // get event builder
 }
 
 type GEvent struct {
@@ -127,5 +77,55 @@ func (e *GEvent) ToBuilder() EventBuilder {
 		name: e.name,
 		data: e.data,
 		err:  e.err,
+	}
+}
+
+// Event Builder
+
+func BuildEvent(name string) EventBuilder {
+	return &GEventBuilder{
+		name: name,
+	}
+}
+
+type EventBuilder interface {
+	WithData(data any) EventBuilder
+	WithErr(err error) EventBuilder
+	WithType(eventType EventType) EventBuilder
+	Build() Event
+}
+
+type GEventBuilder struct {
+	name      string
+	data      any
+	eventType *EventType
+	err       error
+}
+
+func (b *GEventBuilder) WithData(data any) EventBuilder {
+	b.data = data
+	return b
+}
+
+func (b *GEventBuilder) WithErr(err error) EventBuilder {
+	b.err = err
+	return b
+}
+
+func (b *GEventBuilder) WithType(eventType EventType) EventBuilder {
+	b.eventType = &eventType
+	return b
+}
+
+func (b *GEventBuilder) Build() Event {
+	if b.eventType == nil {
+		tmpEvtType := EventTypeOnEntry
+		b.eventType = &tmpEvtType
+	}
+	return &GEvent{
+		name:    b.name,
+		data:    b.data,
+		err:     b.err,
+		evtType: *b.eventType,
 	}
 }
