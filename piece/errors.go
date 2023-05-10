@@ -2,14 +2,16 @@ package piece
 
 import "fmt"
 
-type EventNotFountError struct {
+// StateNotFountError is an error type for state not found in machine
+type StateNotFountError struct {
 	EventName string
 }
 
-func (e *EventNotFountError) Error() string {
+func (e *StateNotFountError) Error() string {
 	return fmt.Sprintf("Event '%s' not found", e.EventName)
 }
 
+// EventNotDefinedError is an error type for event not defined on state
 type EventNotDefinedError struct {
 	EventName string
 	StateName string
