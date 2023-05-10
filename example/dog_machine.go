@@ -5,6 +5,7 @@ import (
 	"github.com/rendis/statepro"
 	"github.com/rendis/statepro/piece"
 	"strings"
+	"time"
 )
 
 func runDogMachineExamples() {
@@ -28,13 +29,16 @@ func runDogMachineExamples() {
 	//updateContextValue()
 
 	// ------- 04-events-example -----
-	sendEventInsideAction()
+	//sendEventInsideAction()
 
 	//sendDataInEventAndAccessItInAction_Ex1()
 
 	//sendDataInEventAndAccessItInAction_Ex2()
 
 	//actionErrorHandling()
+
+	// ------- 05-invocations-services -----
+	invokeServices()
 }
 
 // show how to register a machine and init all machines
@@ -253,6 +257,20 @@ func actionErrorHandling() {
 	if resp.Error() != nil {
 		fmt.Printf("\n- (Error) %s\n", resp.Error().Error())
 	}
+
+	printMachineInfo(dogMachine)
+}
+
+// invoke services
+func invokeServices() {
+	dog := &Dog{}
+	_, dogMachine := getDogMachine(dog)
+
+	evt := piece.BuildEvent("NOISE").Build()
+	_ = dogMachine.SendEvent(evt)
+
+	// invocations are launched on a separate goroutines, so we need to wait a bit before main goroutine exits
+	time.Sleep(1 * time.Second)
 
 	printMachineInfo(dogMachine)
 }
