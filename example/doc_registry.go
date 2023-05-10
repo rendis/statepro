@@ -12,9 +12,8 @@ func (DogMachineDefinitions[T]) GetMachineTemplateId() string {
 	return "DogMachine"
 }
 
-// action -> (dog Dog, evt piece.Event, actTool piece.ActionTool[Dog]) error
-// predicate -> (dog Dog, evt Event) (bool, error)
-// invocation -> (dog Dog, evt Event) ServiceResponse
+// Actions definitions
+// action -> (dog Dog, evt Event, actTool ActionTool[Dog]) error
 
 func (DogMachineDefinitions[T]) NotifySleeping(_ Dog, evt piece.Event, actTool piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is sleeping")
@@ -186,6 +185,20 @@ func (DogMachineDefinitions[T]) GoToEat(_ Dog, _ piece.Event, actTool piece.Acti
 	actTool.Send(goToEatEvt)
 	return nil
 }
+
+// Invocations definitions
+// invocation -> (dog Dog, evt Event)
+
+func (DogMachineDefinitions[T]) SendAppNotification(_ Dog, _ piece.Event) {
+	fmt.Printf("- (I) Send app notification\n")
+}
+
+func (DogMachineDefinitions[T]) TurnOnLights(_ Dog, _ piece.Event) {
+	fmt.Printf("- (I) Turn on lights\n")
+}
+
+// Guards (predicates) definitions
+// predicate -> (dog Dog, evt Event) (bool, error)
 
 func (DogMachineDefinitions[T]) IsLoudNoise(_ Dog, _ piece.Event) (bool, error) {
 	response := true
