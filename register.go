@@ -20,7 +20,7 @@ type definitionMethodInfo struct {
 var loadPropOnce sync.Once // used to load prop only once
 var isPropLoaded = false   // used to load prop only once
 
-type definitionMethodInfoRegistry map[reflect.Type]map[string]definitionMethodInfo
+type definitionMethodInfoRegistry map[string]map[string]definitionMethodInfo
 
 var xMachines = make(map[string]*XMachine)                  // templateId -> *XMachine
 var xChannelsByTemplate = make(map[string][]chan *XMachine) // templateId -> []chan *XMachine, used to send XMachine to all channels that are waiting for it
@@ -55,7 +55,7 @@ func AddMachine[ContextType any](machineRegistry MachineRegistryDefinitions[Cont
 	var machineId = uuid.New().String() + ":" + templateId
 
 	// load machine implementation defined in DefinitionType and register it
-	loadMachineImplementation[ContextType](machineRegistry)
+	registryDefType := loadMachineImplementation[ContextType](machineRegistry)
 
 	if _, ok := xChannelsByTemplate[templateId]; !ok {
 		xChannelsByTemplate[templateId] = make([]chan *XMachine, 0)
@@ -64,7 +64,7 @@ func AddMachine[ContextType any](machineRegistry MachineRegistryDefinitions[Cont
 	xChannelsByTemplate[templateId] = append(xChannelsByTemplate[templateId], ch)
 
 	xChannelsByTemplateWait.Add(1)
-	go asyncGMachineBuilder[ContextType](machineId, ch)
+	go asyncGMachineBuilder[ContextType](machineId, registryDefType, ch)
 
 	return machineId
 }
@@ -128,10 +128,10 @@ func notifyXMachines() {
 	xChannelsByTemplateWait.Wait()
 }
 
-func asyncGMachineBuilder[ContextType any](machineId string, xChan <-chan *XMachine) {
+func asyncGMachineBuilder[ContextType any](machineId, registryType string, xChan <-chan *XMachine) {
 	defer xChannelsByTemplateWait.Done()
 	xm := <-xChan
-	gm, err := parseXMachineToGMachine[ContextType](xm)
+	gm, err := parseXMachineToGMachine[ContextType](registryType, xm)
 	if err != nil {
 		log.Fatalf("Error parsing machine '%s': %s", *xm.Id, err)
 	}
@@ -140,72 +140,73 @@ func asyncGMachineBuilder[ContextType any](machineId string, xChan <-chan *XMach
 	proMachinesMutex.Unlock()
 }
 
-func appendMachineMethodInfo(methodInfo definitionMethodInfo, typ reflect.Type, reg definitionMethodInfoRegistry) error {
-	if _, ok := reg[typ]; !ok {
-		reg[typ] = make(map[string]definitionMethodInfo)
+func appendMachineMethodInfo(methodInfo definitionMethodInfo, registryType string, reg definitionMethodInfoRegistry) error {
+	if _, ok := reg[registryType]; !ok {
+		reg[registryType] = make(map[string]definitionMethodInfo)
 	}
 
-	if _, ok := reg[typ][methodInfo.fixedName]; ok {
-		return fmt.Errorf("'%s' already registered for type '%s'", methodInfo.fixedName, typ)
+	if _, ok := reg[registryType][methodInfo.fixedName]; ok {
+		return fmt.Errorf("'%s' already registered for type '%s'", methodInfo.fixedName, registryType)
 	}
 
-	reg[typ][methodInfo.fixedName] = methodInfo
+	reg[registryType][methodInfo.fixedName] = methodInfo
 	return nil
 }
 
-func appendPredicate(methodInfo definitionMethodInfo, typ reflect.Type) {
-	err := appendMachineMethodInfo(methodInfo, typ, predicatesRegistry)
+func appendPredicate(methodInfo definitionMethodInfo, registryType string) {
+	err := appendMachineMethodInfo(methodInfo, registryType, predicatesRegistry)
 	if err != nil {
 		log.Fatalf("Error appending predicate: %s", err)
 	}
 }
 
-func appendAction(methodInfo definitionMethodInfo, typ reflect.Type) {
-	err := appendMachineMethodInfo(methodInfo, typ, actionsRegistry)
+func appendAction(methodInfo definitionMethodInfo, registryType string) {
+	err := appendMachineMethodInfo(methodInfo, registryType, actionsRegistry)
 	if err != nil {
 		log.Fatalf("Error appending action: %s", err)
 	}
 }
 
-func appendSrv(methodInfo definitionMethodInfo, typ reflect.Type) {
-	err := appendMachineMethodInfo(methodInfo, typ, srvRegistry)
+func appendSrv(methodInfo definitionMethodInfo, registryType string) {
+	err := appendMachineMethodInfo(methodInfo, registryType, srvRegistry)
 	if err != nil {
 		log.Fatalf("Error appending service: %s", err)
 	}
 }
 
-func loadMachineImplementation[ContextType any](machineRegistry MachineRegistryDefinitions[ContextType]) {
+func loadMachineImplementation[ContextType any](machineRegistry MachineRegistryDefinitions[ContextType]) string {
 	machineId := machineRegistry.GetMachineTemplateId()
 	log.Printf("Loading implementation for machine id '%s'", machineId)
 
-	defTyp := reflect.TypeOf(machineRegistry)
-	defVal := reflect.ValueOf(machineRegistry)
+	registryDefTyp := reflect.TypeOf(machineRegistry)
+	registryDefVal := reflect.ValueOf(machineRegistry)
+	registryDefTypStr := registryDefTyp.Elem().String()
 
 	ctxParamTyp := reflect.TypeOf((*ContextType)(nil)).Elem()
 	evtParamTyp := reflect.TypeOf((*piece.Event)(nil)).Elem()
 	actToolParamTyp := reflect.TypeOf((*piece.ActionTool[ContextType])(nil)).Elem()
 
-	for i := 0; i < defTyp.NumMethod(); i++ {
-		method := defTyp.Method(i)
+	for i := 0; i < registryDefTyp.NumMethod(); i++ {
+		method := registryDefTyp.Method(i)
 		if method.Name == "GetMachineTemplateId" {
 			continue
 		}
 
 		lowerName := strings.ToLower(method.Name)
-		methodInfo := definitionMethodInfo{lowerName, method.Name, i, &defVal}
+		methodInfo := definitionMethodInfo{lowerName, method.Name, i, &registryDefVal}
 		switch {
 
 		// type TPredicate[ContextType any] func(ContextType, Event) (bool, error)
 		case isPredicate(method.Type, ctxParamTyp, evtParamTyp):
-			appendPredicate(methodInfo, ctxParamTyp)
+			appendPredicate(methodInfo, registryDefTypStr)
 
 		// type TAction[ContextType any] func(ContextType, Event, ActionTool[ContextType]) error
 		case isAction(method.Type, ctxParamTyp, evtParamTyp, actToolParamTyp):
-			appendAction(methodInfo, ctxParamTyp)
+			appendAction(methodInfo, registryDefTypStr)
 
 		// type TInvocation[ContextType any] func(ContextType, Event) ServiceResponse
 		case isService(method.Type, ctxParamTyp, evtParamTyp):
-			appendSrv(methodInfo, ctxParamTyp)
+			appendSrv(methodInfo, registryDefTypStr)
 
 		// default case is ignored
 		default:
@@ -214,6 +215,7 @@ func loadMachineImplementation[ContextType any](machineRegistry MachineRegistryD
 	}
 
 	log.Printf("Loaded implementation for machine id '%s'", machineId)
+	return registryDefTypStr
 }
 
 func isPredicate(typ, tParam, evtParam reflect.Type) bool {
@@ -230,33 +232,28 @@ func isAction(typ, tParam, evtParam, actToolParam reflect.Type) bool {
 
 func isService(typ, tParam, evtParam reflect.Type) bool {
 	in := typ.NumIn() == 3 && typ.In(1) == tParam && typ.In(2) == evtParam
-	out := typ.NumOut() == 1 && typ.Out(0) == reflect.TypeOf((*piece.ServiceResponse)(nil)).Elem()
+	out := typ.NumOut() == 0
 	return in && out
 }
 
-func getBehavior[ContextType any](fixedName, originalName, behavior string, reg definitionMethodInfoRegistry) (any, error) {
-	typ := reflect.TypeOf((*ContextType)(nil)).Elem()
-	r, ok := reg[typ]
-	if !ok {
-		return nil, fmt.Errorf("no %s registered for '%s' and type '%s'", behavior, originalName, typ)
+func getBehavior(fixedName, originalName, registryType, behavior string, reg definitionMethodInfoRegistry) (any, error) {
+	if r, ok := reg[registryType]; ok {
+		if b, ok := r[fixedName]; ok {
+			return b.val.Method(b.pos).Interface(), nil
+		}
 	}
-
-	b, ok := r[fixedName]
-	if !ok {
-		return nil, fmt.Errorf("no %s registered for '%s' and type '%s'", behavior, originalName, typ)
-	}
-
-	return b.val.Method(b.pos).Interface(), nil
+	capitalized := strings.ToUpper(originalName[0:1]) + originalName[1:]
+	return nil, fmt.Errorf("no %s registered for '%s' in registry definition '%s'", behavior, capitalized, registryType)
 }
 
-func getAction[ContextType any](fixedName, originalName string) (any, error) {
-	return getBehavior[ContextType](fixedName, originalName, "action", actionsRegistry)
+func getAction(registryType, fixedName, originalName string) (any, error) {
+	return getBehavior(fixedName, originalName, registryType, "action", actionsRegistry)
 }
 
-func getPredicate[ContextType any](fixedName, originalName string) (any, error) {
-	return getBehavior[ContextType](fixedName, originalName, "predicate", predicatesRegistry)
+func getPredicate(registryType, fixedName, originalName string) (any, error) {
+	return getBehavior(fixedName, originalName, registryType, "predicate", predicatesRegistry)
 }
 
-func getSrv[ContextType any](fixedName, originalName string) (any, error) {
-	return getBehavior[ContextType](fixedName, originalName, "service", srvRegistry)
+func getSrv(registryType, fixedName, originalName string) (any, error) {
+	return getBehavior(fixedName, originalName, registryType, "service", srvRegistry)
 }

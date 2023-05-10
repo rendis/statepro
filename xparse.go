@@ -23,7 +23,7 @@ func getXMachine(file string) (*XMachine, error) {
 	return xm, nil
 }
 
-func parseXMachineToGMachine[ContextType any](x *XMachine) (*piece.GMachine[ContextType], error) {
+func parseXMachineToGMachine[ContextType any](registryType string, x *XMachine) (*piece.GMachine[ContextType], error) {
 	gMachine := &piece.GMachine[ContextType]{}
 	err := validateXMachine(x)
 	if err != nil {
@@ -35,7 +35,7 @@ func parseXMachineToGMachine[ContextType any](x *XMachine) (*piece.GMachine[Cont
 	if x.States != nil {
 		gMachine.States = make(map[string]*piece.GState[ContextType], len(*x.States))
 		for xName, xstate := range *x.States {
-			gState, err := parseXState[ContextType](xName, xstate)
+			gState, err := parseXState[ContextType](registryType, xName, xstate)
 			if err != nil {
 				return nil, err
 			}
@@ -51,7 +51,7 @@ func parseXMachineToGMachine[ContextType any](x *XMachine) (*piece.GMachine[Cont
 	return gMachine, nil
 }
 
-func parseXState[ContextType any](xStateName string, xs XState) (*piece.GState[ContextType], error) {
+func parseXState[ContextType any](registryType, xStateName string, xs XState) (*piece.GState[ContextType], error) {
 	gs := piece.GState[ContextType]{}
 	gs.Name = &xStateName
 
@@ -60,7 +60,7 @@ func parseXState[ContextType any](xStateName string, xs XState) (*piece.GState[C
 	if err != nil {
 		return nil, err
 	}
-	tAlways, err := parseXEvent[ContextType](xAlways)
+	tAlways, err := parseXEvent[ContextType](registryType, xAlways)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func parseXState[ContextType any](xStateName string, xs XState) (*piece.GState[C
 		return nil, err
 	}
 
-	gs.Entry, err = parseXActions[ContextType](xEntry)
+	gs.Entry, err = parseXActions[ContextType](registryType, xEntry)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func parseXState[ContextType any](xStateName string, xs XState) (*piece.GState[C
 		return nil, err
 	}
 
-	gs.Exit, err = parseXActions[ContextType](xExit)
+	gs.Exit, err = parseXActions[ContextType](registryType, xExit)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func parseXState[ContextType any](xStateName string, xs XState) (*piece.GState[C
 	if len(xon) > 0 {
 		gs.On = make(map[string]*piece.GTransition[ContextType], len(xon))
 		for evtName, xts := range xon {
-			gts, err := parseXEvent[ContextType](xts)
+			gts, err := parseXEvent[ContextType](registryType, xts)
 			if err != nil {
 				return nil, err
 			}
@@ -110,7 +110,7 @@ func parseXState[ContextType any](xStateName string, xs XState) (*piece.GState[C
 	if err != nil {
 		return nil, err
 	}
-	gss, err := parseXInvoke[ContextType](xis)
+	gss, err := parseXInvoke[ContextType](registryType, xis)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func parseXState[ContextType any](xStateName string, xs XState) (*piece.GState[C
 	return &gs, nil
 }
 
-func parseXInvoke[ContextType any](xis []XInvoke) ([]*piece.GService[ContextType], error) {
+func parseXInvoke[ContextType any](registryType string, xis []XInvoke) ([]*piece.GService[ContextType], error) {
 	var gss = make([]*piece.GService[ContextType], len(xis))
 	for i, xi := range xis {
 		gs := &piece.GService[ContextType]{}
@@ -152,7 +152,7 @@ func parseXInvoke[ContextType any](xis []XInvoke) ([]*piece.GService[ContextType
 		}
 		gs.Src = &srcName
 
-		srv, err := getSrv[ContextType](srcName, originalSrcName)
+		srv, err := getSrv(registryType, srcName, originalSrcName)
 		if err != nil {
 			return nil, err
 		}
@@ -164,7 +164,7 @@ func parseXInvoke[ContextType any](xis []XInvoke) ([]*piece.GService[ContextType
 
 		// OnDone
 		if xi.OnDone != nil {
-			gOnDone, err := parseXEvent[ContextType](*xi.OnDone)
+			gOnDone, err := parseXEvent[ContextType](registryType, *xi.OnDone)
 			if err != nil {
 				return nil, err
 			}
@@ -173,7 +173,7 @@ func parseXInvoke[ContextType any](xis []XInvoke) ([]*piece.GService[ContextType
 
 		// OnError
 		if xi.OnError != nil {
-			gOnError, err := parseXEvent[ContextType](*xi.OnError)
+			gOnError, err := parseXEvent[ContextType](registryType, *xi.OnError)
 			if err != nil {
 				return nil, err
 			}
@@ -185,7 +185,7 @@ func parseXInvoke[ContextType any](xis []XInvoke) ([]*piece.GService[ContextType
 	return gss, nil
 }
 
-func parseXEvent[ContextType any](xts []XTransition) (*piece.GTransition[ContextType], error) {
+func parseXEvent[ContextType any](registryType string, xts []XTransition) (*piece.GTransition[ContextType], error) {
 	gt := piece.GTransition[ContextType]{}
 	gt.Guards = make([]*piece.GGuard[ContextType], len(xts))
 	for i, xt := range xts {
@@ -196,7 +196,7 @@ func parseXEvent[ContextType any](xts []XTransition) (*piece.GTransition[Context
 		if err != nil {
 			return nil, err
 		}
-		gg.Actions, err = parseXActions[ContextType](xActs)
+		gg.Actions, err = parseXActions[ContextType](registryType, xActs)
 		if err != nil {
 			return nil, err
 		}
@@ -204,7 +204,7 @@ func parseXEvent[ContextType any](xts []XTransition) (*piece.GTransition[Context
 		if xt.Condition != nil && len(*xt.Condition) > 0 {
 			originalCondName := strings.TrimSpace(*xt.Condition)
 			condName := strings.ToLower(originalCondName)
-			predicate, err := getPredicate[ContextType](condName, originalCondName)
+			predicate, err := getPredicate(registryType, condName, originalCondName)
 			if err != nil {
 				return nil, err
 			}
@@ -220,7 +220,7 @@ func parseXEvent[ContextType any](xts []XTransition) (*piece.GTransition[Context
 	return &gt, nil
 }
 
-func parseXActions[ContextType any](xActs []string) ([]*piece.GAction[ContextType], error) {
+func parseXActions[ContextType any](registryType string, xActs []string) ([]*piece.GAction[ContextType], error) {
 	var gActs = make([]*piece.GAction[ContextType], len(xActs))
 	for i, xAct := range xActs {
 		originalXActName := strings.TrimSpace(xAct)
@@ -230,7 +230,7 @@ func parseXActions[ContextType any](xActs []string) ([]*piece.GAction[ContextTyp
 		gActs[i] = &gAct
 
 		// Get actions from Register Actions
-		f, err := getAction[ContextType](xActName, originalXActName)
+		f, err := getAction(registryType, xActName, originalXActName)
 		if err != nil {
 			return nil, err
 		}
