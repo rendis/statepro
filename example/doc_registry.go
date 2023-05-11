@@ -28,30 +28,6 @@ func (DogMachineDefinitions[T]) NotifySleeping(_ Dog, evt piece.Event, actTool p
 	return nil
 }
 
-// 01 - Basic example
-//func (DogMachineDefinitions[T]) IncreaseEnergy(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
-//	fmt.Println("- (A) Dog is increasing energy")
-//	return nil
-//}
-
-// 02 - Read example
-//func (DogMachineDefinitions[T]) IncreaseEnergy(dog Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
-//	fmt.Println("- (A) Dog is increasing energy")
-//	fmt.Println("      · Dog name: ", dog.Name)
-//	fmt.Println("      · Dog energy level: ", dog.EnergyLevel)
-//	return nil
-//}
-
-// 03 - Write example
-//func (DogMachineDefinitions[T]) IncreaseEnergy(dog Dog, _ piece.Event, actTool piece.ActionTool[Dog]) error {
-//	fmt.Println("- (A) Dog is increasing energy")
-//	fmt.Println("      · Dog name: ", dog.Name)
-//	fmt.Println("      · Dog energy level before eat: ", dog.EnergyLevel)
-//	//dog.Eat()
-//	actTool.Assign(dog)
-//	return nil
-//}
-
 // 04 - Events example
 func (DogMachineDefinitions[T]) IncreaseEnergy(dog Dog, evt piece.Event, actTool piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is increasing energy")
@@ -75,13 +51,6 @@ func (DogMachineDefinitions[T]) NotifyMovement(_ Dog, _ piece.Event, _ piece.Act
 	return nil
 }
 
-// 01 - Basic example
-//func (DogMachineDefinitions[T]) StartEating(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
-//	fmt.Println("- (A) Dog is eating")
-//	return nil
-//}
-
-// 02 - Read example
 func (DogMachineDefinitions[T]) StartEating(dog Dog, evt piece.Event, _ piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is eating")
 	fmt.Println("      · Dog name: ", dog.Name)
@@ -106,12 +75,6 @@ func (DogMachineDefinitions[T]) StopPlaying(_ Dog, _ piece.Event, _ piece.Action
 	fmt.Println("- (A) Dog stopped playing")
 	return nil
 }
-
-// 01 - Basic example
-//func (DogMachineDefinitions[T]) DecreaseEnergy(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
-//	fmt.Println("- (A) Dog is decreasing energy")
-//	return nil
-//}
 
 // 04 - Events example
 func (DogMachineDefinitions[T]) DecreaseEnergy(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
