@@ -45,10 +45,13 @@ const contextFromSourceMethodNameFixed = "contextfromsource"
 const contextToSourceMethodName = "ContextToSource"
 const contextToSourceMethodNameFixed = "contexttosource"
 
+// MachineRegistryDefinitions is the interface that must be implemented by a machine registry definition.
+// It is used to link a machine definition with its implementation using the 'id' property.
 type MachineRegistryDefinitions[ContextType any] interface {
 	GetMachineTemplateId() string
 }
 
+// AddMachine registers a machine definition and returns a unique machine id.
 func AddMachine[ContextType any](machineRegistry MachineRegistryDefinitions[ContextType]) string {
 
 	// only allow adding machines before statepro properties have been loaded

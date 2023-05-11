@@ -1,3 +1,7 @@
+// StatePro is a Golang library designed to efficiently and adaptively handle Finite State Machines in microservices.
+//
+//Inspired by XState but focused on backend development, its JSON representation is compatible with XState's
+// visual creator (stately.ai), facilitating its design and visualization.
 package statepro
 
 import (
@@ -7,6 +11,7 @@ import (
 	"log"
 )
 
+// GetMachine returns a ProMachine instance for the given machineId and context.
 func GetMachine[ContextType any](machineId string, context *ContextType) (piece.ProMachine[ContextType], error) {
 
 	pmInfo, ok := proMachines[machineId]
@@ -36,6 +41,7 @@ func GetMachine[ContextType any](machineId string, context *ContextType) (piece.
 	return piece.NewProMachine[ContextType](pm, context, fromSource, toSource), nil
 }
 
+// InitMachines loads the statepro properties and initializes the machines.
 func InitMachines() {
 	loadPropOnce.Do(func() {
 		log.Print("Loading statepro properties")
