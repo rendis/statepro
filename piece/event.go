@@ -9,10 +9,7 @@ type EventType string
 const (
 	EventTypeTransitional EventType = "Transitional"
 	EventTypeOnEntry      EventType = "OnEntry"
-	EventTypeDoAfter      EventType = "DoAfter"
 	EventTypeDoAlways     EventType = "DoAlways"
-	EventTypeOnDone       EventType = "OnDone"
-	EventTypeOnError      EventType = "OnError"
 	EventTypeStartOn      EventType = "StartOn"
 )
 
@@ -119,7 +116,7 @@ func (b *GEventBuilder) WithType(eventType EventType) EventBuilder {
 
 func (b *GEventBuilder) Build() Event {
 	if b.eventType == nil {
-		tmpEvtType := EventTypeOnEntry
+		tmpEvtType := EventTypeTransitional
 		b.eventType = &tmpEvtType
 	}
 	return &GEvent{
