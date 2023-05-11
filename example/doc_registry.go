@@ -19,12 +19,6 @@ func (DogMachineDefinitions[T]) NotifySleeping(_ Dog, _ piece.Event, _ piece.Act
 	return nil
 }
 
-// 01 - Basic example
-//func (DogMachineDefinitions[T]) IncreaseEnergy(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
-//	fmt.Println("- (A) Dog is increasing energy")
-//	return nil
-//}
-
 // 02 - Read example
 func (DogMachineDefinitions[T]) IncreaseEnergy(dog Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is increasing energy")
@@ -37,12 +31,6 @@ func (DogMachineDefinitions[T]) NotifyMovement(_ Dog, _ piece.Event, _ piece.Act
 	fmt.Println("- (A) Dog is moving")
 	return nil
 }
-
-// 01 - Basic example
-//func (DogMachineDefinitions[T]) StartEating(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
-//	fmt.Println("- (A) Dog is eating")
-//	return nil
-//}
 
 // 02 - Read example
 func (DogMachineDefinitions[T]) StartEating(dog Dog, evt piece.Event, _ piece.ActionTool[Dog]) error {
