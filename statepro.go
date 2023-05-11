@@ -25,9 +25,12 @@ func GetMachine[ContextType any](machineId string, context *ContextType) (piece.
 		return nil, errors.New("context is nil, please set a context or a 'ContextFromSource handler")
 	}
 
-	context, err := getContextFromSource(fromSource)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("error getting context from 'ContextFromSource' handler: %s", err.Error()))
+	if context == nil {
+		newContext, err := getContextFromSource[ContextType](fromSource)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("error getting context from 'ContextFromSource' handler: %s", err.Error()))
+		}
+		context = newContext
 	}
 
 	return piece.NewProMachine[ContextType](pm, context, fromSource, toSource), nil
