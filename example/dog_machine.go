@@ -11,6 +11,7 @@ func runDogMachineExamples() {
 	/*************** DOG MACHINE **************/
 	/* Uncomment the example you want to run */
 	/*******************************************/
+	statepro.SetDefinitionPath("example/statepro.yml")
 
 	sendEventInsideAction()
 
