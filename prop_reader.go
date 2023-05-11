@@ -6,15 +6,23 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
-const defaultStateProYml = "statepro.yml"
+var defaultStateProYml = "statepro.yml"
+var changePropPathOnce sync.Once
 
-type Props struct {
-	*Scanner `yaml:"scanner"`
+func SetDefinitionPath(path string) {
+	changePropPathOnce.Do(func() {
+		defaultStateProYml = path
+	})
 }
 
-type Scanner struct {
+type Props struct {
+	*StateProProp `yaml:"statepro"`
+}
+
+type StateProProp struct {
 	FilePrefix *string  `yaml:"file-prefix"`
 	Paths      []string `yaml:"paths"`
 }

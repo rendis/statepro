@@ -17,21 +17,33 @@ type definitionMethodInfo struct {
 	val          *reflect.Value
 }
 
+type proMachineInfo struct {
+	gMachine                      any // *piece.GMachine[ContextType]
+	machineDefinitionRegistryName string
+}
+
 var loadPropOnce sync.Once // used to load prop only once
 var isPropLoaded = false   // used to load prop only once
 
-type definitionMethodInfoRegistry map[string]map[string]definitionMethodInfo
+type definitionMethodInfoRegistry map[string]map[string]*definitionMethodInfo
 
 var xMachines = make(map[string]*XMachine)                  // templateId -> *XMachine
 var xChannelsByTemplate = make(map[string][]chan *XMachine) // templateId -> []chan *XMachine, used to send XMachine to all channels that are waiting for it
 var xChannelsByTemplateWait sync.WaitGroup                  // used to wait for all channels on xChannelsByTemplate to be closed
 
 var proMachinesMutex sync.Mutex
-var proMachines = make(map[string]any) // machineId -> *piece.GMachine[ContextType]
+var proMachines = make(map[string]*proMachineInfo) // machineId -> *piece.GMachine[ContextType]
 
 var predicatesRegistry = make(definitionMethodInfoRegistry)
 var actionsRegistry = make(definitionMethodInfoRegistry)
 var srvRegistry = make(definitionMethodInfoRegistry)
+var contextSourceHandlersRegistry = make(definitionMethodInfoRegistry)
+
+const getMachineTemplateIdMethodName = "GetMachineTemplateId"
+const contextFromSourceMethodName = "ContextFromSource"
+const contextFromSourceMethodNameFixed = "contextfromsource"
+const contextToSourceMethodName = "ContextToSource"
+const contextToSourceMethodNameFixed = "contexttosource"
 
 type MachineRegistryDefinitions[ContextType any] interface {
 	GetMachineTemplateId() string
@@ -96,7 +108,7 @@ func validateMachineRegistryDefinition[ContextType any](machineRegistry MachineR
 
 func loadXMachines() {
 	p := loadProp()
-	defPaths := getDefinitionPaths(p.getPrefix(), p.Scanner.Paths)
+	defPaths := getDefinitionPaths(p.getPrefix(), p.StateProProp.Paths)
 
 	for _, path := range defPaths {
 		m, err := getXMachine(path)
@@ -135,14 +147,20 @@ func asyncGMachineBuilder[ContextType any](machineId, registryType string, xChan
 	if err != nil {
 		log.Fatalf("Error parsing machine '%s': %s", *xm.Id, err)
 	}
+
+	gmInfo := &proMachineInfo{
+		gMachine:                      gm,
+		machineDefinitionRegistryName: registryType,
+	}
+
 	proMachinesMutex.Lock()
-	proMachines[machineId] = gm
+	proMachines[machineId] = gmInfo
 	proMachinesMutex.Unlock()
 }
 
-func appendMachineMethodInfo(methodInfo definitionMethodInfo, registryType string, reg definitionMethodInfoRegistry) error {
+func appendMachineMethodInfo(methodInfo *definitionMethodInfo, registryType string, reg definitionMethodInfoRegistry) error {
 	if _, ok := reg[registryType]; !ok {
-		reg[registryType] = make(map[string]definitionMethodInfo)
+		reg[registryType] = make(map[string]*definitionMethodInfo)
 	}
 
 	if _, ok := reg[registryType][methodInfo.fixedName]; ok {
@@ -153,24 +171,31 @@ func appendMachineMethodInfo(methodInfo definitionMethodInfo, registryType strin
 	return nil
 }
 
-func appendPredicate(methodInfo definitionMethodInfo, registryType string) {
+func appendPredicate(methodInfo *definitionMethodInfo, registryType string) {
 	err := appendMachineMethodInfo(methodInfo, registryType, predicatesRegistry)
 	if err != nil {
 		log.Fatalf("Error appending predicate: %s", err)
 	}
 }
 
-func appendAction(methodInfo definitionMethodInfo, registryType string) {
+func appendAction(methodInfo *definitionMethodInfo, registryType string) {
 	err := appendMachineMethodInfo(methodInfo, registryType, actionsRegistry)
 	if err != nil {
 		log.Fatalf("Error appending action: %s", err)
 	}
 }
 
-func appendSrv(methodInfo definitionMethodInfo, registryType string) {
+func appendSrv(methodInfo *definitionMethodInfo, registryType string) {
 	err := appendMachineMethodInfo(methodInfo, registryType, srvRegistry)
 	if err != nil {
 		log.Fatalf("Error appending service: %s", err)
+	}
+}
+
+func appendContextSourceHandler(methodInfo *definitionMethodInfo, registryType string) {
+	err := appendMachineMethodInfo(methodInfo, registryType, contextSourceHandlersRegistry)
+	if err != nil {
+		log.Fatalf("Error appending context source handler: %s", err)
 	}
 }
 
@@ -188,12 +213,13 @@ func loadMachineImplementation[ContextType any](machineRegistry MachineRegistryD
 
 	for i := 0; i < registryDefTyp.NumMethod(); i++ {
 		method := registryDefTyp.Method(i)
-		if method.Name == "GetMachineTemplateId" {
+		methodName := method.Name
+		if methodName == getMachineTemplateIdMethodName {
 			continue
 		}
 
 		lowerName := strings.ToLower(method.Name)
-		methodInfo := definitionMethodInfo{lowerName, method.Name, i, &registryDefVal}
+		methodInfo := &definitionMethodInfo{lowerName, methodName, i, &registryDefVal}
 		switch {
 
 		// type TPredicate[ContextType any] func(ContextType, Event) (bool, error)
@@ -204,9 +230,15 @@ func loadMachineImplementation[ContextType any](machineRegistry MachineRegistryD
 		case isAction(method.Type, ctxParamTyp, evtParamTyp, actToolParamTyp):
 			appendAction(methodInfo, registryDefTypStr)
 
-		// type TInvocation[ContextType any] func(ContextType, Event) ServiceResponse
+		// type TInvocation[ContextType any] func(ContextType, Event)
 		case isService(method.Type, ctxParamTyp, evtParamTyp):
 			appendSrv(methodInfo, registryDefTypStr)
+
+		case isFromSource(methodName, method.Type, ctxParamTyp):
+			appendContextSourceHandler(methodInfo, registryDefTypStr)
+
+		case isToSource(methodName, method.Type, ctxParamTyp):
+			appendContextSourceHandler(methodInfo, registryDefTypStr)
 
 		// default case is ignored
 		default:
@@ -218,21 +250,44 @@ func loadMachineImplementation[ContextType any](machineRegistry MachineRegistryD
 	return registryDefTypStr
 }
 
-func isPredicate(typ, tParam, evtParam reflect.Type) bool {
-	in := typ.NumIn() == 3 && typ.In(1) == tParam && typ.In(2) == evtParam
-	out := typ.NumOut() == 2 && typ.Out(0) == reflect.TypeOf(true) && typ.Out(1) == reflect.TypeOf((*error)(nil)).Elem()
+func isPredicate(methodTyp, tParam, evtParam reflect.Type) bool {
+	// predicate -> (ContextType, Event) (bool, error)
+	in := methodTyp.NumIn() == 3 && methodTyp.In(1) == tParam && methodTyp.In(2) == evtParam
+	out := methodTyp.NumOut() == 2 && methodTyp.Out(0) == reflect.TypeOf(true) && methodTyp.Out(1) == reflect.TypeOf((*error)(nil)).Elem()
 	return in && out
 }
 
-func isAction(typ, tParam, evtParam, actToolParam reflect.Type) bool {
-	in := typ.NumIn() == 4 && typ.In(1) == tParam && typ.In(2) == evtParam && typ.In(3) == actToolParam
-	out := typ.NumOut() == 1 && typ.Out(0) == reflect.TypeOf((*error)(nil)).Elem()
+func isAction(methodTyp, tParam, evtParam, actToolParam reflect.Type) bool {
+	// action -> (ContextType, Event, ActionTool[ContextType]) error
+	in := methodTyp.NumIn() == 4 && methodTyp.In(1) == tParam && methodTyp.In(2) == evtParam && methodTyp.In(3) == actToolParam
+	out := methodTyp.NumOut() == 1 && methodTyp.Out(0) == reflect.TypeOf((*error)(nil)).Elem()
 	return in && out
 }
 
-func isService(typ, tParam, evtParam reflect.Type) bool {
-	in := typ.NumIn() == 3 && typ.In(1) == tParam && typ.In(2) == evtParam
-	out := typ.NumOut() == 0
+func isService(methodTyp, tParam, evtParam reflect.Type) bool {
+	// service -> (ContextType, Event)
+	in := methodTyp.NumIn() == 3 && methodTyp.In(1) == tParam && methodTyp.In(2) == evtParam
+	out := methodTyp.NumOut() == 0
+	return in && out
+}
+
+func isFromSource(methodName string, methodTyp, tParam reflect.Type) bool {
+	//ContextFromSource -> (params ... any) (ContextType, error)
+	if methodName != contextFromSourceMethodName {
+		return false
+	}
+	in := methodTyp.NumIn() > 1 && methodTyp.In(1) == reflect.TypeOf((*[]any)(nil)).Elem()
+	out := methodTyp.NumOut() == 2 && methodTyp.Out(0) == tParam && methodTyp.Out(1) == reflect.TypeOf((*error)(nil)).Elem()
+	return in && out
+}
+
+func isToSource(methodName string, methodTyp, tParam reflect.Type) bool {
+	//ContextToSource -> (ContextType) error
+	if methodName != contextToSourceMethodName {
+		return false
+	}
+	in := methodTyp.NumIn() == 2 && methodTyp.In(1) == tParam
+	out := methodTyp.NumOut() == 1 && methodTyp.Out(0) == reflect.TypeOf((*error)(nil)).Elem()
 	return in && out
 }
 
@@ -243,7 +298,7 @@ func getBehavior(fixedName, originalName, registryType, behavior string, reg def
 		}
 	}
 	capitalized := strings.ToUpper(originalName[0:1]) + originalName[1:]
-	return nil, fmt.Errorf("no %s registered for '%s' in registry definition '%s'", behavior, capitalized, registryType)
+	return nil, fmt.Errorf("no '%s' registered for '%s' in registry definition '%s'", behavior, capitalized, registryType)
 }
 
 func getAction(registryType, fixedName, originalName string) (any, error) {
@@ -256,4 +311,26 @@ func getPredicate(registryType, fixedName, originalName string) (any, error) {
 
 func getSrv(registryType, fixedName, originalName string) (any, error) {
 	return getBehavior(fixedName, originalName, registryType, "service", srvRegistry)
+}
+
+func getFromSourceHandler(registryType string) any {
+	handler, _ := getBehavior(
+		contextFromSourceMethodNameFixed,
+		contextFromSourceMethodName,
+		registryType,
+		"context from source",
+		contextSourceHandlersRegistry,
+	)
+	return handler
+}
+
+func getToSourceHandler(registryType string) any {
+	handler, _ := getBehavior(
+		contextToSourceMethodNameFixed,
+		contextToSourceMethodName,
+		registryType,
+		"context to source",
+		contextSourceHandlersRegistry,
+	)
+	return handler
 }
