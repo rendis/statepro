@@ -306,7 +306,12 @@ type ActionTool[ContextType any] interface {
 
 ### Method Definitions
 
-The action, guard, and invocation methods are defined with the following signatures:
+The **action**, **guard**, and **invoke** methods must have the same name as the component they are intended to associate with in the state machine's JSON. 
+It's important to note that the names in the JSON are case-insensitive. This means that if we have `doSomething`, `DoSomething`, and `dosomething` in the JSON, 
+for the state machine engine, **_these three variants will be considered the same_**. Consequently, their counterpart in the code should be named exactly as `DoSomething`. 
+This naming standard is crucial for maintaining consistency between the state machine's JSON and its implementation in the code.
+
+Theses methods must be defined in the `MachineRegistryDefinitions` as follows:
 
 ```go
 // Action
