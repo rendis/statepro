@@ -2,6 +2,8 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/rendis/statepro)](https://goreportcard.com/report/github.com/rendis/statepro)
 [![Go Reference](https://pkg.go.dev/badge/github.com/rendis/statepro.svg)](https://pkg.go.dev/github.com/rendis/statepro)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Release](https://img.shields.io/github/release/rendis/statepro.svg?style=flat-square)](https://github.com/rendis/statepro/releases)
+
 
 <p align="center">
     <img src="documentation%2Fassets%2Fdog-machine-diagram.png" alt="golang state machine inspired by xstate" width="800">
@@ -10,6 +12,7 @@
 ## Table of Contents
 
 1. [Introduction](#introduction)
+2. [Installation](#installation)
 2. [Components of a State Machine](#components-of-a-state-machine)
 3. [Initializing the State Machine](#initializing-the-state-machine)
     - [JSON Definition of the State Machine](#json-definition-of-the-state-machine)
@@ -34,6 +37,14 @@ facilitating its design and visualization.
 Despite similarities with XState, StatePro has its own set of features, primarily to ensure efficiency and adaptability in
 state management in microservices. This is because some XState features, although useful for frontend development, do not always
 translate effectively to the microservices environment, which can lead to unnecessary complexity.
+
+## Installation
+
+To install StatePro, use the following command:
+
+```bash
+go get github.com/rendis/statepro
+```
 
 ## Components of a State Machine
 
@@ -81,8 +92,8 @@ Within the configuration file, you must define the location of the state machine
 statepro:
   file-prefix: '<prefix>'
   paths:
-    - '<ruta1>'
-    - '<ruta2>'
+    - '<rute1>'
+    - '<rute2>'
     ...
 ```
 
@@ -295,7 +306,12 @@ type ActionTool[ContextType any] interface {
 
 ### Method Definitions
 
-The action, guard, and invocation methods are defined with the following signatures:
+The **action**, **guard**, and **invoke** methods must have the same name as the component they are intended to associate with in the state machine's JSON. 
+It's important to note that the names in the JSON are case-insensitive. This means that if we have `doSomething`, `DoSomething`, and `dosomething` in the JSON, 
+for the state machine engine, **_these three variants will be considered the same_**. Consequently, their counterpart in the code should be named exactly as `DoSomething`. 
+This naming standard is crucial for maintaining consistency between the state machine's JSON and its implementation in the code.
+
+Theses methods must be defined in the `MachineRegistryDefinitions` as follows:
 
 ```go
 // Action
