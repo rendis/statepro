@@ -1,6 +1,6 @@
 // StatePro is a Golang library designed to efficiently and adaptively handle Finite State Machines in microservices.
 //
-//Inspired by XState but focused on backend development, its JSON representation is compatible with XState's
+// Inspired by XState but focused on backend development, its JSON representation is compatible with XState's
 // visual creator (stately.ai), facilitating its design and visualization.
 package statepro
 
