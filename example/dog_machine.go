@@ -58,7 +58,7 @@ func getDogMachine(dog *Dog) (string, piece.ProMachine[Dog]) {
 	if dog == nil {
 		dog = &Dog{}
 	}
-	dogMachine, err := statepro.GetMachineById[Dog](dogMachineId, dog)
+	dogMachine, err := statepro.GetMachine[Dog](dogMachineId, dog)
 	if err != nil {
 		panic(err)
 	}
