@@ -1,4 +1,4 @@
-scanner:
+statepro:
   file-prefix: ''
   paths:
     - 'example/source/**'

@@ -4,6 +4,9 @@ import (
 	"sync"
 )
 
+type ContextFromSourceFnDefinition[ContextType any] func(params ...any) (ContextType, error)
+type ContextToSourceFnDefinition[ContextType any] func(ContextType) error
+
 type GMachine[ContextType any] struct {
 	Id         string
 	EntryState *GState[ContextType]
@@ -19,13 +22,21 @@ type ProMachine[ContextType any] interface {
 	GetState() string
 	IsFinalState() bool
 	GetContext() ContextType
+	CallContextToSource() error
 }
 
-func NewProMachine[ContextType any](machine *GMachine[ContextType], context *ContextType) ProMachine[ContextType] {
+func NewProMachine[ContextType any](
+	machine *GMachine[ContextType],
+	context *ContextType,
+	contextFromSourceFn ContextFromSourceFnDefinition[ContextType],
+	contextToSourceFn ContextToSourceFnDefinition[ContextType],
+) ProMachine[ContextType] {
 	return &proMachineImpl[ContextType]{
-		context:      context,
-		gMachine:     machine,
-		currentState: machine.EntryState,
+		context:             context,
+		gMachine:            machine,
+		currentState:        machine.EntryState,
+		contextFromSourceFn: contextFromSourceFn,
+		contextToSourceFn:   contextToSourceFn,
 	}
 }
 
@@ -43,6 +54,9 @@ type proMachineImpl[ContextType any] struct {
 
 	currentState *GState[ContextType]
 	prevState    *GState[ContextType]
+
+	contextFromSourceFn ContextFromSourceFnDefinition[ContextType]
+	contextToSourceFn   ContextToSourceFnDefinition[ContextType]
 }
 
 func (pm *proMachineImpl[ContextType]) PlaceOn(stateName string) error {
@@ -206,6 +220,13 @@ func (pm *proMachineImpl[ContextType]) GetContext() ContextType {
 	pm.ctxMtx.RLock()
 	defer pm.ctxMtx.RUnlock()
 	return *pm.context
+}
+
+func (pm *proMachineImpl[ContextType]) CallContextToSource() error {
+	if pm.contextToSourceFn == nil {
+		return ContextToSourceNotImplementedError
+	}
+	return pm.contextToSourceFn(*pm.context)
 }
 
 func (pm *proMachineImpl[ContextType]) setCurrenEvent(event Event, eventChanged bool) {
