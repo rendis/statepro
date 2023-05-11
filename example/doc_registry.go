@@ -28,30 +28,6 @@ func (DogMachineDefinitions[T]) NotifySleeping(_ Dog, evt piece.Event, actTool p
 	return nil
 }
 
-// 01 - Basic example
-//func (DogMachineDefinitions[T]) IncreaseEnergy(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
-//	fmt.Println("- (A) Dog is increasing energy")
-//	return nil
-//}
-
-// 02 - Read example
-//func (DogMachineDefinitions[T]) IncreaseEnergy(dog Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
-//	fmt.Println("- (A) Dog is increasing energy")
-//	fmt.Println("      · Dog name: ", dog.Name)
-//	fmt.Println("      · Dog energy level: ", dog.EnergyLevel)
-//	return nil
-//}
-
-// 03 - Write example
-//func (DogMachineDefinitions[T]) IncreaseEnergy(dog Dog, _ piece.Event, actTool piece.ActionTool[Dog]) error {
-//	fmt.Println("- (A) Dog is increasing energy")
-//	fmt.Println("      · Dog name: ", dog.Name)
-//	fmt.Println("      · Dog energy level before eat: ", dog.EnergyLevel)
-//	//dog.Eat()
-//	actTool.Assign(dog)
-//	return nil
-//}
-
 // 04 - Events example
 func (DogMachineDefinitions[T]) IncreaseEnergy(dog Dog, evt piece.Event, actTool piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is increasing energy")
@@ -74,12 +50,6 @@ func (DogMachineDefinitions[T]) NotifyMovement(_ Dog, _ piece.Event, _ piece.Act
 	fmt.Println("- (A) Dog is moving")
 	return nil
 }
-
-// 01 - Basic example
-//func (DogMachineDefinitions[T]) StartEating(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
-//	fmt.Println("- (A) Dog is eating")
-//	return nil
-//}
 
 // 02 - Read example
 func (DogMachineDefinitions[T]) StartEating(dog Dog, evt piece.Event, _ piece.ActionTool[Dog]) error {
@@ -106,12 +76,6 @@ func (DogMachineDefinitions[T]) StopPlaying(_ Dog, _ piece.Event, _ piece.Action
 	fmt.Println("- (A) Dog stopped playing")
 	return nil
 }
-
-// 01 - Basic example
-//func (DogMachineDefinitions[T]) DecreaseEnergy(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
-//	fmt.Println("- (A) Dog is decreasing energy")
-//	return nil
-//}
 
 // 04 - Events example
 func (DogMachineDefinitions[T]) DecreaseEnergy(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
@@ -212,7 +176,6 @@ func (DogMachineDefinitions[T]) IsEnergyLow(_ Dog, _ piece.Event) (bool, error) 
 	return response, nil
 }
 
-// 04 - Events example
 func (DogMachineDefinitions[T]) MoreHungryThanTired(_ Dog, evt piece.Event) (bool, error) {
 	response := true
 	if evt.HasData() {
@@ -221,4 +184,18 @@ func (DogMachineDefinitions[T]) MoreHungryThanTired(_ Dog, evt piece.Event) (boo
 	}
 	fmt.Printf("- (G) Check if dog is more hungry than tired. Dog is more hungry than tired: %v\n", response)
 	return response, nil
+}
+
+// Context from/to source
+// ContextFromSource -> (params ... any) (Dog, error)
+// ContextToSource -> (dog Dog) error
+
+func (DogMachineDefinitions[T]) ContextFromSource(params ...any) (Dog, error) {
+	fmt.Println("- (C) Context from source")
+	return Dog{}, nil
+}
+
+func (DogMachineDefinitions[T]) ContextToSource(dog Dog) error {
+	fmt.Println("- (C) Save context to source")
+	return nil
 }
