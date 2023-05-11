@@ -56,7 +56,7 @@ func parseXState[ContextType any](registryType, xStateName string, xs XState) (*
 	gs.Name = &xStateName
 
 	// Always
-	xAlways, err := xs.GetAlways()
+	xAlways, err := xs.getAlways()
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func parseXState[ContextType any](registryType, xStateName string, xs XState) (*
 	gs.Always = tAlways
 
 	// Entry
-	xEntry, err := xs.GetEntryActions()
+	xEntry, err := xs.getEntryActions()
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func parseXState[ContextType any](registryType, xStateName string, xs XState) (*
 	}
 
 	// Exit
-	xExit, err := xs.GetExitActions()
+	xExit, err := xs.getExitActions()
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func parseXState[ContextType any](registryType, xStateName string, xs XState) (*
 	}
 
 	// On
-	xon, err := xs.GetOn()
+	xon, err := xs.getOn()
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func parseXState[ContextType any](registryType, xStateName string, xs XState) (*
 	}
 
 	// Services
-	xis, err := xs.GetInvoke()
+	xis, err := xs.getInvoke()
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func parseXEvent[ContextType any](registryType string, xts []XTransition) (*piec
 		gg := piece.GGuard[ContextType]{}
 		gg.Condition = xt.Condition
 		gg.Target = xt.Target
-		xActs, err := xt.GetActions()
+		xActs, err := xt.getActions()
 		if err != nil {
 			return nil, err
 		}
