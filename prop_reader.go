@@ -12,16 +12,20 @@ import (
 var defaultStateProYml = "statepro.yml"
 var changePropPathOnce sync.Once
 
+// SetDefinitionPath sets the path to the configuration yml file.
+// This method should be called before InitMachines.
 func SetDefinitionPath(path string) {
 	changePropPathOnce.Do(func() {
 		defaultStateProYml = path
 	})
 }
 
+// Props is the statepro wrapper configuration filled from the yml file.
 type Props struct {
 	*StateProProp `yaml:"statepro"`
 }
 
+// StateProProp is the statepro configuration filled from the yml file.
 type StateProProp struct {
 	FilePrefix *string  `yaml:"file-prefix"`
 	Paths      []string `yaml:"paths"`
