@@ -5,12 +5,14 @@ import (
 	"fmt"
 )
 
+// XMachine is the json representation of a machine.
 type XMachine struct {
 	Id      *string            `json:"id"`
 	Initial *string            `json:"initial"`
 	States  *map[string]XState `json:"states"`
 }
 
+// XState is the json representation of a state.
 type XState struct {
 	Always      any             `json:"always"` // any = XTransition | []XTransition
 	On          *map[string]any `json:"on"`     // any = XTransition | []XTransition
@@ -22,6 +24,7 @@ type XState struct {
 	Description *string         `json:"description"`
 }
 
+// XTransition is the json representation of a transition.
 type XTransition struct {
 	Condition   *string `json:"cond"`
 	Target      *string `json:"target"`
@@ -29,6 +32,7 @@ type XTransition struct {
 	Description *string `json:"description"`
 }
 
+// XInvoke is the json representation of the invoke property.
 type XInvoke struct {
 	Id      *string        `json:"id"`
 	Src     *string        `json:"src"`
@@ -36,7 +40,7 @@ type XInvoke struct {
 	OnError *[]XTransition `json:"onError"`
 }
 
-func (x *XState) GetOn() (map[string][]XTransition, error) {
+func (x *XState) getOn() (map[string][]XTransition, error) {
 	if x.On == nil {
 		return nil, nil
 	}
@@ -54,28 +58,28 @@ func (x *XState) GetOn() (map[string][]XTransition, error) {
 	return on, nil
 }
 
-func (x *XState) GetEntryActions() ([]string, error) {
+func (x *XState) getEntryActions() ([]string, error) {
 	if x.Entry == nil {
 		return []string{}, nil
 	}
 	return parseFromAny[string](x.Entry)
 }
 
-func (x *XState) GetExitActions() ([]string, error) {
+func (x *XState) getExitActions() ([]string, error) {
 	if x.Exit == nil {
 		return []string{}, nil
 	}
 	return parseFromAny[string](x.Exit)
 }
 
-func (x *XState) GetInvoke() ([]XInvoke, error) {
+func (x *XState) getInvoke() ([]XInvoke, error) {
 	if x.Invoke == nil {
 		return []XInvoke{}, nil
 	}
 	return parseFromAny[XInvoke](x.Invoke)
 }
 
-func (x *XState) GetAfter() (map[int][]XTransition, error) {
+func (x *XState) getAfter() (map[int][]XTransition, error) {
 	if x.After == nil {
 		return nil, nil
 	}
@@ -92,14 +96,14 @@ func (x *XState) GetAfter() (map[int][]XTransition, error) {
 	return after, nil
 }
 
-func (x *XState) GetAlways() ([]XTransition, error) {
+func (x *XState) getAlways() ([]XTransition, error) {
 	if x.Always == nil {
 		return []XTransition{}, nil
 	}
 	return parseFromAny[XTransition](x.Always)
 }
 
-func (x *XTransition) GetActions() ([]string, error) {
+func (x *XTransition) getActions() ([]string, error) {
 	if x.Actions == nil {
 		return []string{}, nil
 	}

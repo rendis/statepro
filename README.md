@@ -1,4 +1,11 @@
 # StatePro: Advanced State Machine Handling in Golang
+[![Go Report Card](https://goreportcard.com/badge/github.com/rendis/statepro)](https://goreportcard.com/report/github.com/rendis/statepro)
+[![Go Reference](https://pkg.go.dev/badge/github.com/rendis/statepro.svg)](https://pkg.go.dev/github.com/rendis/statepro)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+<p align="center">
+    <img src="documentation%2Fassets%2Fdog-machine-diagram.png" alt="golang state machine inspired by xstate" width="800">
+</p>
 
 ## Table of Contents
 
