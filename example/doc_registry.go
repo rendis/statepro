@@ -28,7 +28,6 @@ func (DogMachineDefinitions[T]) NotifySleeping(_ Dog, evt piece.Event, actTool p
 	return nil
 }
 
-// 04 - Events example
 func (DogMachineDefinitions[T]) IncreaseEnergy(dog Dog, evt piece.Event, actTool piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is increasing energy")
 	fmt.Println("      · Dog name: ", dog.Name)
@@ -46,12 +45,15 @@ func (DogMachineDefinitions[T]) IncreaseEnergy(dog Dog, evt piece.Event, actTool
 	return nil
 }
 
-func (DogMachineDefinitions[T]) NotifyMovement(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
+func (DogMachineDefinitions[T]) NotifyMovement(dog Dog, _ piece.Event, actTool piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is moving")
+	dog.EnergyLevel -= 10
+
+	fmt.Println("      · Decreasing energy level by 10")
+	actTool.Assign(dog)
 	return nil
 }
 
-// 02 - Read example
 func (DogMachineDefinitions[T]) StartEating(dog Dog, evt piece.Event, _ piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is eating")
 	fmt.Println("      · Dog name: ", dog.Name)
@@ -77,7 +79,6 @@ func (DogMachineDefinitions[T]) StopPlaying(_ Dog, _ piece.Event, _ piece.Action
 	return nil
 }
 
-// 04 - Events example
 func (DogMachineDefinitions[T]) DecreaseEnergy(_ Dog, _ piece.Event, _ piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is decreasing energy")
 	return errors.New("the dog is too tired to go to bed (he will stay in the kitchen)")
@@ -98,7 +99,6 @@ func (DogMachineDefinitions[T]) LoseInterest(_ Dog, _ piece.Event, _ piece.Actio
 	return nil
 }
 
-// 04 - Events example
 func (DogMachineDefinitions[T]) StartSniffing(_ Dog, evt piece.Event, actTool piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is sniffing")
 
@@ -118,7 +118,6 @@ func (DogMachineDefinitions[T]) StopSniffing(_ Dog, _ piece.Event, _ piece.Actio
 	return nil
 }
 
-// 04 - Events example
 func (DogMachineDefinitions[T]) Investigate(_ Dog, evt piece.Event, actTool piece.ActionTool[Dog]) error {
 	fmt.Println("- (A) Dog is investigating")
 
@@ -192,10 +191,17 @@ func (DogMachineDefinitions[T]) MoreHungryThanTired(_ Dog, evt piece.Event) (boo
 
 func (DogMachineDefinitions[T]) ContextFromSource(params ...any) (Dog, error) {
 	fmt.Println("- (C) Context from source")
-	return Dog{}, nil
+	dog := Dog{
+		Name:        "Bobby",
+		EnergyLevel: 50,
+	}
+
+	fmt.Printf("      · Dog got from source. Dog name: %s, energy level: %d\n", dog.Name, dog.EnergyLevel)
+
+	return dog, nil
 }
 
 func (DogMachineDefinitions[T]) ContextToSource(dog Dog) error {
-	fmt.Println("- (C) Save context to source")
+	fmt.Printf("- (C) Save context to source. Dog name: %s, energy level: %d\n", dog.Name, dog.EnergyLevel)
 	return nil
 }

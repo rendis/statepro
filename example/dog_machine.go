@@ -5,7 +5,6 @@ import (
 	"github.com/rendis/statepro"
 	"github.com/rendis/statepro/piece"
 	"strings"
-	"time"
 )
 
 func runDogMachineExamples() {
@@ -34,8 +33,9 @@ func contextHandlers() {
 	evt := piece.BuildEvent("NOISE").Build()
 	_ = dogMachine.SendEvent(evt)
 
-	// invocations are launched on a separate goroutines, so we need to wait a bit before main goroutine exits
-	time.Sleep(1 * time.Second)
+	if err := dogMachine.CallContextToSource(); err != nil {
+		fmt.Printf("Error calling context to source: %s\n", err.Error())
+	}
 
 	printMachineInfo(dogMachine)
 }
