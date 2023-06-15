@@ -4,21 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/rendis/statepro/piece"
-	"io/ioutil"
 	"strings"
 )
 
-func getXMachine(file string) (*XMachine, error) {
+func getXMachine(definition []byte) (*XMachine, error) {
 	xm := &XMachine{}
-
-	byteArr, err := ioutil.ReadFile(file)
+	err := json.Unmarshal(definition, xm)
 	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(byteArr, xm)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error unmarshalling definition. %w", err)
 	}
 	return xm, nil
 }

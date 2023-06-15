@@ -5,10 +5,19 @@ import (
 	"github.com/google/uuid"
 	"github.com/rendis/statepro/piece"
 	"log"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
 )
+
+// MachineRegistryDefinitions is the interface that must be implemented by a machine registry definition.
+// It is used to link a machine definition with its implementation using the 'id' property.
+type MachineRegistryDefinitions[ContextType any] interface {
+	GetMachineTemplateId() string
+}
+
+type definitionMethodInfoRegistry map[string]map[string]*definitionMethodInfo
 
 type definitionMethodInfo struct {
 	fixedName    string
@@ -22,34 +31,41 @@ type proMachineInfo struct {
 	machineDefinitionRegistryName string
 }
 
-var loadPropOnce sync.Once // used to load prop only once
-var isPropLoaded = false   // used to load prop only once
+var (
+	loadPropOnce sync.Once // used to load prop only once
+	isPropLoaded = false   // used to load prop only once
+)
 
-type definitionMethodInfoRegistry map[string]map[string]*definitionMethodInfo
+var (
+	definitionsArr   = make(map[string][]byte) // used to store machine definitions
+	definitionsMutex sync.Mutex                // used to lock definitionsArr
+)
 
-var xMachines = make(map[string]*XMachine)                  // templateId -> *XMachine
-var xChannelsByTemplate = make(map[string][]chan *XMachine) // templateId -> []chan *XMachine, used to send XMachine to all channels that are waiting for it
-var xChannelsByTemplateWait sync.WaitGroup                  // used to wait for all channels on xChannelsByTemplate to be closed
+var (
+	xMachines               = make(map[string]*XMachine)        // templateId -> *XMachine
+	xChannelsByTemplate     = make(map[string][]chan *XMachine) // templateId -> []chan *XMachine, used to send XMachine to all channels that are waiting for it
+	xChannelsByTemplateWait sync.WaitGroup                      // used to wait for all channels on xChannelsByTemplate to be closed
+)
 
-var proMachinesMutex sync.Mutex
-var proMachines = make(map[string]*proMachineInfo) // machineId -> *piece.GMachine[ContextType]
+var (
+	proMachinesMutex sync.Mutex
+	proMachines      = make(map[string]*proMachineInfo) // machineId -> *piece.GMachine[ContextType]
+)
 
-var predicatesRegistry = make(definitionMethodInfoRegistry)
-var actionsRegistry = make(definitionMethodInfoRegistry)
-var srvRegistry = make(definitionMethodInfoRegistry)
-var contextSourceHandlersRegistry = make(definitionMethodInfoRegistry)
+var (
+	predicatesRegistry            = make(definitionMethodInfoRegistry)
+	actionsRegistry               = make(definitionMethodInfoRegistry)
+	srvRegistry                   = make(definitionMethodInfoRegistry)
+	contextSourceHandlersRegistry = make(definitionMethodInfoRegistry)
+)
 
-const getMachineTemplateIdMethodName = "GetMachineTemplateId"
-const contextFromSourceMethodName = "ContextFromSource"
-const contextFromSourceMethodNameFixed = "contextfromsource"
-const contextToSourceMethodName = "ContextToSource"
-const contextToSourceMethodNameFixed = "contexttosource"
-
-// MachineRegistryDefinitions is the interface that must be implemented by a machine registry definition.
-// It is used to link a machine definition with its implementation using the 'id' property.
-type MachineRegistryDefinitions[ContextType any] interface {
-	GetMachineTemplateId() string
-}
+const (
+	getMachineTemplateIdMethodName   = "GetMachineTemplateId"
+	contextFromSourceMethodName      = "ContextFromSource"
+	contextFromSourceMethodNameFixed = "contextfromsource"
+	contextToSourceMethodName        = "ContextToSource"
+	contextToSourceMethodNameFixed   = "contexttosource"
+)
 
 // AddMachine registers a machine definition and returns a unique machine id.
 func AddMachine[ContextType any](machineRegistry MachineRegistryDefinitions[ContextType]) string {
@@ -57,13 +73,13 @@ func AddMachine[ContextType any](machineRegistry MachineRegistryDefinitions[Cont
 	// only allow adding machines before statepro properties have been loaded
 	proMachinesMutex.Lock()
 	if isPropLoaded {
-		log.Fatalf("Cannot add machine '%s' after statepro properties have been loaded", machineRegistry.GetMachineTemplateId())
+		log.Fatalf("[FATAL] Cannot add machine '%s' after statepro properties have been loaded", machineRegistry.GetMachineTemplateId())
 	}
 	proMachinesMutex.Unlock()
 
 	// validate machine registry definition
 	if err := validateMachineRegistryDefinition[ContextType](machineRegistry); err != nil {
-		log.Fatalf("Error validating machine registry definition: %s", err)
+		log.Fatalf("[FATAL] Error validating machine registry definition: %s", err)
 	}
 
 	templateId := machineRegistry.GetMachineTemplateId()
@@ -82,6 +98,25 @@ func AddMachine[ContextType any](machineRegistry MachineRegistryDefinitions[Cont
 	go asyncGMachineBuilder[ContextType](machineId, registryDefType, ch)
 
 	return machineId
+}
+
+// AddDefinitions registers a machine json definitions
+func AddDefinitions(definitions map[string]string) {
+	definitionsMutex.Lock()
+	defer definitionsMutex.Unlock()
+
+	if definitions == nil || len(definitions) == 0 {
+		log.Printf("[WARN] No machine definitions found to add")
+		return
+	}
+
+	for k, v := range definitions {
+
+		if _, ok := definitionsArr[k]; ok {
+			log.Fatalf("[FATAL] Machine definition id '%s' already exists.", k)
+		}
+		definitionsArr[k] = []byte(v)
+	}
 }
 
 func validateMachineRegistryDefinition[ContextType any](machineRegistry MachineRegistryDefinitions[ContextType]) error {
@@ -110,21 +145,73 @@ func validateMachineRegistryDefinition[ContextType any](machineRegistry MachineR
 }
 
 func loadXMachines() {
-	p := loadProp()
-	defPaths := getDefinitionPaths(p.getPrefix(), p.StateProProp.Paths)
+	definitions, err := getMachineDefinitions()
+	if err != nil {
+		log.Fatalf("[FATAL] Error loading machine definitions: %s", err)
+	}
 
-	for _, path := range defPaths {
-		m, err := getXMachine(path)
+	if definitions == nil || len(definitions) == 0 {
+		log.Fatalf("[FATAL] No machine definitions found")
+	}
+
+	for path, definition := range definitions {
+		m, err := getXMachine(definition)
 
 		if err != nil {
-			log.Fatalf("Error loading machine '%s': %s", path, err)
+			log.Fatalf("[FATAL] Error loading machine '%s': %s", path, err)
 		}
 
 		if _, ok := xMachines[*m.Id]; ok {
-			log.Fatalf("Machine definition id '%s' already exists in the path '%s'.", *m.Id, path)
+			log.Fatalf("[FATAL] Machine definition id '%s' already exists in the path '%s'.", *m.Id, path)
 		}
 
 		xMachines[*m.Id] = m
+	}
+}
+
+func getMachineDefinitions() (map[string][]byte, error) {
+	defFromProp, err := getDefinitionsFromProp()
+	if err != nil {
+		return nil, fmt.Errorf("error getting machine definitions from properties: %s", err)
+	}
+
+	definitions := make(map[string][]byte)
+	for k, v := range defFromProp {
+		definitions[k] = v
+	}
+
+	for k, v := range definitionsArr {
+		definitions[k] = v
+	}
+
+	return definitions, nil
+}
+
+func getDefinitionsFromProp() (map[string][]byte, error) {
+	var definitions = make(map[string][]byte)
+
+	if p := loadProp(); p != nil {
+		defPaths := getDefinitionPaths(p.getPrefix(), p.StateProProp.Paths)
+
+		for _, path := range defPaths {
+			byteArr, err := os.ReadFile(path)
+			if err != nil {
+				return nil, err
+			}
+			definitions[path] = byteArr
+		}
+	}
+
+	return definitions, nil
+}
+
+func cleanStatepro() {
+	definitionsMutex.Lock()
+	defer definitionsMutex.Unlock()
+
+	// clear definitions
+	for k := range definitionsArr {
+		delete(definitionsArr, k)
 	}
 }
 
@@ -132,7 +219,7 @@ func notifyXMachines() {
 	for templateId, xChannels := range xChannelsByTemplate {
 		xm, ok := xMachines[templateId]
 		if !ok {
-			log.Fatalf("Definition for machine '%s' does not exist.", templateId)
+			log.Fatalf("[FATAL] Definition for machine '%s' does not exist.", templateId)
 		}
 
 		for _, ch := range xChannels {
@@ -148,7 +235,7 @@ func asyncGMachineBuilder[ContextType any](machineId, registryType string, xChan
 	xm := <-xChan
 	gm, err := parseXMachineToGMachine[ContextType](registryType, xm)
 	if err != nil {
-		log.Fatalf("Error parsing machine '%s': %s", *xm.Id, err)
+		log.Fatalf("[FATAL] Error parsing machine '%s': %s", *xm.Id, err)
 	}
 
 	gmInfo := &proMachineInfo{
@@ -177,34 +264,34 @@ func appendMachineMethodInfo(methodInfo *definitionMethodInfo, registryType stri
 func appendPredicate(methodInfo *definitionMethodInfo, registryType string) {
 	err := appendMachineMethodInfo(methodInfo, registryType, predicatesRegistry)
 	if err != nil {
-		log.Fatalf("Error appending predicate: %s", err)
+		log.Fatalf("[FATAL] Error appending predicate: %s", err)
 	}
 }
 
 func appendAction(methodInfo *definitionMethodInfo, registryType string) {
 	err := appendMachineMethodInfo(methodInfo, registryType, actionsRegistry)
 	if err != nil {
-		log.Fatalf("Error appending action: %s", err)
+		log.Fatalf("[FATAL] Error appending action: %s", err)
 	}
 }
 
 func appendSrv(methodInfo *definitionMethodInfo, registryType string) {
 	err := appendMachineMethodInfo(methodInfo, registryType, srvRegistry)
 	if err != nil {
-		log.Fatalf("Error appending service: %s", err)
+		log.Fatalf("[FATAL] Error appending service: %s", err)
 	}
 }
 
 func appendContextSourceHandler(methodInfo *definitionMethodInfo, registryType string) {
 	err := appendMachineMethodInfo(methodInfo, registryType, contextSourceHandlersRegistry)
 	if err != nil {
-		log.Fatalf("Error appending context source handler: %s", err)
+		log.Fatalf("[FATAL] Error appending context source handler: %s", err)
 	}
 }
 
 func loadMachineImplementation[ContextType any](machineRegistry MachineRegistryDefinitions[ContextType]) string {
 	machineId := machineRegistry.GetMachineTemplateId()
-	log.Printf("Loading implementation for machine id '%s'", machineId)
+	log.Printf("[INFO] Loading implementation for machine id '%s'", machineId)
 
 	registryDefTyp := reflect.TypeOf(machineRegistry)
 	registryDefVal := reflect.ValueOf(machineRegistry)
@@ -245,11 +332,11 @@ func loadMachineImplementation[ContextType any](machineRegistry MachineRegistryD
 
 		// default case is ignored
 		default:
-			log.Printf("Skipping method '%s' of type '%s' in machine '%s'\n", method.Name, method.Type, machineId)
+			log.Printf("[INFO] Skipping method '%s' of type '%s' in machine '%s'\n", method.Name, method.Type, machineId)
 		}
 	}
 
-	log.Printf("Loaded implementation for machine id '%s'", machineId)
+	log.Printf("[INFO] Loaded implementation for machine id '%s'", machineId)
 	return registryDefTypStr
 }
 

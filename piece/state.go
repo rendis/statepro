@@ -78,7 +78,7 @@ func (s *GState[ContextType]) invokeServices(c ContextType, e Event) {
 	case resp, open := <-s.srvCh:
 		if open {
 			close(s.srvCh)
-			log.Printf("GService %s returned %s", resp.Target, resp.Event.GetName())
+			log.Printf("[INFO] GService '%s' returned '%s'", *resp.Target, resp.Event.GetName())
 		}
 	}
 }
