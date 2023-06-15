@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/rendis/statepro"
 	"github.com/rendis/statepro/piece"
+	"os"
 	"strings"
 )
 
@@ -11,11 +12,12 @@ func runDogMachineExamples() {
 	/*************** DOG MACHINE **************/
 	/* Uncomment the example you want to run */
 	/*******************************************/
-	statepro.SetDefinitionPath("example/statepro.yml")
 
 	initDogMachine()
 
 	//_, _ = getDogMachine(nil)
+
+	//getDogMachineFromMap(nil)
 
 	//getDogMachineInfo()
 
@@ -28,6 +30,7 @@ func runDogMachineExamples() {
 
 // show how to register a machine and init all machines
 func initDogMachine() {
+	statepro.SetDefinitionPath("example/statepro.yml")
 	definitions := &DogMachineDefinitions[Dog]{}
 	_ = statepro.AddMachine[Dog](definitions)
 	statepro.InitMachines()
@@ -36,8 +39,39 @@ func initDogMachine() {
 
 // show how to get a machine by id
 func getDogMachine(dog *Dog) (string, piece.ProMachine[Dog]) {
+	statepro.SetDefinitionPath("example/statepro.yml")
 	definitions := &DogMachineDefinitions[Dog]{}
 	dogMachineId := statepro.AddMachine[Dog](definitions)
+	statepro.InitMachines()
+
+	if dog == nil {
+		dog = &Dog{}
+	}
+	dogMachine, err := statepro.GetMachine[Dog](dogMachineId, dog)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("\nDogMachineId: %s\n\n", dogMachineId)
+
+	return dogMachineId, dogMachine
+}
+
+// show how to add json machine definition as []byte
+func getDogMachineFromMap(dog *Dog) (string, piece.ProMachine[Dog]) {
+	// read json definition from file
+	jsonDefinition, err := os.ReadFile("example/source/01_dog_machine.json")
+	if err != nil {
+		fmt.Printf("error reading json definition: %s\n", err.Error())
+		panic(err)
+	}
+
+	var jsonMap = make(map[string]string)
+	jsonMap["01_dog_machine"] = string(jsonDefinition)
+	statepro.AddDefinitions(jsonMap)
+
+	dogDefinitions := &DogMachineDefinitions[Dog]{}
+	dogMachineId := statepro.AddMachine[Dog](dogDefinitions)
+
 	statepro.InitMachines()
 
 	if dog == nil {
@@ -81,7 +115,8 @@ func dogMachineSendEvent() {
 // show how to init a machine on a specific state
 func initDogMachineOnState() {
 	dog := &Dog{}
-	_, dogMachine := getDogMachine(dog)
+	//_, dogMachine := getDogMachine(dog)
+	_, dogMachine := getDogMachineFromMap(dog)
 
 	initOnState := "Awake"
 	_ = dogMachine.PlaceOn(initOnState)
