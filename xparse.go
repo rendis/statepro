@@ -43,7 +43,6 @@ func parseXMachineToGMachine[ContextType any](registryType string, x *XMachine) 
 	if _, ok := gMachine.States[*x.Initial]; !ok {
 		return nil, fmt.Errorf("initial state '%s' does not exist in states", *x.Initial)
 	}
-	gMachine.EntryState = gMachine.States[*x.Initial]
 
 	// check if success flow states exist
 	if x.SuccessFlow != nil && len(x.SuccessFlow) > 0 {
@@ -57,7 +56,11 @@ func parseXMachineToGMachine[ContextType any](registryType string, x *XMachine) 
 			return nil, fmt.Errorf(strings.Join(errs, "\n"))
 		}
 	}
+
+	// set fields
+	gMachine.EntryState = gMachine.States[*x.Initial]
 	gMachine.SuccessFlow = x.SuccessFlow
+	gMachine.Version = x.Version
 
 	// check if all states are reachable
 	// TODO: new feature to implement

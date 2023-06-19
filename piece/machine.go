@@ -12,6 +12,7 @@ type GMachine[ContextType any] struct {
 	EntryState  *GState[ContextType]
 	States      map[string]*GState[ContextType]
 	SuccessFlow []string
+	Version     *string
 }
 
 type ProMachine[ContextType any] interface {

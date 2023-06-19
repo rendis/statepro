@@ -13,6 +13,7 @@ type XMachine struct {
 	Initial     *string            `json:"initial"`
 	States      *map[string]XState `json:"states"`
 	SuccessFlow []string           `json:"successFlow"` // Not part of the XState, but used to define the success flow (Optional)
+	Version     *string            `json:"version"`
 }
 
 // XState is the json representation of a state.
