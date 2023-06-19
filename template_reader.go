@@ -24,7 +24,7 @@ func getDefinitionPaths(prefix string, paths []string) []string {
 		}
 
 		if _, err := os.Stat(path); err != nil {
-			log.Fatalf("[ERROR] Cannot find machine directory/file: %s", path)
+			log.Fatalf("[FATAL] Cannot find machine directory/file: %s", path)
 		}
 
 		subDefs := processPath(path, prefix, deep)
@@ -48,7 +48,7 @@ func processPath(path, prefix string, deep bool) []string {
 		if isDefPath(path, prefix) {
 			return []string{path}
 		}
-		log.Fatalf("[ERROR] Invalid machine path: %s", path)
+		log.Fatalf("[FATAL] Invalid machine path: %s", path)
 	}
 	if !deep {
 		return plainScan(path, prefix)
@@ -60,7 +60,7 @@ func processPath(path, prefix string, deep bool) []string {
 func plainScan(path, prefix string) []string {
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
-		log.Fatalf("[ERROR] Cannot find machine directory/info: %s", path)
+		log.Fatalf("[FATAL] Cannot find machine directory/info: %s", path)
 	}
 	var defs []string
 	for _, info := range files {
@@ -75,7 +75,7 @@ func deepScan(path, prefix string) []string {
 	var defs []string
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			log.Fatalf("[ERROR] An error occurred while scanning '%s': %s", path, err)
+			log.Fatalf("[FATAL] An error occurred while scanning '%s': %s", path, err)
 			return err
 		}
 		if !info.IsDir() && isDefPath(info.Name(), prefix) {
@@ -84,7 +84,7 @@ func deepScan(path, prefix string) []string {
 		return nil
 	})
 	if err != nil {
-		log.Fatalf("[ERROR] An error occurred while scanning directory '%s': %s", path, err)
+		log.Fatalf("[FATAL] An error occurred while scanning directory '%s': %s", path, err)
 	}
 	return defs
 }
@@ -92,7 +92,7 @@ func deepScan(path, prefix string) []string {
 func isDirectory(path string) bool {
 	fileInfo, err := os.Stat(path)
 	if err != nil {
-		log.Fatalf("[ERROR] Cannot find machine directory/file: %s", path)
+		log.Fatalf("[FATAL] Cannot find machine directory/file: %s", path)
 	}
 	return fileInfo.IsDir()
 }

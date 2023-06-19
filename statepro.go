@@ -44,11 +44,14 @@ func GetMachine[ContextType any](machineId string, context *ContextType) (piece.
 // InitMachines loads the statepro properties and initializes the machines.
 func InitMachines() {
 	loadPropOnce.Do(func() {
-		log.Print("Loading statepro properties")
+		defer func() {
+			cleanStatepro()
+		}()
+		log.Print("[INFO] Loading statepro properties")
 		isPropLoaded = true
 		loadXMachines()
 		notifyXMachines()
-		log.Print("Statepro properties loaded")
+		log.Print("[INFO] Statepro properties loaded")
 	})
 }
 

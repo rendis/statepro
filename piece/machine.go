@@ -8,9 +8,11 @@ type ContextFromSourceFnDefinition[ContextType any] func(params ...any) (Context
 type ContextToSourceFnDefinition[ContextType any] func(ContextType) error
 
 type GMachine[ContextType any] struct {
-	Id         string
-	EntryState *GState[ContextType]
-	States     map[string]*GState[ContextType]
+	Id          string
+	EntryState  *GState[ContextType]
+	States      map[string]*GState[ContextType]
+	SuccessFlow []string
+	Version     *string
 }
 
 type ProMachine[ContextType any] interface {

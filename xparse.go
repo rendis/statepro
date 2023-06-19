@@ -4,21 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/rendis/statepro/piece"
-	"io/ioutil"
 	"strings"
 )
 
-func getXMachine(file string) (*XMachine, error) {
+func getXMachine(definition []byte) (*XMachine, error) {
 	xm := &XMachine{}
-
-	byteArr, err := ioutil.ReadFile(file)
+	err := json.Unmarshal(definition, xm)
 	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(byteArr, xm)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error unmarshalling definition. %w", err)
 	}
 	return xm, nil
 }
@@ -32,21 +25,45 @@ func parseXMachineToGMachine[ContextType any](registryType string, x *XMachine) 
 
 	gMachine.Id = *x.Id
 
-	if x.States != nil {
-		gMachine.States = make(map[string]*piece.GState[ContextType], len(*x.States))
-		for xName, xstate := range *x.States {
-			gState, err := parseXState[ContextType](registryType, xName, xstate)
-			if err != nil {
-				return nil, err
-			}
-			gMachine.States[xName] = gState
-		}
-
-		if _, ok := gMachine.States[*x.Initial]; !ok {
-			return nil, fmt.Errorf("initial state '%s' does not exist", *x.Initial)
-		}
-		gMachine.EntryState = gMachine.States[*x.Initial]
+	if x.States == nil || len(*x.States) == 0 {
+		return nil, fmt.Errorf("no states defined. states must be defined")
 	}
+
+	// parse states
+	gMachine.States = make(map[string]*piece.GState[ContextType], len(*x.States))
+	for xName, xstate := range *x.States {
+		gState, err := parseXState[ContextType](registryType, xName, xstate)
+		if err != nil {
+			return nil, err
+		}
+		gMachine.States[xName] = gState
+	}
+
+	// check if initial state exists
+	if _, ok := gMachine.States[*x.Initial]; !ok {
+		return nil, fmt.Errorf("initial state '%s' does not exist in states", *x.Initial)
+	}
+
+	// check if success flow states exist
+	if x.SuccessFlow != nil && len(x.SuccessFlow) > 0 {
+		var errs []string
+		for _, stateName := range x.SuccessFlow {
+			if _, ok := gMachine.States[stateName]; !ok {
+				errs = append(errs, fmt.Sprintf("success flow state '%s' does not exist in states", stateName))
+			}
+		}
+		if len(errs) > 0 {
+			return nil, fmt.Errorf(strings.Join(errs, "\n"))
+		}
+	}
+
+	// set fields
+	gMachine.EntryState = gMachine.States[*x.Initial]
+	gMachine.SuccessFlow = x.SuccessFlow
+	gMachine.Version = x.Version
+
+	// check if all states are reachable
+	// TODO: new feature to implement
 
 	return gMachine, nil
 }
