@@ -12,17 +12,17 @@ import (
 	"strings"
 )
 
-// GetMachineByCompositeId returns a ProMachine instance for the given machine unique Id and context.
-func GetMachineByCompositeId[ContextType any](machineId string, context *ContextType) (piece.ProMachine[ContextType], error) {
+// GetMachineByCompositeId returns a ProMachine instance for the given compositeId, context and params.
+func GetMachineByCompositeId[ContextType any](compositeId string, context *ContextType, params ...any) (piece.ProMachine[ContextType], error) {
 
-	pmInfo, ok := proMachines[machineId]
+	pmInfo, ok := proMachines[compositeId]
 	if !ok {
-		return nil, fmt.Errorf("machine '%s' does not exist", machineId)
+		return nil, fmt.Errorf("machine '%s' does not exist", compositeId)
 	}
 
 	pm, ok := pmInfo.gMachine.(*piece.GMachine[ContextType])
 	if !ok {
-		return nil, fmt.Errorf("machine '%s' does not exist", machineId)
+		return nil, fmt.Errorf("machine '%s' does not exist", compositeId)
 	}
 
 	fromSource, toSource := getContextSourceHandlers[ContextType](pmInfo.machineDefinitionRegistryName)
@@ -32,7 +32,7 @@ func GetMachineByCompositeId[ContextType any](machineId string, context *Context
 	}
 
 	if context == nil {
-		newContext, err := getContextFromSource[ContextType](fromSource)
+		newContext, err := getContextFromSource[ContextType](fromSource, params)
 		if err != nil {
 			return nil, errors.New(fmt.Sprintf("error getting context from 'ContextFromSource' handler: %s", err.Error()))
 		}
@@ -68,7 +68,7 @@ func getContextSourceHandlers[ContextType any](machineDefinitionRegistryName str
 	var toSource piece.ContextToSourceFnDefinition[ContextType] = nil
 
 	if method := getFromSourceHandler(machineDefinitionRegistryName); method != nil {
-		fromSource = method.(func(params ...any) (ContextType, error))
+		fromSource = method.(func(params ...any) (*ContextType, error))
 	}
 
 	if method := getToSourceHandler(machineDefinitionRegistryName); method != nil {
@@ -78,10 +78,20 @@ func getContextSourceHandlers[ContextType any](machineDefinitionRegistryName str
 	return fromSource, toSource
 }
 
-func getContextFromSource[ContextType any](fromSource piece.ContextFromSourceFnDefinition[ContextType]) (*ContextType, error) {
+func getContextFromSource[ContextType any](fromSource piece.ContextFromSourceFnDefinition[ContextType], params []any) (*ContextType, error) {
 	if fromSource == nil {
 		return nil, fmt.Errorf("no ContextFromSource handler defined")
 	}
-	newContext, err := fromSource()
-	return &newContext, err
+
+	// avoid nil pointer exception
+	if params == nil {
+		params = []any{}
+	}
+
+	newContext, err := fromSource(params...)
+	if newContext == nil {
+		return nil, err
+	}
+
+	return newContext, err
 }
