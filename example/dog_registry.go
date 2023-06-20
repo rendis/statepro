@@ -189,9 +189,9 @@ func (DogMachineDefinitions[T]) MoreHungryThanTired(_ Dog, evt piece.Event) (boo
 // ContextFromSource -> (params ... any) (Dog, error)
 // ContextToSource -> (dog Dog) error
 
-func (DogMachineDefinitions[T]) ContextFromSource(params ...any) (Dog, error) {
+func (DogMachineDefinitions[T]) ContextFromSource(params ...any) (*Dog, error) {
 	fmt.Println("- (C) Context from source")
-	dog := Dog{
+	dog := &Dog{
 		Name:        "Bobby",
 		EnergyLevel: 50,
 	}
