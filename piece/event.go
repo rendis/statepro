@@ -15,7 +15,7 @@ const (
 
 type Event interface {
 	GetName() string                       // get event name
-	GetFrom() string                       // get where the event from
+	GetFrom() string                       // get state name from which event is triggered
 	HasData() bool                         // check if event has data
 	GetData() any                          // get event data
 	GetDataAsMap() (map[string]any, error) // get event data as map <string, any>

@@ -22,7 +22,7 @@ func getDogMachine() (string, piece.ProMachine[Dog]) {
 	dogMachineId := statepro.AddMachine[Dog]("DogMachine", "1.0", definitions)
 	statepro.InitMachines()
 
-	dogMachine, err := statepro.GetMachineByUniqueId[Dog](dogMachineId, nil)
+	dogMachine, err := statepro.GetMachineByCompositeId[Dog](dogMachineId, nil)
 	if err != nil {
 		panic(err)
 	}

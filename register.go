@@ -393,7 +393,7 @@ func isFromSource(methodName string, methodTyp, tParam reflect.Type) bool {
 		return false
 	}
 	in := methodTyp.NumIn() > 1 && methodTyp.In(1) == reflect.TypeOf((*[]any)(nil)).Elem()
-	out := methodTyp.NumOut() == 2 && methodTyp.Out(0) == tParam && methodTyp.Out(1) == reflect.TypeOf((*error)(nil)).Elem()
+	out := methodTyp.NumOut() == 2 && methodTyp.Out(0) == reflect.PtrTo(tParam) && methodTyp.Out(1) == reflect.TypeOf((*error)(nil)).Elem()
 	return in && out
 }
 

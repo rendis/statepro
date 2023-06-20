@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-type ContextFromSourceFnDefinition[ContextType any] func(params ...any) (ContextType, error)
+type ContextFromSourceFnDefinition[ContextType any] func(params ...any) (*ContextType, error)
 type ContextToSourceFnDefinition[ContextType any] func(ContextType) error
 
 type GMachine[ContextType any] struct {
