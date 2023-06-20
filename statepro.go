@@ -12,8 +12,8 @@ import (
 	"strings"
 )
 
-// GetMachineByUniqueId returns a ProMachine instance for the given machine unique Id and context.
-func GetMachineByUniqueId[ContextType any](machineId string, context *ContextType) (piece.ProMachine[ContextType], error) {
+// GetMachineByCompositeId returns a ProMachine instance for the given machine unique Id and context.
+func GetMachineByCompositeId[ContextType any](machineId string, context *ContextType) (piece.ProMachine[ContextType], error) {
 
 	pmInfo, ok := proMachines[machineId]
 	if !ok {
@@ -42,7 +42,7 @@ func GetMachineByUniqueId[ContextType any](machineId string, context *ContextTyp
 	return piece.NewProMachine[ContextType](pm, context, fromSource, toSource), nil
 }
 
-// BuildMachineCompositeId builds a machine unique Id from the given machine Id and version.
+// BuildMachineCompositeId builds a machine composite id from the given machine id and version.
 func BuildMachineCompositeId(machineId, version string) string {
 	machineId = strings.TrimSpace(machineId)
 	version = strings.TrimSpace(version)
