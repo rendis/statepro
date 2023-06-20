@@ -13,33 +13,48 @@ func getXMachine(definition []byte) (*XMachine, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshalling definition. %w", err)
 	}
-	return xm, nil
+	return xm, validateXMachine(xm)
 }
 
 func parseXMachineToGMachine[ContextType any](registryType string, x *XMachine) (*piece.GMachine[ContextType], error) {
 	gMachine := &piece.GMachine[ContextType]{}
-	err := validateXMachine(x)
-	if err != nil {
-		return nil, err
+
+	// parse states
+	gMachine.States = make(map[string]*piece.GState[ContextType], len(*x.States))
+	for xName, xstate := range *x.States {
+		gState, err := parseXState[ContextType](registryType, xName, xstate)
+		if err != nil {
+			return nil, err
+		}
+		gMachine.States[xName] = gState
 	}
 
-	gMachine.Id = *x.Id
+	// check if initial state exists
+	if _, ok := gMachine.States[*x.Initial]; !ok {
+		return nil, fmt.Errorf("initial state '%s' does not exist in states", *x.Initial)
+	}
 
-	if x.States != nil {
-		gMachine.States = make(map[string]*piece.GState[ContextType], len(*x.States))
-		for xName, xstate := range *x.States {
-			gState, err := parseXState[ContextType](registryType, xName, xstate)
-			if err != nil {
-				return nil, err
+	// check if success flow states exist
+	if x.SuccessFlow != nil && len(x.SuccessFlow) > 0 {
+		var errs []string
+		for _, stateName := range x.SuccessFlow {
+			if _, ok := gMachine.States[stateName]; !ok {
+				errs = append(errs, fmt.Sprintf("success flow state '%s' does not exist in states", stateName))
 			}
-			gMachine.States[xName] = gState
 		}
-
-		if _, ok := gMachine.States[*x.Initial]; !ok {
-			return nil, fmt.Errorf("initial state '%s' does not exist", *x.Initial)
+		if len(errs) > 0 {
+			return nil, fmt.Errorf(strings.Join(errs, "\n"))
 		}
-		gMachine.EntryState = gMachine.States[*x.Initial]
 	}
+
+	// set fields
+	gMachine.Id = *x.Id
+	gMachine.EntryState = gMachine.States[*x.Initial]
+	gMachine.Version = x.Version
+	gMachine.SuccessFlow = x.SuccessFlow
+
+	// check if all states are reachable
+	// TODO: new feature to implement
 
 	return gMachine, nil
 }
@@ -238,17 +253,23 @@ func parseXActions[ContextType any](registryType string, xActs []string) ([]*pie
 }
 
 func validateXMachine(x *XMachine) error {
-	if x.Id == nil {
+	if x.Id == nil || len(*x.Id) == 0 {
 		return fmt.Errorf("machine id is required")
 	}
 
-	if x.Initial == nil {
+	if x.Initial == nil || len(*x.Initial) == 0 {
 		return fmt.Errorf("initial state is required")
 	}
 
-	if x.States == nil {
-		return fmt.Errorf("machine must have at least one state")
+	if x.States == nil || len(*x.States) == 0 {
+		return fmt.Errorf("machine definition must have at least one state")
 	}
+
+	version := strings.TrimSpace(x.Version)
+	if len(version) == 0 {
+		return fmt.Errorf("machine version is required")
+	}
+	x.Version = version
 
 	if _, ok := (*x.States)[*x.Initial]; !ok {
 		return fmt.Errorf("initial state must be defined")

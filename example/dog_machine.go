@@ -8,6 +8,11 @@ import (
 	"strings"
 )
 
+const (
+	machineId      = "DogMachine"
+	machineVersion = "1.0"
+)
+
 func runDogMachineExamples() {
 	/*************** DOG MACHINE **************/
 	/* Uncomment the example you want to run */
@@ -32,7 +37,7 @@ func runDogMachineExamples() {
 func initDogMachine() {
 	statepro.SetDefinitionPath("example/statepro.yml")
 	definitions := &DogMachineDefinitions[Dog]{}
-	_ = statepro.AddMachine[Dog](definitions)
+	_ = statepro.AddMachine[Dog](machineId, machineVersion, definitions)
 	statepro.InitMachines()
 	fmt.Println("DogMachine registered and initialized")
 }
@@ -41,13 +46,14 @@ func initDogMachine() {
 func getDogMachine(dog *Dog) (string, piece.ProMachine[Dog]) {
 	statepro.SetDefinitionPath("example/statepro.yml")
 	definitions := &DogMachineDefinitions[Dog]{}
-	dogMachineId := statepro.AddMachine[Dog](definitions)
+	dogMachineId := statepro.AddMachine[Dog](machineId, machineVersion, definitions)
 	statepro.InitMachines()
 
 	if dog == nil {
 		dog = &Dog{}
 	}
-	dogMachine, err := statepro.GetMachine[Dog](dogMachineId, dog)
+	mui := statepro.BuildMachineCompositeId(machineId, machineVersion)
+	dogMachine, err := statepro.GetMachineByUniqueId[Dog](mui, dog)
 	if err != nil {
 		panic(err)
 	}
@@ -70,14 +76,15 @@ func getDogMachineFromMap(dog *Dog) (string, piece.ProMachine[Dog]) {
 	statepro.AddDefinitions(jsonMap)
 
 	dogDefinitions := &DogMachineDefinitions[Dog]{}
-	dogMachineId := statepro.AddMachine[Dog](dogDefinitions)
+	dogMachineId := statepro.AddMachine[Dog](machineId, machineVersion, dogDefinitions)
 
 	statepro.InitMachines()
 
 	if dog == nil {
 		dog = &Dog{}
 	}
-	dogMachine, err := statepro.GetMachine[Dog](dogMachineId, dog)
+	mui := statepro.BuildMachineCompositeId(machineId, machineVersion)
+	dogMachine, err := statepro.GetMachineByUniqueId[Dog](mui, dog)
 	if err != nil {
 		panic(err)
 	}
