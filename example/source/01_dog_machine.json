@@ -1,6 +1,7 @@
 {
   "id": "DogMachine",
   "initial": "Sleeping",
+  "version": "1.0",
   "states": {
     "Sleeping": {
       "entry": [

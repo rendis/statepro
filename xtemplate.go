@@ -8,12 +8,13 @@ import (
 // XMachine is the json representation of a machine.
 // Contains Id, Initial state and the States, these fields are part of the XState.
 // The SuccessFlow and Version fields are not part of the XState, but are used to define extra information about the machine.
+// Version is Required, SuccessFlow is Optional.
 type XMachine struct {
 	Id          *string            `json:"id"`
 	Initial     *string            `json:"initial"`
 	States      *map[string]XState `json:"states"`
 	SuccessFlow []string           `json:"successFlow"` // Not part of the XState, but used to define the success flow (Optional)
-	Version     *string            `json:"version"`     // Not part of the XState, but used to define the machine version (Optional)
+	Version     string             `json:"version"`     // Not part of the XState, but used to define the machine version (Required)
 }
 
 // XState is the json representation of a state.

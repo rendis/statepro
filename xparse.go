@@ -13,21 +13,11 @@ func getXMachine(definition []byte) (*XMachine, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error unmarshalling definition. %w", err)
 	}
-	return xm, nil
+	return xm, validateXMachine(xm)
 }
 
 func parseXMachineToGMachine[ContextType any](registryType string, x *XMachine) (*piece.GMachine[ContextType], error) {
 	gMachine := &piece.GMachine[ContextType]{}
-	err := validateXMachine(x)
-	if err != nil {
-		return nil, err
-	}
-
-	gMachine.Id = *x.Id
-
-	if x.States == nil || len(*x.States) == 0 {
-		return nil, fmt.Errorf("no states defined. states must be defined")
-	}
 
 	// parse states
 	gMachine.States = make(map[string]*piece.GState[ContextType], len(*x.States))
@@ -58,9 +48,10 @@ func parseXMachineToGMachine[ContextType any](registryType string, x *XMachine) 
 	}
 
 	// set fields
+	gMachine.Id = *x.Id
 	gMachine.EntryState = gMachine.States[*x.Initial]
-	gMachine.SuccessFlow = x.SuccessFlow
 	gMachine.Version = x.Version
+	gMachine.SuccessFlow = x.SuccessFlow
 
 	// check if all states are reachable
 	// TODO: new feature to implement
@@ -262,17 +253,23 @@ func parseXActions[ContextType any](registryType string, xActs []string) ([]*pie
 }
 
 func validateXMachine(x *XMachine) error {
-	if x.Id == nil {
+	if x.Id == nil || len(*x.Id) == 0 {
 		return fmt.Errorf("machine id is required")
 	}
 
-	if x.Initial == nil {
+	if x.Initial == nil || len(*x.Initial) == 0 {
 		return fmt.Errorf("initial state is required")
 	}
 
-	if x.States == nil {
-		return fmt.Errorf("machine must have at least one state")
+	if x.States == nil || len(*x.States) == 0 {
+		return fmt.Errorf("machine definition must have at least one state")
 	}
+
+	version := strings.TrimSpace(x.Version)
+	if len(version) == 0 {
+		return fmt.Errorf("machine version is required")
+	}
+	x.Version = version
 
 	if _, ok := (*x.States)[*x.Initial]; !ok {
 		return fmt.Errorf("initial state must be defined")

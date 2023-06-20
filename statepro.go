@@ -9,10 +9,11 @@ import (
 	"fmt"
 	"github.com/rendis/statepro/piece"
 	"log"
+	"strings"
 )
 
-// GetMachine returns a ProMachine instance for the given machineId and context.
-func GetMachine[ContextType any](machineId string, context *ContextType) (piece.ProMachine[ContextType], error) {
+// GetMachineByUniqueId returns a ProMachine instance for the given machine unique Id and context.
+func GetMachineByUniqueId[ContextType any](machineId string, context *ContextType) (piece.ProMachine[ContextType], error) {
 
 	pmInfo, ok := proMachines[machineId]
 	if !ok {
@@ -41,6 +42,13 @@ func GetMachine[ContextType any](machineId string, context *ContextType) (piece.
 	return piece.NewProMachine[ContextType](pm, context, fromSource, toSource), nil
 }
 
+// BuildMachineCompositeId builds a machine unique Id from the given machine Id and version.
+func BuildMachineCompositeId(machineId, version string) string {
+	machineId = strings.TrimSpace(machineId)
+	version = strings.TrimSpace(version)
+	return buildMachineCompositeId(machineId, version)
+}
+
 // InitMachines loads the statepro properties and initializes the machines.
 func InitMachines() {
 	loadPropOnce.Do(func() {
@@ -50,7 +58,7 @@ func InitMachines() {
 		log.Print("[INFO] Loading statepro properties")
 		isPropLoaded = true
 		loadXMachines()
-		notifyXMachines()
+		buildGMachines()
 		log.Print("[INFO] Statepro properties loaded")
 	})
 }

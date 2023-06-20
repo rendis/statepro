@@ -19,10 +19,10 @@ func runDogMachineExamples() {
 // show how to get a machine by id
 func getDogMachine() (string, piece.ProMachine[Dog]) {
 	definitions := &DogMachineDefinitions[Dog]{}
-	dogMachineId := statepro.AddMachine[Dog](definitions)
+	dogMachineId := statepro.AddMachine[Dog]("DogMachine", "1.0", definitions)
 	statepro.InitMachines()
 
-	dogMachine, err := statepro.GetMachine[Dog](dogMachineId, nil)
+	dogMachine, err := statepro.GetMachineByUniqueId[Dog](dogMachineId, nil)
 	if err != nil {
 		panic(err)
 	}
