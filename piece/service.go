@@ -18,8 +18,8 @@ type GService[ContextType any] struct {
 	OnError *GTransition[ContextType]
 }
 
-func (s *GService[ContextType]) invoke(c ContextType, e Event) {
-	go s.Inv(c, e)
+func (s *GService[ContextType]) invoke(c *ContextType, e Event) {
+	go s.Inv(*c, e)
 }
 
 func CastToSrv[ContextType any](i any) (TInvocation[ContextType], error) {

@@ -12,8 +12,8 @@ import (
 	"strings"
 )
 
-// GetMachineByCompositeId returns a ProMachine instance for the given compositeId, context and params.
-func GetMachineByCompositeId[ContextType any](compositeId string, context *ContextType, params ...any) (piece.ProMachine[ContextType], error) {
+// GetMachineByCompositeIdAndContext returns a ProMachine instance for the given compositeId and context.
+func GetMachineByCompositeIdAndContext[ContextType any](compositeId string, context *ContextType) (piece.ProMachine[ContextType], error) {
 
 	pmInfo, ok := proMachines[compositeId]
 	if !ok {
@@ -27,16 +27,35 @@ func GetMachineByCompositeId[ContextType any](compositeId string, context *Conte
 
 	fromSource, toSource := getContextSourceHandlers[ContextType](pmInfo.machineDefinitionRegistryName)
 
-	if context == nil && fromSource == nil {
-		return nil, errors.New("context is nil, please set a context or a 'ContextFromSource handler")
+	if context == nil {
+		return nil, errors.New("context cannot be nil. if you want to use a context from source, use 'GetMachineByCompositeIdAndParams' instead")
 	}
 
-	if context == nil {
-		newContext, err := getContextFromSource[ContextType](fromSource, params)
-		if err != nil {
-			return nil, errors.New(fmt.Sprintf("error getting context from 'ContextFromSource' handler: %s", err.Error()))
-		}
-		context = newContext
+	return piece.NewProMachine[ContextType](pm, context, fromSource, toSource), nil
+}
+
+// GetMachineByCompositeIdAndParams returns a ProMachine instance for the given compositeId and params.
+func GetMachineByCompositeIdAndParams[ContextType any](compositeId string, params ...any) (piece.ProMachine[ContextType], error) {
+
+	pmInfo, ok := proMachines[compositeId]
+	if !ok {
+		return nil, fmt.Errorf("machine '%s' does not exist", compositeId)
+	}
+
+	pm, ok := pmInfo.gMachine.(*piece.GMachine[ContextType])
+	if !ok {
+		return nil, fmt.Errorf("machine '%s' does not exist", compositeId)
+	}
+
+	fromSource, toSource := getContextSourceHandlers[ContextType](pmInfo.machineDefinitionRegistryName)
+
+	if fromSource == nil {
+		return nil, errors.New("ContextFromSource handler is not defined. Please define it in the machine definition registry")
+	}
+
+	context, err := getContextFromSource[ContextType](fromSource, params)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("error getting context from 'ContextFromSource' handler: %s", err.Error()))
 	}
 
 	return piece.NewProMachine[ContextType](pm, context, fromSource, toSource), nil

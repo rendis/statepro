@@ -28,7 +28,7 @@ type GState[ContextType any] struct {
 	srvCh    chan *InvocationResponse
 }
 
-func (s *GState[ContextType]) onEntry(c ContextType, e Event, at ActionTool[ContextType]) (*string, bool, error) {
+func (s *GState[ContextType]) onEntry(c *ContextType, e Event, at ActionTool) (*string, bool, error) {
 	target, err := s.always(c, e, at)
 	if err != nil {
 		return nil, false, err
@@ -52,14 +52,14 @@ func (s *GState[ContextType]) onEntry(c ContextType, e Event, at ActionTool[Cont
 	return nil, false, nil
 }
 
-func (s *GState[ContextType]) always(c ContextType, e Event, at ActionTool[ContextType]) (*string, error) {
+func (s *GState[ContextType]) always(c *ContextType, e Event, at ActionTool) (*string, error) {
 	if s.Always != nil {
 		return s.Always.resolve(c, e, at)
 	}
 	return nil, nil
 }
 
-func (s *GState[ContextType]) execEntry(c ContextType, e Event, at ActionTool[ContextType]) error {
+func (s *GState[ContextType]) execEntry(c *ContextType, e Event, at ActionTool) error {
 	for _, a := range s.Entry {
 		err := a.do(c, e, at)
 		if err != nil {
@@ -69,7 +69,7 @@ func (s *GState[ContextType]) execEntry(c ContextType, e Event, at ActionTool[Co
 	return nil
 }
 
-func (s *GState[ContextType]) invokeServices(c ContextType, e Event) {
+func (s *GState[ContextType]) invokeServices(c *ContextType, e Event) {
 	s.srvCh = make(chan *InvocationResponse, 1)
 	for _, srv := range s.Services {
 		go srv.invoke(c, e)
@@ -83,7 +83,7 @@ func (s *GState[ContextType]) invokeServices(c ContextType, e Event) {
 	}
 }
 
-func (s *GState[ContextType]) onEvent(c ContextType, e Event, at ActionTool[ContextType]) (*string, error) {
+func (s *GState[ContextType]) onEvent(c *ContextType, e Event, at ActionTool) (*string, error) {
 	// check if the event is defined in the state
 	if s.On == nil || s.On[e.GetName()] == nil {
 		return nil, &EventNotDefinedError{EventName: e.GetName(), StateName: *s.Name}
@@ -93,7 +93,7 @@ func (s *GState[ContextType]) onEvent(c ContextType, e Event, at ActionTool[Cont
 	return s.On[e.GetName()].resolve(c, e, at)
 }
 
-func (s *GState[ContextType]) execExit(c ContextType, e Event, at ActionTool[ContextType]) error {
+func (s *GState[ContextType]) execExit(c *ContextType, e Event, at ActionTool) error {
 	if s.StateType == StateTypeFinal {
 		return nil
 	}

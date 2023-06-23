@@ -318,7 +318,7 @@ func loadMachineImplementation[ContextType any](wrapper machineDefWrapper[Contex
 
 	ctxParamTyp := reflect.TypeOf((*ContextType)(nil)).Elem()
 	evtParamTyp := reflect.TypeOf((*piece.Event)(nil)).Elem()
-	actToolParamTyp := reflect.TypeOf((*piece.ActionTool[ContextType])(nil)).Elem()
+	actToolParamTyp := reflect.TypeOf((*piece.ActionTool)(nil)).Elem()
 
 	for i := 0; i < registryDefTyp.NumMethod(); i++ {
 		method := registryDefTyp.Method(i)
@@ -335,7 +335,7 @@ func loadMachineImplementation[ContextType any](wrapper machineDefWrapper[Contex
 		case isPredicate(method.Type, ctxParamTyp, evtParamTyp):
 			appendPredicate(methodInfo, registryDefTypStr)
 
-		// type TAction[ContextType any] func(ContextType, Event, ActionTool[ContextType]) error
+		// type TAction[ContextType any] func(ContextType, Event, ActionTool) error
 		case isAction(method.Type, ctxParamTyp, evtParamTyp, actToolParamTyp):
 			appendAction(methodInfo, registryDefTypStr)
 
@@ -367,15 +367,15 @@ func loadMachineImplementation[ContextType any](wrapper machineDefWrapper[Contex
 }
 
 func isPredicate(methodTyp, tParam, evtParam reflect.Type) bool {
-	// predicate -> (ContextType, Event) (bool, error)
-	in := methodTyp.NumIn() == 3 && methodTyp.In(1) == tParam && methodTyp.In(2) == evtParam
+	// predicate -> (*ContextType, Event) (bool, error)
+	in := methodTyp.NumIn() == 3 && methodTyp.In(1) == reflect.PtrTo(tParam) && methodTyp.In(2) == evtParam
 	out := methodTyp.NumOut() == 2 && methodTyp.Out(0) == reflect.TypeOf(true) && methodTyp.Out(1) == reflect.TypeOf((*error)(nil)).Elem()
 	return in && out
 }
 
 func isAction(methodTyp, tParam, evtParam, actToolParam reflect.Type) bool {
-	// action -> (ContextType, Event, ActionTool[ContextType]) error
-	in := methodTyp.NumIn() == 4 && methodTyp.In(1) == tParam && methodTyp.In(2) == evtParam && methodTyp.In(3) == actToolParam
+	// action -> (*ContextType, Event, ActionTool) error
+	in := methodTyp.NumIn() == 4 && methodTyp.In(1) == reflect.PtrTo(tParam) && methodTyp.In(2) == evtParam && methodTyp.In(3) == actToolParam
 	out := methodTyp.NumOut() == 1 && methodTyp.Out(0) == reflect.TypeOf((*error)(nil)).Elem()
 	return in && out
 }

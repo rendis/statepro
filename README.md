@@ -292,14 +292,10 @@ var evt := piece.BuildEvent("EVENT_NAME").Build()
 
 ```go
 type ActionTool[ContextType any] interface {
-    Assign(context ContextType)
     Send(event Event)          
     Propagate(event Event)
 }
 ```
-
-- `Assign(context ContextType)`: This method allows assigning a new context to the state machine. The context is useful for sharing data between different states and transitions.
-
 - `Send(event Event)`: This method allows sending an event to the state machine. The event will be processed by the current state of the machine.
 
 - `Propagate(event Event)`: This method allows propagating an event with new data and errors throughout the operations following the current action. It is useful for transmitting additional information or errors that occur during the execution of an action.
@@ -315,14 +311,13 @@ Theses methods must be defined in the `MachineRegistryDefinitions` as follows:
 
 ```go
 // Action
-func(cmd *ContextMachineDefinitions[ContextType]) ActionName(contextValue Context, evt Event, actTool ActionTool[ContextType]) error {...}
+func(cmd *ContextMachineDefinitions[ContextType]) ActionName(contextValue *Context, evt Event, actTool ActionTool) error {...}
 
 // Guard
-func(cmd *ContextMachineDefinitions[ContextType]) GuardName(contextValue  Context, evt Event) (bool, error) {...}
+func(cmd *ContextMachineDefinitions[ContextType]) GuardName(contextValue  *Context, evt Event) (bool, error) {...}
 
 // Invocation
 func (cmd *ContextMachineDefinitions[ContextType]) InvocationName(contextValue  Context, evt Event) {...}
-}
 ```
 
 In addition, within the definition of state machine records, two methods can be defined for getting and saving the context. These methods are useful for centralizing the logic in one place.

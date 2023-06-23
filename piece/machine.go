@@ -15,6 +15,7 @@ type GMachine[ContextType any] struct {
 	Version     string
 }
 
+// ProMachine
 type ProMachine[ContextType any] interface {
 	PlaceOn(stateName string) error
 	StartOn(stateName string) TransitionResponse
@@ -23,7 +24,7 @@ type ProMachine[ContextType any] interface {
 	GetNextEvents() []string
 	GetState() string
 	IsFinalState() bool
-	GetContext() ContextType
+	GetContext() *ContextType
 	CallContextToSource() error
 }
 
@@ -47,7 +48,6 @@ type proMachineImpl[ContextType any] struct {
 	gMachine   *GMachine[ContextType]
 	processing bool
 
-	ctxMtx  sync.RWMutex
 	context *ContextType
 
 	evtMtx       sync.Mutex
@@ -62,6 +62,7 @@ type proMachineImpl[ContextType any] struct {
 }
 
 func (pm *proMachineImpl[ContextType]) PlaceOn(stateName string) error {
+	// lock processing
 	pm.pmMtx.Lock()
 	defer func() {
 		pm.processing = false
@@ -110,7 +111,7 @@ func (pm *proMachineImpl[ContextType]) StartOnWithEvent(stateName string, event 
 	pm.currentEvent = evtFilled
 
 	// running first onEntry
-	target, _, err := pm.currentState.onEntry(*pm.context, evtFilled, pm)
+	target, _, err := pm.currentState.onEntry(pm.context, evtFilled, pm)
 	if err != nil {
 		ce, _ := pm.getCurrentEvent()
 		return &transitionResponse{lastEvent: ce, err: err}
@@ -143,7 +144,7 @@ func (pm *proMachineImpl[ContextType]) SendEvent(event Event) TransitionResponse
 	pm.currentEvent = evtFilled
 
 	// running first onEvent
-	target, err := pm.currentState.onEvent(*pm.context, evtFilled, pm)
+	target, err := pm.currentState.onEvent(pm.context, evtFilled, pm)
 	if err != nil {
 		ce, _ := pm.getCurrentEvent()
 		return &transitionResponse{lastEvent: ce, err: err}
@@ -169,7 +170,7 @@ func (pm *proMachineImpl[ContextType]) doTransitions(target *string) (err error)
 
 		// if doOnEvent == true => an action has been changed the event
 		if doOnEvent {
-			target, err = pm.currentState.onEvent(*pm.context, evtFilled, pm)
+			target, err = pm.currentState.onEvent(pm.context, evtFilled, pm)
 			if err != nil {
 				return err
 			}
@@ -188,7 +189,7 @@ func (pm *proMachineImpl[ContextType]) doTransitions(target *string) (err error)
 		if doOnEvent {
 			continue
 		}
-		if err = pm.prevState.execExit(*pm.context, evtFilled, pm); err != nil {
+		if err = pm.prevState.execExit(pm.context, evtFilled, pm); err != nil {
 			return err
 		}
 
@@ -197,7 +198,7 @@ func (pm *proMachineImpl[ContextType]) doTransitions(target *string) (err error)
 			continue
 		}
 
-		target, _, err = pm.currentState.onEntry(*pm.context, evtFilled, pm)
+		target, _, err = pm.currentState.onEntry(pm.context, evtFilled, pm)
 		if err != nil {
 			return err
 		}
@@ -218,10 +219,8 @@ func (pm *proMachineImpl[ContextType]) IsFinalState() bool {
 	return pm.currentState.isFinalState()
 }
 
-func (pm *proMachineImpl[ContextType]) GetContext() ContextType {
-	pm.ctxMtx.RLock()
-	defer pm.ctxMtx.RUnlock()
-	return *pm.context
+func (pm *proMachineImpl[ContextType]) GetContext() *ContextType {
+	return pm.context
 }
 
 func (pm *proMachineImpl[ContextType]) CallContextToSource() error {
@@ -249,16 +248,10 @@ func (pm *proMachineImpl[ContextType]) getCurrentEvent() (*GEvent, bool) {
 	return pm.currentEvent, pm.eventChanged
 }
 
-type ActionTool[ContextType any] interface {
-	Assign(context ContextType) // assign context to machine
-	Send(event Event)           // send event to current state
-	Propagate(event Event)      // propagate event with new data and error
-}
-
-func (pm *proMachineImpl[ContextType]) Assign(context ContextType) {
-	pm.ctxMtx.Lock()
-	defer pm.ctxMtx.Unlock()
-	pm.context = &context
+// ActionTool
+type ActionTool interface {
+	Send(event Event)      // send event to current state
+	Propagate(event Event) // propagate event with new data and error
 }
 
 func (pm *proMachineImpl[ContextType]) Send(event Event) {
@@ -269,6 +262,7 @@ func (pm *proMachineImpl[ContextType]) Propagate(event Event) {
 	pm.setCurrenEvent(event, false)
 }
 
+// TransitionResponse
 type TransitionResponse interface {
 	GetLastEvent() Event
 	Error() error

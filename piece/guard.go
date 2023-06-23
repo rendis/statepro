@@ -2,7 +2,7 @@ package piece
 
 import "fmt"
 
-type TPredicate[ContextType any] func(ContextType, Event) (bool, error)
+type TPredicate[ContextType any] func(*ContextType, Event) (bool, error)
 
 type GGuard[ContextType any] struct {
 	Condition *string
@@ -11,7 +11,7 @@ type GGuard[ContextType any] struct {
 	Predicate TPredicate[ContextType]
 }
 
-func (g *GGuard[ContextType]) check(c ContextType, e Event, at ActionTool[ContextType]) (string, bool, error) {
+func (g *GGuard[ContextType]) check(c *ContextType, e Event, at ActionTool) (string, bool, error) {
 	// if Condition is nil, then it is an Else or Directly GGuard
 	if g.Condition == nil {
 		err := g.doActions(c, e, at)
@@ -42,7 +42,7 @@ func (g *GGuard[ContextType]) check(c ContextType, e Event, at ActionTool[Contex
 	return "", false, nil
 }
 
-func (g *GGuard[ContextType]) doActions(c ContextType, e Event, at ActionTool[ContextType]) error {
+func (g *GGuard[ContextType]) doActions(c *ContextType, e Event, at ActionTool) error {
 	for _, a := range g.Actions {
 		if err := a.do(c, e, at); err != nil {
 			return err
@@ -52,7 +52,7 @@ func (g *GGuard[ContextType]) doActions(c ContextType, e Event, at ActionTool[Co
 }
 
 func CastPredicate[ContextType any](i any) (TPredicate[ContextType], error) {
-	if f, ok := i.(func(ContextType, Event) (bool, error)); ok {
+	if f, ok := i.(func(*ContextType, Event) (bool, error)); ok {
 		return f, nil
 	}
 	return nil, fmt.Errorf("predicate '%s' with wrong type", i)
