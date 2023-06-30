@@ -1,4 +1,4 @@
-package piece
+package statepro
 
 import "encoding/json"
 
@@ -7,48 +7,45 @@ import "encoding/json"
 type EventType string
 
 const (
+	EventTypeStart        EventType = "Start"
+	EventTypeStartOn      EventType = "StartOn"
 	EventTypeTransitional EventType = "Transitional"
 	EventTypeOnEntry      EventType = "OnEntry"
 	EventTypeDoAlways     EventType = "DoAlways"
-	EventTypeStartOn      EventType = "StartOn"
 )
 
 type Event interface {
-	GetName() string                       // get event name
-	GetFrom() string                       // get state name from which event is triggered
+	GetEventName() string                  // get event name
 	HasData() bool                         // check if event has data
 	GetData() any                          // get event data
 	GetDataAsMap() (map[string]any, error) // get event data as map <string, any>
 	GetErr() error                         // get event error, if any
 	GetEvtType() EventType                 // get event type
 	ToBuilder() EventBuilder               // get event builder
+	GetMachineInfo() MachineBasicInfo      // get machine basic info
 }
 
-type GEvent struct {
-	name    string
-	data    any
-	from    string
-	err     error
-	evtType EventType
+type gEvent struct {
+	name        string
+	data        any
+	err         error
+	evtType     EventType
+	machineInfo MachineBasicInfo
 }
 
-func (e *GEvent) GetName() string {
+func (e *gEvent) GetEventName() string {
 	return e.name
 }
 
-func (e *GEvent) GetFrom() string {
-	return e.from
-}
-
-func (e *GEvent) HasData() bool {
+func (e *gEvent) HasData() bool {
 	return e.data != nil
 }
 
-func (e *GEvent) GetData() any {
+func (e *gEvent) GetData() any {
 	return e.data
 }
 
-func (e *GEvent) GetDataAsMap() (map[string]any, error) {
+func (e *gEvent) GetDataAsMap() (map[string]any, error) {
 	if e.data == nil {
 		return nil, nil
 	}
@@ -61,20 +58,24 @@ func (e *GEvent) GetDataAsMap() (map[string]any, error) {
 	return data, err
 }
 
-func (e *GEvent) GetErr() error {
+func (e *gEvent) GetErr() error {
 	return e.err
 }
 
-func (e *GEvent) GetEvtType() EventType {
+func (e *gEvent) GetEvtType() EventType {
 	return e.evtType
 }
 
-func (e *GEvent) ToBuilder() EventBuilder {
+func (e *gEvent) ToBuilder() EventBuilder {
 	return &GEventBuilder{
 		name: e.name,
 		data: e.data,
 		err:  e.err,
 	}
+}
+
+func (e *gEvent) GetMachineInfo() MachineBasicInfo {
+	return e.machineInfo
 }
 
 // Event Builder
@@ -119,7 +120,7 @@ func (b *GEventBuilder) Build() Event {
 		tmpEvtType := EventTypeTransitional
 		b.eventType = &tmpEvtType
 	}
-	return &GEvent{
+	return &gEvent{
 		name:    b.name,
 		data:    b.data,
 		err:     b.err,

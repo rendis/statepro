@@ -3,141 +3,96 @@ package statepro
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/rendis/statepro/piece"
 	"strings"
 )
 
-func getXMachine(definition []byte) (*XMachine, error) {
-	xm := &XMachine{}
-	err := json.Unmarshal(definition, xm)
-	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling definition. %w", err)
+func buildGMachine[ContextType any](registryType string, xMachine *XMachine) (*gMachine[ContextType], error) {
+	gMachine := &gMachine[ContextType]{
+		id: *xMachine.Id,
+		xm: xMachine,
 	}
-	return xm, validateXMachine(xm)
-}
-
-func parseXMachineToGMachine[ContextType any](registryType string, x *XMachine) (*piece.GMachine[ContextType], error) {
-	gMachine := &piece.GMachine[ContextType]{}
 
 	// parse states
-	gMachine.States = make(map[string]*piece.GState[ContextType], len(*x.States))
-	for xName, xstate := range *x.States {
+	gMachine.states = make(map[string]*gState[ContextType], len(xMachine.States))
+	for xName, xstate := range xMachine.States {
 		gState, err := parseXState[ContextType](registryType, xName, xstate)
 		if err != nil {
 			return nil, err
 		}
-		gMachine.States[xName] = gState
+		gMachine.states[xName] = gState
 	}
 
-	// check if initial state exists
-	if _, ok := gMachine.States[*x.Initial]; !ok {
-		return nil, fmt.Errorf("initial state '%s' does not exist in states", *x.Initial)
-	}
-
-	// check if success flow states exist
-	if x.SuccessFlow != nil && len(x.SuccessFlow) > 0 {
-		var errs []string
-		for _, stateName := range x.SuccessFlow {
-			if _, ok := gMachine.States[stateName]; !ok {
-				errs = append(errs, fmt.Sprintf("success flow state '%s' does not exist in states", stateName))
-			}
-		}
-		if len(errs) > 0 {
-			return nil, fmt.Errorf(strings.Join(errs, "\n"))
+	// get all final states
+	finalStates := make([]string, 0)
+	for name, state := range gMachine.states {
+		if state.StateType == StateTypeFinal {
+			finalStates = append(finalStates, name)
 		}
 	}
 
-	// set fields
-	gMachine.Id = *x.Id
-	gMachine.EntryState = gMachine.States[*x.Initial]
-	gMachine.Version = x.Version
-	gMachine.SuccessFlow = x.SuccessFlow
-
-	// check if all states are reachable
-	// TODO: new feature to implement
+	gMachine.entryState = gMachine.states[*xMachine.Initial]
+	gMachine.currentState = gMachine.entryState
+	gMachine.finalStates = finalStates
 
 	return gMachine, nil
 }
 
-func parseXState[ContextType any](registryType, xStateName string, xs XState) (*piece.GState[ContextType], error) {
-	gs := piece.GState[ContextType]{}
+func parseXMachine(definition []byte) (*XMachine, error) {
+	xm := &XMachine{}
+	err := json.Unmarshal(definition, xm)
+	return xm, err
+}
+
+func parseXState[ContextType any](registryType, xStateName string, xs *XState) (*gState[ContextType], error) {
+	gs := gState[ContextType]{}
 	gs.Name = &xStateName
 
+	var err error
+
 	// Always
-	xAlways, err := xs.getAlways()
-	if err != nil {
+	if gs.Always, err = parseXEvent[ContextType](xStateName, registryType, xs.Always); err != nil {
 		return nil, err
 	}
-	tAlways, err := parseXEvent[ContextType](registryType, xAlways)
-	if err != nil {
-		return nil, err
-	}
-	gs.Always = tAlways
 
 	// Entry
-	xEntry, err := xs.getEntryActions()
-	if err != nil {
-		return nil, err
-	}
-
-	gs.Entry, err = parseXActions[ContextType](registryType, xEntry)
-	if err != nil {
+	if gs.Entry, err = parseXActions[ContextType](registryType, xs.Entry); err != nil {
 		return nil, err
 	}
 
 	// Exit
-	xExit, err := xs.getExitActions()
-	if err != nil {
-		return nil, err
-	}
-
-	gs.Exit, err = parseXActions[ContextType](registryType, xExit)
-	if err != nil {
+	if gs.Exit, err = parseXActions[ContextType](registryType, xs.Exit); err != nil {
 		return nil, err
 	}
 
 	// On
-	xon, err := xs.getOn()
-	if err != nil {
-		return nil, err
-	}
-	if len(xon) > 0 {
-		gs.On = make(map[string]*piece.GTransition[ContextType], len(xon))
-		for evtName, xts := range xon {
-			gts, err := parseXEvent[ContextType](registryType, xts)
-			if err != nil {
-				return nil, err
-			}
-			xEvtName := evtName
-			gs.On[xEvtName] = gts
+	gs.On = make(map[string]*gTransition[ContextType], len(xs.On))
+	for evtName, xts := range xs.On {
+		gts, err := parseXEvent[ContextType](xStateName, registryType, xts)
+		if err != nil {
+			return nil, err
 		}
+		xEvtName := evtName
+		gs.On[xEvtName] = gts
 	}
 
 	// Services
-	xis, err := xs.getInvoke()
-	if err != nil {
+	if gs.Services, err = parseXInvoke[ContextType](xStateName, registryType, xs.Invoke); err != nil {
 		return nil, err
 	}
-	gss, err := parseXInvoke[ContextType](registryType, xis)
-	if err != nil {
-		return nil, err
-	}
-	gs.Services = gss
 
 	// Type of state
 	if xs.Type == nil {
-		gs.StateType = piece.StateTypeNormal
-	}
-	if xs.Type != nil {
+		gs.StateType = StateTypeNormal
+	} else {
 		switch *xs.Type {
 		case "initial":
-			gs.StateType = piece.StateTypeInitial
+			gs.StateType = StateTypeInitial
 		case "final":
-			gs.StateType = piece.StateTypeFinal
+			gs.StateType = StateTypeFinal
 		case "history":
-			gs.StateType = piece.StateTypeHistory
+			gs.StateType = StateTypeHistory
 		case "shared":
-			gs.StateType = piece.StateTypeShared
+			gs.StateType = StateTypeShared
 		default:
 			return nil, fmt.Errorf("unknown state type: %s", *xs.Type)
 		}
@@ -146,10 +101,77 @@ func parseXState[ContextType any](registryType, xStateName string, xs XState) (*
 	return &gs, nil
 }
 
-func parseXInvoke[ContextType any](registryType string, xis []XInvoke) ([]*piece.GService[ContextType], error) {
-	var gss = make([]*piece.GService[ContextType], len(xis))
+func parseXEvent[ContextType any](stateName, registryType string, xts []*XTransition) (*gTransition[ContextType], error) {
+	gt := gTransition[ContextType]{}
+
+	if len(xts) == 0 {
+		return &gt, nil
+	}
+
+	gt.Guards = make([]*gGuard[ContextType], len(xts))
+	for i, xt := range xts {
+		gg := gGuard[ContextType]{}
+		gg.Condition = xt.Condition
+
+		if xt.Target == nil {
+			gg.Target = &stateName
+		} else {
+			gg.Target = xt.Target
+		}
+
+		var err error
+		if gg.Actions, err = parseXActions[ContextType](registryType, xt.Actions); err != nil {
+			return nil, err
+		}
+
+		if xt.Condition != nil && len(*xt.Condition) > 0 {
+			originalCondName := strings.TrimSpace(*xt.Condition)
+			condName := strings.ToLower(originalCondName)
+			predicate, err := getPredicate(registryType, condName, originalCondName)
+			if err != nil {
+				return nil, err
+			}
+
+			gg.Predicate, err = castPredicate[ContextType](predicate)
+			if err != nil {
+				return nil, fmt.Errorf("failed to cast predicate '%s': %s", *xt.Condition, err)
+			}
+		}
+
+		gt.Guards[i] = &gg
+	}
+	return &gt, nil
+}
+
+func parseXActions[ContextType any](registryType string, xActs []*string) ([]*gAction[ContextType], error) {
+	var gActs = make([]*gAction[ContextType], len(xActs))
+	for i, xAct := range xActs {
+		originalXActName := strings.TrimSpace(*xAct)
+		xActName := strings.ToLower(originalXActName)
+		gAct := gAction[ContextType]{}
+		gAct.Name = xActName
+		gActs[i] = &gAct
+
+		// Get actions from Register Actions
+		f, err := getAction(registryType, xActName, originalXActName)
+		if err != nil {
+			return nil, err
+		}
+
+		// Cast to piece.gAction
+		gAct.Act, err = castToAct[ContextType](f)
+		if err != nil {
+			return nil, fmt.Errorf("failed to cast action '%s': %s", xAct, err)
+		}
+	}
+	return gActs, nil
+}
+
+func parseXInvoke[ContextType any](stateName, registryType string, xis []*XInvoke) ([]*gService[ContextType], error) {
+	var gss = make([]*gService[ContextType], len(xis))
+
 	for i, xi := range xis {
-		gs := &piece.GService[ContextType]{}
+		gs := &gService[ContextType]{}
 		originalSrcName := strings.TrimSpace(*xi.Src)
 		srcName := strings.ToLower(originalSrcName)
 
@@ -165,23 +187,18 @@ func parseXInvoke[ContextType any](registryType string, xis []XInvoke) ([]*piece
 			return nil, err
 		}
 
-		gs.Inv, err = piece.CastToSrv[ContextType](srv)
-		if err != nil {
+		if gs.Inv, err = castToSrv[ContextType](srv); err != nil {
 			return nil, err
 		}
 
 		// OnDone
-		if xi.OnDone != nil {
-			gOnDone, err := parseXEvent[ContextType](registryType, *xi.OnDone)
-			if err != nil {
-				return nil, err
-			}
-			gs.OnDone = gOnDone
+		if gs.OnDone, err = parseXEvent[ContextType](stateName, registryType, xi.OnDone); err != nil {
+			return nil, err
 		}
 
 		// OnError
 		if xi.OnError != nil {
-			gOnError, err := parseXEvent[ContextType](registryType, *xi.OnError)
+			gOnError, err := parseXEvent[ContextType](stateName, registryType, xi.OnError)
 			if err != nil {
 				return nil, err
 			}
@@ -191,89 +208,4 @@ func parseXInvoke[ContextType any](registryType string, xis []XInvoke) ([]*piece
 		gss[i] = gs
 	}
 	return gss, nil
-}
-
-func parseXEvent[ContextType any](registryType string, xts []XTransition) (*piece.GTransition[ContextType], error) {
-	gt := piece.GTransition[ContextType]{}
-	gt.Guards = make([]*piece.GGuard[ContextType], len(xts))
-	for i, xt := range xts {
-		gg := piece.GGuard[ContextType]{}
-		gg.Condition = xt.Condition
-		gg.Target = xt.Target
-		xActs, err := xt.getActions()
-		if err != nil {
-			return nil, err
-		}
-		gg.Actions, err = parseXActions[ContextType](registryType, xActs)
-		if err != nil {
-			return nil, err
-		}
-
-		if xt.Condition != nil && len(*xt.Condition) > 0 {
-			originalCondName := strings.TrimSpace(*xt.Condition)
-			condName := strings.ToLower(originalCondName)
-			predicate, err := getPredicate(registryType, condName, originalCondName)
-			if err != nil {
-				return nil, err
-			}
-
-			gg.Predicate, err = piece.CastPredicate[ContextType](predicate)
-			if err != nil {
-				return nil, fmt.Errorf("failed to cast predicate '%s': %s", *xt.Condition, err)
-			}
-		}
-
-		gt.Guards[i] = &gg
-	}
-	return &gt, nil
-}
-
-func parseXActions[ContextType any](registryType string, xActs []string) ([]*piece.GAction[ContextType], error) {
-	var gActs = make([]*piece.GAction[ContextType], len(xActs))
-	for i, xAct := range xActs {
-		originalXActName := strings.TrimSpace(xAct)
-		xActName := strings.ToLower(originalXActName)
-		gAct := piece.GAction[ContextType]{}
-		gAct.Name = xActName
-		gActs[i] = &gAct
-
-		// Get actions from Register Actions
-		f, err := getAction(registryType, xActName, originalXActName)
-		if err != nil {
-			return nil, err
-		}
-
-		// Cast to piece.GAction
-		gAct.Act, err = piece.CastToAct[ContextType](f)
-		if err != nil {
-			return nil, fmt.Errorf("failed to cast action '%s': %s", xAct, err)
-		}
-	}
-	return gActs, nil
-}
-
-func validateXMachine(x *XMachine) error {
-	if x.Id == nil || len(*x.Id) == 0 {
-		return fmt.Errorf("machine id is required")
-	}
-
-	if x.Initial == nil || len(*x.Initial) == 0 {
-		return fmt.Errorf("initial state is required")
-	}
-
-	if x.States == nil || len(*x.States) == 0 {
-		return fmt.Errorf("machine definition must have at least one state")
-	}
-
-	version := strings.TrimSpace(x.Version)
-	if len(version) == 0 {
-		return fmt.Errorf("machine version is required")
-	}
-	x.Version = version
-
-	if _, ok := (*x.States)[*x.Initial]; !ok {
-		return fmt.Errorf("initial state must be defined")
-	}
-
-	return nil
 }
