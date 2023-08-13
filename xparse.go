@@ -12,27 +12,49 @@ func buildGMachine[ContextType any](registryType string, xMachine *XMachine) (*g
 		xm: xMachine,
 	}
 
-	// parse states
 	gMachine.states = make(map[string]*gState[ContextType], len(xMachine.States))
+	gMachine.finalStates = make([]string, 0)
+	var inEventsByState = make(map[string]map[string]struct{}, len(xMachine.States))
+
+	// parse states and add to machine
+	// add final states
+	// get in events by state
 	for xName, xstate := range xMachine.States {
+		// parse state and add to machine
 		gState, err := parseXState[ContextType](registryType, xName, xstate)
 		if err != nil {
 			return nil, err
 		}
 		gMachine.states[xName] = gState
+
+		// add final state
+		if gState.StateType == StateTypeFinal {
+			gMachine.finalStates = append(gMachine.finalStates, xName)
+		}
+
+		// get in events
+		for evtName, transitions := range gState.On {
+			for _, guard := range transitions.Guards {
+				targetStateName := *guard.Target
+				if _, ok := inEventsByState[targetStateName]; !ok {
+					inEventsByState[targetStateName] = make(map[string]struct{})
+				}
+				inEventsByState[targetStateName][evtName] = struct{}{}
+			}
+		}
 	}
 
-	// get all final states
-	finalStates := make([]string, 0)
-	for name, state := range gMachine.states {
-		if state.StateType == StateTypeFinal {
-			finalStates = append(finalStates, name)
+	// add in events to machine
+	gMachine.inEventsByState = make(map[string][]string, len(inEventsByState))
+	for stateName, inEvents := range inEventsByState {
+		gMachine.inEventsByState[stateName] = make([]string, 0, len(inEvents))
+		for evtName := range inEvents {
+			gMachine.inEventsByState[stateName] = append(gMachine.inEventsByState[stateName], evtName)
 		}
 	}
 
 	gMachine.entryState = gMachine.states[*xMachine.Initial]
 	gMachine.currentState = gMachine.entryState
-	gMachine.finalStates = finalStates
 
 	return gMachine, nil
 }

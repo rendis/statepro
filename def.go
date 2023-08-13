@@ -21,6 +21,7 @@ type ProMachine[ContextType any] interface {
 	SetContext(machineCtx *ContextType)
 	CallContextToSource(ctx context.Context) error
 	GetSuccessFlow() []string
+	GetInEventsForCurrentState() []string
 }
 
 // ProMachineToSourceHandler interface to handle context to source

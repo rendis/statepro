@@ -11,10 +11,11 @@ type gMachine[ContextType any] struct {
 	context *ContextType
 
 	// states
-	states       map[string]*gState[ContextType]
-	entryState   *gState[ContextType]
-	currentState *gState[ContextType]
-	prevState    *gState[ContextType]
+	states          map[string]*gState[ContextType]
+	entryState      *gState[ContextType]
+	currentState    *gState[ContextType]
+	prevState       *gState[ContextType]
+	inEventsByState map[string][]string
 
 	// for processing
 	pmMtx      sync.Mutex
@@ -290,6 +291,10 @@ func (pm *gMachine[ContextType]) getCurrentEvent() (*gEvent, bool) {
 		pm.evtMtx.Unlock()
 	}()
 	return pm.currentEvent, pm.eventChanged
+}
+
+func (pm *gMachine[ContextType]) GetInEventsForCurrentState() []string {
+	return pm.inEventsByState[*pm.currentState.Name]
 }
 
 // MachineBasicInfo interface to get basic info from a machine
