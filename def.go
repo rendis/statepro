@@ -22,6 +22,7 @@ type ProMachine[ContextType any] interface {
 	CallContextToSource(ctx context.Context) error
 	GetSuccessFlow() []string
 	GetInEventsForCurrentState() []string
+	InEventOnCurrentState(event string) bool
 }
 
 // ProMachineToSourceHandler interface to handle context to source

@@ -15,7 +15,7 @@ type gMachine[ContextType any] struct {
 	entryState      *gState[ContextType]
 	currentState    *gState[ContextType]
 	prevState       *gState[ContextType]
-	inEventsByState map[string][]string
+	inEventsByState map[string]map[string]struct{}
 
 	// for processing
 	pmMtx      sync.Mutex
@@ -294,7 +294,16 @@ func (pm *gMachine[ContextType]) getCurrentEvent() (*gEvent, bool) {
 }
 
 func (pm *gMachine[ContextType]) GetInEventsForCurrentState() []string {
-	return pm.inEventsByState[*pm.currentState.Name]
+	var inEvents []string
+	for event := range pm.inEventsByState[*pm.currentState.Name] {
+		inEvents = append(inEvents, event)
+	}
+	return inEvents
+}
+
+func (pm *gMachine[ContextType]) InEventOnCurrentState(event string) bool {
+	_, ok := pm.inEventsByState[*pm.currentState.Name][event]
+	return ok
 }
 
 // MachineBasicInfo interface to get basic info from a machine

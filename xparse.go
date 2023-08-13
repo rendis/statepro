@@ -45,11 +45,11 @@ func buildGMachine[ContextType any](registryType string, xMachine *XMachine) (*g
 	}
 
 	// add in events to machine
-	gMachine.inEventsByState = make(map[string][]string, len(inEventsByState))
+	gMachine.inEventsByState = make(map[string]map[string]struct{}, len(inEventsByState))
 	for stateName, inEvents := range inEventsByState {
-		gMachine.inEventsByState[stateName] = make([]string, 0, len(inEvents))
+		gMachine.inEventsByState[stateName] = make(map[string]struct{}, len(inEvents))
 		for evtName := range inEvents {
-			gMachine.inEventsByState[stateName] = append(gMachine.inEventsByState[stateName], evtName)
+			gMachine.inEventsByState[stateName][evtName] = struct{}{}
 		}
 	}
 
