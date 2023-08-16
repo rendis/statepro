@@ -165,10 +165,10 @@ func parseXEvent[ContextType any](stateName, registryType string, xts []*XTransi
 	return &gt, nil
 }
 
-func parseXActions[ContextType any](registryType string, xActs []*string) ([]*gAction[ContextType], error) {
+func parseXActions[ContextType any](registryType string, xActs []string) ([]*gAction[ContextType], error) {
 	var gActs = make([]*gAction[ContextType], len(xActs))
 	for i, xAct := range xActs {
-		originalXActName := strings.TrimSpace(*xAct)
+		originalXActName := strings.TrimSpace(xAct)
 		xActName := strings.ToLower(originalXActName)
 		gAct := gAction[ContextType]{}
 		gAct.Name = xActName

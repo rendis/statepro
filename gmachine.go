@@ -30,15 +30,11 @@ type gMachine[ContextType any] struct {
 	contextToSourceFn     ProMachineToSourceHandler[ContextType]
 	toSourceExecutionMode ExecutionType
 
-	// special actions
-	alwaysNames  []string
-	onEntryNames []string
-	onExitNames  []string
-
 	// final states
 	finalStates []string
 }
 
+// PlaceOn initialize the machine with the stateName as current state, without executing onEntry
 func (pm *gMachine[ContextType]) PlaceOn(stateName string) error {
 	// lock processing
 	pm.pmMtx.Lock()
@@ -193,7 +189,7 @@ func (pm *gMachine[ContextType]) CallContextToSource(ctx context.Context) error 
 func (pm *gMachine[ContextType]) GetSuccessFlow() []string {
 	successFlow := make([]string, len(pm.xm.SuccessFlow))
 	for i, s := range pm.xm.SuccessFlow {
-		successFlow[i] = *s
+		successFlow[i] = s
 	}
 	return successFlow
 }

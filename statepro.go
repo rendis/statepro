@@ -79,9 +79,6 @@ func GetProMachine[ContextType any](_ context.Context, gmo *GetProMachineOptions
 	gm.context = gmo.Context
 	gm.contextToSourceFn = getContextToSourceHandlers[ContextType](definitionRegistryName)
 	gm.toSourceExecutionMode = toSourceExecutionMode
-	gm.alwaysNames = alwaysActionsRegistry
-	gm.onEntryNames = onEntryActionsRegistry
-	gm.onExitNames = onExitActionsRegistry
 
 	return gm, nil
 }
@@ -89,24 +86,6 @@ func GetProMachine[ContextType any](_ context.Context, gmo *GetProMachineOptions
 func validateStatePro(opt *StateProOptions) error {
 	if opt == nil {
 		return nil
-	}
-
-	// check special methods, no duplicates allowed
-	var duplicatedErrs error
-	specialCheck := make(map[string]bool)
-	for _, sm := range opt.Actions {
-		if _, ok := specialCheck[sm.ActionName]; ok {
-			duplicatedErrs = errors.Join(duplicatedErrs, fmt.Errorf("duplicate action name '%s'", sm.ActionName))
-		}
-		specialCheck[sm.ActionName] = true
-	}
-	if duplicatedErrs != nil {
-		return duplicatedErrs
-	}
-
-	// check special methods
-	if err := validateAllSpecialActionsRequired(opt.Actions); err != nil {
-		return errors.Join(fmt.Errorf("some required action are missing"), err)
 	}
 
 	// if ToSourceExecutionMode != None, check if all machine definitions have a 'toSource' implementation
@@ -130,7 +109,4 @@ func processOptions(opt *StateProOptions) {
 
 	// set executeToSourceOnEachStateChangeOpt
 	toSourceExecutionMode = opt.ToSourceExecutionMode
-
-	// set actions
-	registrySpecialMethods(opt.Actions)
 }

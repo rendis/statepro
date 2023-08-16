@@ -24,7 +24,9 @@ type gState[ContextType any] struct {
 	StateType StateType
 }
 
-func (s *gState[ContextType]) onEntry(ctx context.Context, c *ContextType, e Event, at ActionTool[ContextType]) (*string, bool, error) {
+func (s *gState[ContextType]) onEntry(
+	ctx context.Context, c *ContextType, e Event, at ActionTool[ContextType],
+) (*string, bool, error) {
 	target, err := s.always(ctx, c, e, at)
 	if err != nil {
 		return nil, false, err

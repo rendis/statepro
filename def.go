@@ -59,15 +59,7 @@ const (
 	ExecutionTypeOnExit  ExecutionType = "onExit"
 )
 
-// ActionOption option to register an action
-type ActionOption struct {
-	ActionName    string
-	Required      bool
-	ExecutionType ExecutionType
-}
-
 // StateProOptions options to initialize statepro
 type StateProOptions struct {
 	ToSourceExecutionMode ExecutionType
-	Actions               []ActionOption
 }

@@ -13,7 +13,7 @@ type XMachineRaw struct {
 	Id          *string            `json:"id"`
 	Initial     *string            `json:"initial"`
 	States      map[string]*XState `json:"states"`
-	SuccessFlow []*string          `json:"successFlow"` // Not part of the XState, but used to define the success flow (Optional)
+	SuccessFlow []string           `json:"successFlow"` // Not part of the XState, but used to define the success flow (Optional)
 	Version     string             `json:"version"`     // Not part of the XState, but used to define the machine version (Required)
 }
 
@@ -35,12 +35,12 @@ func (x *XMachine) UnmarshalJSON(data []byte) error {
 
 // XStateRaw is the raw representation of XState
 type XStateRaw struct {
-	Always      json.RawMessage `json:"always,omitempty"` // []any 			-> any = XTransition | []XTransition
-	On          json.RawMessage `json:"on,omitempty"`     // map[string]any -> any = XTransition | []XTransition
-	After       json.RawMessage `json:"after,omitempty"`  // map[int]any 	-> any = XTransition | []XTransition
-	Invoke      json.RawMessage `json:"invoke,omitempty"` // []any 			-> any = XInvoke | []XInvoke
-	Entry       json.RawMessage `json:"entry,omitempty"`  // []any 			-> any = string | []string -> string = ActionName
-	Exit        json.RawMessage `json:"exit,omitempty"`   // []any 			-> any = string | []string -> string = ActionName
+	Always      json.RawMessage `json:"always,omitempty"` // []any 			-> any: XTransition | []XTransition
+	On          json.RawMessage `json:"on,omitempty"`     // map[string]any -> any: XTransition | []XTransition
+	After       json.RawMessage `json:"after,omitempty"`  // map[int]any 	-> any: XTransition | []XTransition
+	Invoke      json.RawMessage `json:"invoke,omitempty"` // []any 			-> any: XInvoke | []XInvoke
+	Entry       json.RawMessage `json:"entry,omitempty"`  // []any 			-> any: string | []string | {type: string} | [{type:string}] -> string = ActionName
+	Exit        json.RawMessage `json:"exit,omitempty"`   // []any 			-> any: string | []string | {type: string} | [{type:string}] -> string = ActionName
 	Type        *string         `json:"type,omitempty"`
 	Description *string         `json:"description,omitempty"`
 }
@@ -62,10 +62,10 @@ func (x *XState) UnmarshalJSON(data []byte) error {
 	x.Invoke = unmarshalToArr[XInvoke](raw.Invoke)
 
 	// Entry
-	x.Entry = unmarshalToArr[string](raw.Entry)
+	x.Entry = unmarshalToAction(raw.Entry)
 
 	// Exit
-	x.Exit = unmarshalToArr[string](raw.Exit)
+	x.Exit = unmarshalToAction(raw.Exit)
 
 	x.Type = raw.Type
 	x.Description = raw.Description
@@ -90,7 +90,7 @@ func (x *XTransition) UnmarshalJSON(data []byte) error {
 
 	x.Condition = raw.Condition
 	x.Target = raw.Target
-	x.Actions = unmarshalToArr[string](raw.Actions)
+	x.Actions = unmarshalToAction(raw.Actions)
 	x.Description = raw.Description
 	return nil
 }
@@ -123,7 +123,7 @@ func validateXMachine(x *XMachine) error {
 	if x.SuccessFlow != nil && len(x.SuccessFlow) > 0 {
 		var errs []string
 		for _, stateName := range x.SuccessFlow {
-			if _, ok := x.States[*stateName]; !ok {
+			if _, ok := x.States[stateName]; !ok {
 				errs = append(errs, fmt.Sprintf("success flow state '%s' does not exist in states", stateName))
 			}
 		}
@@ -206,4 +206,49 @@ func unmarshalToArr[V any](bArr json.RawMessage) []*V {
 	}
 
 	return []*V{}
+}
+
+// unmarshalToAction unmarshal the json.RawMessage action which can be:
+// - string
+// - []string
+// - {type: string}
+// - [{type:string}]
+func unmarshalToAction(bArr json.RawMessage) []string {
+	if bArr == nil {
+		return []string{}
+	}
+
+	// []string
+	var arr []string
+	if err := json.Unmarshal(bArr, &arr); err == nil {
+		return arr
+	}
+
+	// {type: string}
+	var simp struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(bArr, &simp); err == nil {
+		return []string{simp.Type}
+	}
+
+	// [{type:string}]
+	var arrSimp []struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(bArr, &arrSimp); err == nil {
+		var resp []string
+		for _, v := range arrSimp {
+			resp = append(resp, v.Type)
+		}
+		return resp
+	}
+
+	// string
+	var simpStr string
+	if err := json.Unmarshal(bArr, &simpStr); err == nil {
+		return []string{simpStr}
+	}
+
+	return []string{}
 }

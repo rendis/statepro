@@ -20,11 +20,6 @@ type definitionMethodInfo struct {
 	val          *reflect.Value
 }
 
-type specialMethodInfo struct {
-	originalName string
-	required     bool
-}
-
 var (
 	registryMutex sync.Mutex
 
@@ -36,11 +31,6 @@ var (
 	actionsRegistry        = make(definitionMethodInfoRegistryType)
 	srvRegistry            = make(definitionMethodInfoRegistryType)
 	sourceHandlersRegistry = make(definitionSourceInfoRegistryType)
-
-	// Special methods registry
-	alwaysActionsRegistry  = make([]string, 0)
-	onEntryActionsRegistry = make([]string, 0)
-	onExitActionsRegistry  = make([]string, 0)
 )
 
 var methodsToIgnore = map[string]bool{
@@ -221,21 +211,6 @@ func appendSourceHandler[ContextType any](ml MachineLinks[ContextType], registry
 	sourceHandlersRegistry[registryType] = nil
 }
 
-func registrySpecialMethods(actions []ActionOption) {
-	for _, opt := range actions {
-		switch opt.ExecutionType {
-		case ExecutionTypeAlways:
-			alwaysActionsRegistry = append(alwaysActionsRegistry, opt.ActionName)
-		case ExecutionTypeOnEntry:
-			onEntryActionsRegistry = append(onEntryActionsRegistry, opt.ActionName)
-		case ExecutionTypeOnExit:
-			onExitActionsRegistry = append(onExitActionsRegistry, opt.ActionName)
-		default:
-			log.Printf("[WARNING] Skipping unhadled execution type '%s' for action '%s'", opt.ExecutionType, opt.ActionName)
-		}
-	}
-}
-
 // external
 func getContextToSourceHandlers[ContextType any](machineDefinitionRegistryName string) ProMachineToSourceHandler[ContextType] {
 	if toSourceUnTyped := getToSourceHandlers(machineDefinitionRegistryName); toSourceUnTyped != nil {
@@ -270,66 +245,6 @@ func validateAllToSourceImplementationsRequired() error {
 			}
 		}
 	}
-	return allRequiredErr
-}
-
-func validateAllSpecialActionsRequired(actions []ActionOption) error {
-	if len(actions) == 0 {
-		return nil
-	}
-
-	allRequired := make([]ActionOption, 0)
-	for _, opt := range actions {
-		if opt.Required {
-			allRequired = append(allRequired, opt)
-		}
-	}
-
-	// prepare validation
-	var allRequiredErr error
-	var validatorWg sync.WaitGroup
-	var errCollectorWg sync.WaitGroup
-	var errCh = make(chan error, 10)
-	var maxWorkerCh = make(chan struct{}, 10)
-
-	// define validation function
-	var validateRequiredFn = func(registryName string, methods map[string]*definitionMethodInfo, errCh chan<- error) {
-		for _, opt := range allRequired {
-			fixedRequiredName := strings.ToLower(opt.ActionName)
-			if _, ok := methods[fixedRequiredName]; !ok {
-				errCh <- fmt.Errorf("missing required action method '%s' for type '%s'", opt.ActionName, registryName)
-			}
-		}
-	}
-
-	// launch error collector
-	errCollectorWg.Add(1)
-	go func() {
-		defer errCollectorWg.Done()
-		for err := range errCh {
-			allRequiredErr = errors.Join(allRequiredErr, err)
-		}
-	}()
-
-	// launch validator workers
-	for regName, actionsInfo := range actionsRegistry {
-		validatorWg.Add(1)
-		go func(regName string, actionsInfo map[string]*definitionMethodInfo) {
-			defer validatorWg.Done()
-			maxWorkerCh <- struct{}{}
-			validateRequiredFn(regName, actionsInfo, errCh)
-			<-maxWorkerCh
-		}(regName, actionsInfo)
-	}
-
-	// wait for all validations to finish
-	validatorWg.Wait()
-	close(maxWorkerCh)
-
-	// wait for error collector to finish
-	close(errCh)
-	errCollectorWg.Wait()
-
 	return allRequiredErr
 }
 
