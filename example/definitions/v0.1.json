@@ -1,0 +1,50 @@
+{
+  "id": "1",
+  "description": "Basic TM",
+  "version": "0.1",
+  "universes": {
+    "u1": {
+      "id": "1",
+      "version": "0.1",
+      "initial": "r1",
+      "realities": {
+        "r1": {
+          "id": "r1",
+          "type": "normal",
+          "on": {
+            "a": [
+              {
+                "target": "reality:r2"
+              }
+            ],
+            "b": [
+              {
+                "target": "reality:r3"
+              }
+            ]
+          }
+        },
+        "r2": {
+          "id": "r2",
+          "type": "normal",
+          "on": {
+            "a": [
+              {
+              "target": "reality:r1"
+            }
+            ],
+            "b": [
+              {
+                "target": "reality:r3"
+              }
+            ]
+          }
+        },
+        "r3": {
+          "id": "r3",
+          "type": "final"
+        }
+      }
+    }
+  }
+}
