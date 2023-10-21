@@ -6,7 +6,7 @@ import (
 	"github.com/rendis/statepro/v3/theoretical"
 )
 
-func BuildQuantumMachine(qmModel *theoretical.QuantumMachineModel) (*experimental.ExQuantumMachine, error) {
+func BuildExperimentalQuantumMachine(qmModel *theoretical.QuantumMachineModel) (*experimental.ExQuantumMachine, error) {
 	qmId := buildUniqueId(qmModel.ID, qmModel.Version)
 	qmLaws := GetQuantumMachineLaws(qmId)
 	if qmLaws == nil {

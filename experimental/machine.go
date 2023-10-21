@@ -140,6 +140,10 @@ func (qm *ExQuantumMachine) LoadSnapshot(snapshot ExQuantumMachineSnapshot) erro
 	return nil
 }
 
+func (qm *ExQuantumMachine) ModelToMap() (map[string]any, error) {
+	return qm.model.ToMap()
+}
+
 //----------------------------------
 
 func (qm *ExQuantumMachine) getActiveUniverses() []*ExUniverse {

@@ -36,7 +36,7 @@ func main() {
 		panic(err)
 	}
 
-	qm, err := statepro.BuildQuantumMachine(tmDef)
+	qm, err := statepro.BuildExperimentalQuantumMachine(tmDef)
 	if err != nil {
 		panic(err)
 	}
