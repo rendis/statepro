@@ -54,7 +54,7 @@ type ExUniverse struct {
 	// currentReality is the current reality of the ExUniverse
 	currentReality *string
 
-	// finalReality true when the current reality is the type theoretical.RealityTypeFinal
+	// finalReality true when the current reality type belongs to the final states
 	// used to know when the ExUniverse has been exited and finalized
 	finalReality bool
 
@@ -228,7 +228,7 @@ func (u *ExUniverse) LoadSnapshot(snapshotMap ExUniverseSnapshot) error {
 		if realityModel == nil {
 			return fmt.Errorf("reality '%s' does not exist", *u.currentReality)
 		}
-		u.finalReality = realityModel.Type == theoretical.RealityTypeFinal
+		u.finalReality = theoretical.IsFinalState(realityModel.Type)
 	}
 
 	return nil
@@ -348,7 +348,7 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, realityName *strin
 	// update reality
 	u.initialized = true
 	u.currentReality = realityName
-	u.finalReality = realityModel.Type == theoretical.RealityTypeFinal
+	u.finalReality = theoretical.IsFinalState(realityModel.Type)
 	u.inSuperposition = false
 	u.realityInitialized = false
 	u.externalTargets = nil

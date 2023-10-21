@@ -4,9 +4,25 @@ package theoretical
 type RealityType string
 
 const (
-	RealityTypeFinal      RealityType = "final"
+	// RealityTypeTransition represents a transitional or intermediate state.
+	// This is a state through which the machine passes on its way to a final state.
+	// It is used for processing or making decisions that lead to another state.
 	RealityTypeTransition RealityType = "transition"
+
+	// RealityTypeFinal represents a successful final state.
+	// Once the machine reaches this state, it generally does not transition to any other state.
+	// This state is used to indicate that an operation or task has successfully completed.
+	RealityTypeFinal RealityType = "final"
+
+	// RealityTypeUnsuccessfulFinal represents an unsuccessful final state.
+	// The machine stops upon reaching this state, but the operation is not considered to have been successful.
+	// This state is used to capture conditions where the task or operation fails to achieve the desired outcome.
+	RealityTypeUnsuccessfulFinal RealityType = "unsuccessfulFinal"
 )
+
+func IsFinalState(realityType RealityType) bool {
+	return realityType == RealityTypeFinal || realityType == RealityTypeUnsuccessfulFinal
+}
 
 // RealityModel is the json representation of a state of a universe.
 type RealityModel struct {
@@ -48,7 +64,7 @@ type RealityModel struct {
 	// On is the list of transitions that are executed when an event is received and the reality is established.
 	// Validations:
 	// * required if Type is RealityTypeTransition
-	// * ignored if Type is RealityTypeFinal
+	// * ignored if Type belongs to final states (RealityTypeFinal or RealityTypeUnsuccessfulFinal)
 	// * if not nil, each TransitionModel must be valid.
 	// * over each group of transitions:
 	//	- must have only one transition to a reality of the same universe (format: 'RealityModel.ID').
