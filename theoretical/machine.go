@@ -14,7 +14,7 @@ type QuantumMachineModel struct {
 	// * min length: 1
 	ID string `json:"id,omitempty" bson:"id,omitempty" xml:"id,omitempty" yaml:"id,omitempty"`
 
-	// Universes is the list of universes of the machine.
+	// Universes a map of universes of the machine, where the key is the universe id and the value is the universe model.
 	// Validations:
 	// * required
 	// * size > 0
