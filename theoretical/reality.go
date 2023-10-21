@@ -4,8 +4,8 @@ package theoretical
 type RealityType string
 
 const (
-	RealityTypeFinal  RealityType = "final"
-	RealityTypeNormal RealityType = "normal"
+	RealityTypeFinal      RealityType = "final"
+	RealityTypeTransition RealityType = "transition"
 )
 
 // RealityModel is the json representation of a state of a universe.
@@ -47,7 +47,7 @@ type RealityModel struct {
 
 	// On is the list of transitions that are executed when an event is received and the reality is established.
 	// Validations:
-	// * required if Type is RealityTypeNormal
+	// * required if Type is RealityTypeTransition
 	// * ignored if Type is RealityTypeFinal
 	// * if not nil, each TransitionModel must be valid.
 	// * over each group of transitions:
