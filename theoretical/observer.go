@@ -1,6 +1,9 @@
 package theoretical
 
 // ObserverModel is the json representation of an observer.
+// An "observer" monitors each state and accumulates incoming "quantum events."
+// The observer evaluates these events and, if certain conditions are met, authorizes a transition to a new reality or state.
+// In its default configuration, the observer assumes that any incoming event is sufficient to trigger a state change.
 type ObserverModel struct {
 	// Src is the name of the observer to be executed.
 	// Validations:
