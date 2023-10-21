@@ -8,7 +8,7 @@ const (
 	RealityTypeNormal RealityType = "normal"
 )
 
-// RealityModel is the json representation of a reality
+// RealityModel is the json representation of a state of a universe.
 type RealityModel struct {
 	// ID is the id of the reality.
 	// Validations:
