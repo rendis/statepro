@@ -15,4 +15,6 @@ type QuantumMachine interface {
 	GetSnapshot() *experimental.ExQuantumMachineSnapshot
 
 	LoadSnapshot(snapshot *experimental.ExQuantumMachineSnapshot) error
+
+	ModelToMap() (map[string]any, error)
 }

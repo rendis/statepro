@@ -47,17 +47,13 @@ func (a *AdmissionUniverse) ExecuteAction(ctx context.Context, args experimental
 	case "logMultiUniverseTransition":
 		return logMultiUniverseTransition(ctx)
 	default:
-		log.Printf("ERROR: action not found. Action name: '%s'\n", action.Src)
-		return fmt.Errorf("action not found. Action name: '%s'", action.Src)
+		return nil
 	}
 }
 
 func (a *AdmissionUniverse) ExecuteInvoke(ctx context.Context, args experimental.InvokeExecutorArgs) {
-	//TODO implement me
-	panic("implement me")
 }
 
 func (a *AdmissionUniverse) ExecuteCondition(ctx context.Context, args experimental.ConditionExecutorArgs) (bool, error) {
-	//TODO implement me
-	panic("implement me")
+	return false, nil
 }

@@ -20,26 +20,20 @@ func (a *FormUniverse) GetUniverseDescription() string {
 }
 
 func (a *FormUniverse) ExtractObservableKnowledge(quantumMachineContext any) (universeContext any, err error) {
-	//TODO implement me
-	panic("implement me")
+	return quantumMachineContext, nil
 }
 
 func (a *FormUniverse) ExecuteObserver(ctx context.Context, args experimental.ObserverExecutorArgs) (bool, error) {
-	//TODO implement me
-	panic("implement me")
+	return false, nil
 }
 
 func (a *FormUniverse) ExecuteAction(ctx context.Context, args experimental.ActionExecutorArgs) error {
-	//TODO implement me
-	panic("implement me")
+	return nil
 }
 
 func (a *FormUniverse) ExecuteInvoke(ctx context.Context, args experimental.InvokeExecutorArgs) {
-	//TODO implement me
-	panic("implement me")
 }
 
 func (a *FormUniverse) ExecuteCondition(ctx context.Context, args experimental.ConditionExecutorArgs) (bool, error) {
-	//TODO implement me
-	panic("implement me")
+	return false, nil
 }

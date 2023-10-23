@@ -6,7 +6,7 @@ import (
 )
 
 // QuantumMachineLaws is the interface that must be implemented by a quantum machine.
-// The quantum machine laws are the laws that may be applied to each universe.
+// The quantum machine universeLaws are the universeLaws that may be applied to each universe.
 type QuantumMachineLaws interface {
 	// GetQuantumMachineId returns the quantum machine id.
 	GetQuantumMachineId() string
@@ -23,7 +23,7 @@ type QuantumMachineLaws interface {
 	// 	- error: if an error occurs
 	ExecuteObserver(ctx context.Context, args ObserverExecutorArgs) (bool, error)
 
-	// ExecuteAction executes an action in the universe.
+	// ExecuteAction executes an action in the quantum machine.
 	// Parameters:
 	// 	- ctx: the context
 	// 	- args: the action executor arguments
@@ -31,7 +31,7 @@ type QuantumMachineLaws interface {
 	// 	- error: if an error occurs
 	ExecuteAction(ctx context.Context, args ActionExecutorArgs) error
 
-	// ExecuteInvoke executes an invoke in the universe.
+	// ExecuteInvoke executes an invoke in the quantum machine.
 	// Parameters:
 	// 	- ctx: the context
 	// 	- args: the invoke executor arguments
@@ -39,7 +39,7 @@ type QuantumMachineLaws interface {
 }
 
 // UniverseLaws is the interface that must be implemented by a universe.
-// The universe laws are the laws that may be applied only to the universe.
+// The universe universeLaws are the universeLaws that may be applied only to the universe.
 type UniverseLaws interface {
 	// GetUniverseId returns the universe id.
 	// Used to link universe with the universe json definition
@@ -91,11 +91,28 @@ type UniverseLaws interface {
 	ExecuteCondition(ctx context.Context, args ConditionExecutorArgs) (bool, error)
 }
 
+// QuantumMachineLawsExecutor is the interface that must be implemented by a quantum machine executor.
+type QuantumMachineLawsExecutor interface {
+	ExecuteEntryInvokes(ctx context.Context, args *quantumMachineExecutorArgs)
+	ExecuteExitInvokes(ctx context.Context, args *quantumMachineExecutorArgs)
+	ExecuteEntryAction(ctx context.Context, args *quantumMachineExecutorArgs) error
+	ExecuteExitAction(ctx context.Context, args *quantumMachineExecutorArgs) error
+}
+
+type quantumMachineExecutorArgs struct {
+	context               any
+	realityName           string
+	universeName          string
+	event                 Event
+	accumulatorStatistics AccumulatorStatistics
+}
+
 //--------- ObserverExecutorArgs ---------//
 
 type ObserverExecutorArgs interface {
 	GetContext() any
 	GetRealityName() string
+	GetUniverseName() string
 	GetAccumulatorStatistics() AccumulatorStatistics
 	GetEvent() Event
 	GetObserver() theoretical.ObserverModel
@@ -104,6 +121,7 @@ type ObserverExecutorArgs interface {
 type observerExecutorArgs struct {
 	context               any
 	realityName           string
+	universeName          string
 	accumulatorStatistics AccumulatorStatistics
 	event                 Event
 	observer              theoretical.ObserverModel
@@ -115,6 +133,10 @@ func (o observerExecutorArgs) GetContext() any {
 
 func (o observerExecutorArgs) GetRealityName() string {
 	return o.realityName
+}
+
+func (o observerExecutorArgs) GetUniverseName() string {
+	return o.universeName
 }
 
 func (o observerExecutorArgs) GetAccumulatorStatistics() AccumulatorStatistics {
@@ -134,15 +156,17 @@ func (o observerExecutorArgs) GetObserver() theoretical.ObserverModel {
 type ActionExecutorArgs interface {
 	GetContext() any
 	GetRealityName() string
+	GetUniverseName() string
 	GetEvent() Event
 	GetAction() theoretical.ActionModel
 }
 
 type actionExecutorArgs struct {
-	context     any
-	realityName string
-	event       Event
-	action      theoretical.ActionModel
+	context      any
+	realityName  string
+	universeName string
+	event        Event
+	action       theoretical.ActionModel
 }
 
 func (a actionExecutorArgs) GetContext() any {
@@ -151,6 +175,10 @@ func (a actionExecutorArgs) GetContext() any {
 
 func (a actionExecutorArgs) GetRealityName() string {
 	return a.realityName
+}
+
+func (a actionExecutorArgs) GetUniverseName() string {
+	return a.universeName
 }
 
 func (a actionExecutorArgs) GetEvent() Event {
@@ -166,15 +194,17 @@ func (a actionExecutorArgs) GetAction() theoretical.ActionModel {
 type InvokeExecutorArgs interface {
 	GetContext() any
 	GetRealityName() string
+	GetUniverseName() string
 	GetEvent() Event
 	GetInvoke() theoretical.InvokeModel
 }
 
 type invokeExecutorArgs struct {
-	context     any
-	realityName string
-	event       Event
-	invoke      theoretical.InvokeModel
+	context      any
+	realityName  string
+	universeName string
+	event        Event
+	invoke       theoretical.InvokeModel
 }
 
 func (i invokeExecutorArgs) GetContext() any {
@@ -183,6 +213,10 @@ func (i invokeExecutorArgs) GetContext() any {
 
 func (i invokeExecutorArgs) GetRealityName() string {
 	return i.realityName
+}
+
+func (i invokeExecutorArgs) GetUniverseName() string {
+	return i.universeName
 }
 
 func (i invokeExecutorArgs) GetEvent() Event {
@@ -198,15 +232,17 @@ func (i invokeExecutorArgs) GetInvoke() theoretical.InvokeModel {
 type ConditionExecutorArgs interface {
 	GetContext() any
 	GetRealityName() string
+	GetUniverseName() string
 	GetEvent() Event
 	GetCondition() theoretical.ConditionModel
 }
 
 type conditionExecutorArgs struct {
-	context     any
-	realityName string
-	event       Event
-	condition   theoretical.ConditionModel
+	context      any
+	realityName  string
+	universeName string
+	event        Event
+	condition    theoretical.ConditionModel
 }
 
 func (c conditionExecutorArgs) GetContext() any {
@@ -215,6 +251,10 @@ func (c conditionExecutorArgs) GetContext() any {
 
 func (c conditionExecutorArgs) GetRealityName() string {
 	return c.realityName
+}
+
+func (c conditionExecutorArgs) GetUniverseName() string {
+	return c.universeName
 }
 
 func (c conditionExecutorArgs) GetEvent() Event {

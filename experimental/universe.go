@@ -26,9 +26,9 @@ type universeInfoSnapshot struct {
 
 func NewExUniverse(id string, model *theoretical.UniverseModel, laws UniverseLaws) *ExUniverse {
 	return &ExUniverse{
-		id:    id,
-		model: model,
-		laws:  laws,
+		id:           id,
+		model:        model,
+		universeLaws: laws,
 	}
 }
 
@@ -45,8 +45,11 @@ type ExUniverse struct {
 	// model of the ExUniverse
 	model *theoretical.UniverseModel
 
-	// laws of the ExUniverse
-	laws UniverseLaws
+	// universeLaws of the ExUniverse
+	universeLaws UniverseLaws
+
+	// machineLawsExecutor is the machine laws executor
+	machineLawsExecutor QuantumMachineLawsExecutor
 
 	// universeMtx is the mutex for the ExUniverse
 	universeMtx sync.Mutex
@@ -77,8 +80,20 @@ type ExUniverse struct {
 	eventAccumulator Accumulator
 }
 
-func (u *ExUniverse) IsActive() bool {
-	return u.initialized && (u.inSuperposition || !u.isFinalReality)
+func (u *ExUniverse) HandleEvent(ctx context.Context, realityName *string, evt Event) ([]string, Event, error) {
+	u.universeMtx.Lock()
+	defer u.universeMtx.Unlock()
+
+	var handleEventFn func() error
+
+	if realityName != nil {
+		handleEventFn = func() error { return u.receiveEventToReality(ctx, *realityName, evt) }
+	} else {
+		handleEventFn = func() error { return u.receiveEvent(ctx, evt) }
+	}
+
+	targets, err := u.universeDecorator(handleEventFn)
+	return targets, evt, err
 }
 
 // CanHandleEvent returns true if the universe can handle the given event
@@ -99,24 +114,12 @@ func (u *ExUniverse) CanHandleEvent(evt Event) bool {
 	return true
 }
 
-func (u *ExUniverse) IsInitialized() bool {
-	return u.initialized
+func (u *ExUniverse) IsActive() bool {
+	return u.initialized && (u.inSuperposition || !u.isFinalReality)
 }
 
-func (u *ExUniverse) HandleEvent(ctx context.Context, realityName *string, evt Event) ([]string, Event, error) {
-	u.universeMtx.Lock()
-	defer u.universeMtx.Unlock()
-
-	var handleEventFn func() error
-
-	if realityName != nil {
-		handleEventFn = func() error { return u.receiveEventToReality(ctx, *realityName, evt) }
-	} else {
-		handleEventFn = func() error { return u.receiveEvent(ctx, evt) }
-	}
-
-	targets, err := u.universeDecorator(handleEventFn)
-	return targets, evt, err
+func (u *ExUniverse) IsInitialized() bool {
+	return u.initialized
 }
 
 func (u *ExUniverse) PlaceOn(realityName string) error {
@@ -436,6 +439,11 @@ func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition 
 			return nil
 		}
 
+		// execute transition actions
+		if err := u.executeActions(ctx, approvedTransition.Actions, event); err != nil {
+			return errors.Join(fmt.Errorf("error executing transition actions for reality '%s'", *u.currentReality), err)
+		}
+
 		// get is transition is of type notify, save external targets and return nil
 		if approvedTransition.IsNotification() {
 			u.externalTargets = approvedTransition.Targets
@@ -495,13 +503,14 @@ func (u *ExUniverse) executeCondition(ctx context.Context, conditionModel *theor
 	}
 
 	args := &conditionExecutorArgs{
-		context:     u.universeContext,
-		realityName: *u.currentReality,
-		event:       evt,
-		condition:   *conditionModel,
+		context:      u.universeContext,
+		realityName:  *u.currentReality,
+		universeName: u.id,
+		event:        evt,
+		condition:    *conditionModel,
 	}
 
-	return u.laws.ExecuteCondition(ctx, args)
+	return u.universeLaws.ExecuteCondition(ctx, args)
 }
 
 func (u *ExUniverse) initSuperposition(ctx context.Context, targets []string, event Event) error {
@@ -519,27 +528,24 @@ func (u *ExUniverse) initSuperposition(ctx context.Context, targets []string, ev
 	return nil
 }
 
-func (u *ExUniverse) executeOnExitProcess(ctx context.Context, event Event) error {
+func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event Event) error {
 	realityModel := u.model.GetReality(*u.currentReality)
 
-	// execute on exit actions
-	if err := u.executeActions(ctx, realityModel.ExitActions, event); err != nil {
+	// execute on entry machine actions
+	args := &quantumMachineExecutorArgs{
+		context:      u.universeContext,
+		realityName:  realityModel.ID,
+		universeName: u.id,
+		event:        event,
+	}
+	if err := u.machineLawsExecutor.ExecuteEntryAction(ctx, args); err != nil {
 		return errors.Join(
-			fmt.Errorf("error executing on exit actions for reality '%s'", realityModel.ID),
+			fmt.Errorf("error executing on entry machine actions for reality '%s'", realityModel.ID),
 			err,
 		)
 	}
 
-	// execute on exit invokes, invokes are executed asynchronously
-	u.executeInvokes(ctx, realityModel.ExitInvokes, event)
-
-	return nil
-}
-
-func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event Event) error {
-	realityModel := u.model.GetReality(*u.currentReality)
-
-	// execute on entry actions
+	// execute on entry universe actions
 	if err := u.executeActions(ctx, realityModel.EntryActions, event); err != nil {
 		return errors.Join(
 			fmt.Errorf("error executing on entry actions for reality '%s'", realityModel.ID),
@@ -547,8 +553,46 @@ func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event Event) err
 		)
 	}
 
-	// execute on entry invokes, invokes are executed asynchronously
+	// execute on entry machine invokes, invokes are executed asynchronously
+	u.machineLawsExecutor.ExecuteEntryInvokes(ctx, args)
+
+	// execute on entry universe invokes, invokes are executed asynchronously
 	u.executeInvokes(ctx, realityModel.EntryInvokes, event)
+
+	return nil
+}
+
+func (u *ExUniverse) executeOnExitProcess(ctx context.Context, event Event) error {
+	realityModel := u.model.GetReality(*u.currentReality)
+
+	// execute on exit machine actions
+	args := &quantumMachineExecutorArgs{
+		context:      u.universeContext,
+		realityName:  realityModel.ID,
+		universeName: u.id,
+		event:        event,
+	}
+
+	if err := u.machineLawsExecutor.ExecuteExitAction(ctx, args); err != nil {
+		return errors.Join(
+			fmt.Errorf("error executing on exit machine actions for reality '%s'", realityModel.ID),
+			err,
+		)
+	}
+
+	// execute on exit universe actions
+	if err := u.executeActions(ctx, realityModel.ExitActions, event); err != nil {
+		return errors.Join(
+			fmt.Errorf("error executing on exit actions for reality '%s'", realityModel.ID),
+			err,
+		)
+	}
+
+	// execute on exit machine invokes, invokes are executed asynchronously
+	u.machineLawsExecutor.ExecuteExitInvokes(ctx, args)
+
+	// execute on exit universe invokes, invokes are executed asynchronously
+	u.executeInvokes(ctx, realityModel.ExitInvokes, event)
 
 	return nil
 }
@@ -561,12 +605,13 @@ func (u *ExUniverse) executeActions(ctx context.Context, actionModels []*theoret
 	// execute actions
 	for _, action := range actionModels {
 		args := &actionExecutorArgs{
-			context:     u.universeContext,
-			realityName: *u.currentReality,
-			event:       event,
-			action:      *action,
+			context:      u.universeContext,
+			realityName:  *u.currentReality,
+			universeName: u.id,
+			event:        event,
+			action:       *action,
 		}
-		if err := u.laws.ExecuteAction(ctx, args); err != nil {
+		if err := u.universeLaws.ExecuteAction(ctx, args); err != nil {
 			return errors.Join(fmt.Errorf("error executing action '%s'", action.Src), err)
 		}
 	}
@@ -582,12 +627,13 @@ func (u *ExUniverse) executeInvokes(ctx context.Context, invokeModels []*theoret
 	// execute invokes
 	for _, invoke := range invokeModels {
 		args := &invokeExecutorArgs{
-			context:     u.universeContext,
-			realityName: *u.currentReality,
-			event:       event,
-			invoke:      *invoke,
+			context:      u.universeContext,
+			realityName:  *u.currentReality,
+			universeName: u.id,
+			event:        event,
+			invoke:       *invoke,
 		}
-		go u.laws.ExecuteInvoke(ctx, args)
+		go u.universeLaws.ExecuteInvoke(ctx, args)
 	}
 }
 
@@ -647,11 +693,12 @@ func (u *ExUniverse) executeObservers(ctx context.Context, realityModel *theoret
 		args := &observerExecutorArgs{
 			context:               u.universeContext,
 			realityName:           realityModel.ID,
+			universeName:          u.id,
 			accumulatorStatistics: u.eventAccumulator.GetStatistics(),
 			event:                 evt,
 			observer:              *observer,
 		}
-		isApproved, err := u.laws.ExecuteObserver(ctx, args)
+		isApproved, err := u.universeLaws.ExecuteObserver(ctx, args)
 		if err != nil {
 			return false, errors.Join(fmt.Errorf("error executing observer '%s'", observer.Src), err)
 		}

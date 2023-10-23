@@ -36,6 +36,7 @@ func NewExQuantumMachine(qmm *theoretical.QuantumMachineModel, qml QuantumMachin
 			return nil, fmt.Errorf("universe '%s' already exists", u.id)
 		}
 
+		u.machineLawsExecutor = qm
 		qm.universes[u.id] = u
 	}
 
@@ -60,13 +61,14 @@ type ExQuantumMachine struct {
 	quantumMachineMtx sync.Mutex
 }
 
+//--------- QuantumMachine interface implementation ---------
+
 func (qm *ExQuantumMachine) Init(ctx context.Context, machineContext any) error {
 	qm.machineContext = machineContext
 
 	var pairs []devtoolkit.Pair[Event, []string]
 
 	for _, ref := range qm.model.Initials {
-
 		// get reference type and parts
 		refT, parts, err := processReference(ref)
 		if err != nil {
@@ -172,7 +174,83 @@ func (qm *ExQuantumMachine) ModelToMap() (map[string]any, error) {
 	return qm.model.ToMap()
 }
 
-//----------------------------------
+//--------- QuantumMachineLawsExecutor interface implementation ---------
+
+func (qm *ExQuantumMachine) ExecuteEntryInvokes(ctx context.Context, args *quantumMachineExecutorArgs) {
+	if qm.model.UniversalConstants == nil || len(qm.model.UniversalConstants.EntryInvokes) == 0 {
+		return
+	}
+
+	for _, invoke := range qm.model.UniversalConstants.EntryInvokes {
+		a := &invokeExecutorArgs{
+			context:      args.context,
+			realityName:  args.realityName,
+			universeName: args.universeName,
+			event:        args.event,
+			invoke:       *invoke,
+		}
+		go qm.laws.ExecuteInvoke(ctx, a)
+	}
+}
+
+func (qm *ExQuantumMachine) ExecuteExitInvokes(ctx context.Context, args *quantumMachineExecutorArgs) {
+	if qm.model.UniversalConstants == nil || len(qm.model.UniversalConstants.ExitInvokes) == 0 {
+		return
+	}
+
+	for _, invoke := range qm.model.UniversalConstants.ExitInvokes {
+		a := &invokeExecutorArgs{
+			context:      args.context,
+			realityName:  args.realityName,
+			universeName: args.universeName,
+			event:        args.event,
+			invoke:       *invoke,
+		}
+		go qm.laws.ExecuteInvoke(ctx, a)
+	}
+}
+
+func (qm *ExQuantumMachine) ExecuteEntryAction(ctx context.Context, args *quantumMachineExecutorArgs) error {
+	if qm.model.UniversalConstants == nil || len(qm.model.UniversalConstants.EntryActions) == 0 {
+		return nil
+	}
+
+	for _, action := range qm.model.UniversalConstants.EntryActions {
+		a := &actionExecutorArgs{
+			context:      args.context,
+			realityName:  args.realityName,
+			universeName: args.universeName,
+			event:        args.event,
+			action:       *action,
+		}
+		if err := qm.laws.ExecuteAction(ctx, a); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (qm *ExQuantumMachine) ExecuteExitAction(ctx context.Context, args *quantumMachineExecutorArgs) error {
+	if qm.model.UniversalConstants == nil || len(qm.model.UniversalConstants.ExitActions) == 0 {
+		return nil
+	}
+
+	for _, action := range qm.model.UniversalConstants.ExitActions {
+		a := &actionExecutorArgs{
+			context:      args.context,
+			realityName:  args.realityName,
+			universeName: args.universeName,
+			event:        args.event,
+			action:       *action,
+		}
+		if err := qm.laws.ExecuteAction(ctx, a); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+//-----------------------------------------------------------
 
 func (qm *ExQuantumMachine) getActiveUniverses() []*ExUniverse {
 	var activeUniverses []*ExUniverse

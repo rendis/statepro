@@ -5,12 +5,9 @@ import (
 )
 
 type Universe interface {
-	// IsActive returns true if the universe is active
-	// A universe is active if:
-	// - has been initialized &&
-	// - || it is in superposition state
-	// - || the current reality is established and it is not final
-	IsActive() bool
+	// HandleEvent handles an event where depending on the state of the universe
+	// it will call Start, SendEvent or SendEventToReality
+	HandleEvent(ctx context.Context, realityName *string, evt Event) ([]string, Event, error)
 
 	// CanHandleEvent returns true if the universe can handle the given event
 	// A universe can handle an event if all the following conditions are true:
@@ -19,12 +16,15 @@ type Universe interface {
 	// - the current reality can handle the event
 	CanHandleEvent(evt Event) bool
 
+	// IsActive returns true if the universe is active
+	// A universe is active if:
+	// - has been initialized &&
+	// - || it is in superposition state
+	// - || the current reality is established and it is not final
+	IsActive() bool
+
 	// IsInitialized returns true if the universe has been initialized
 	IsInitialized() bool
-
-	// HandleEvent handles an event where depending on the state of the universe
-	// it will call Start, SendEvent or SendEventToReality
-	HandleEvent(ctx context.Context, realityName *string, evt Event) ([]string, Event, error)
 
 	// PlaceOn sets the given reality as the current reality
 	// PlaceOn not execute always, initial or exit operations, only set the current reality

@@ -20,26 +20,20 @@ func (a *PaymentUniverse) GetUniverseDescription() string {
 }
 
 func (a *PaymentUniverse) ExtractObservableKnowledge(quantumMachineContext any) (universeContext any, err error) {
-	//TODO implement me
-	panic("implement me")
+	return quantumMachineContext, nil
 }
 
 func (a *PaymentUniverse) ExecuteObserver(ctx context.Context, args experimental.ObserverExecutorArgs) (bool, error) {
-	//TODO implement me
-	panic("implement me")
+	return false, nil
 }
 
 func (a *PaymentUniverse) ExecuteAction(ctx context.Context, args experimental.ActionExecutorArgs) error {
-	//TODO implement me
-	panic("implement me")
+	return nil
 }
 
 func (a *PaymentUniverse) ExecuteInvoke(ctx context.Context, args experimental.InvokeExecutorArgs) {
-	//TODO implement me
-	panic("implement me")
 }
 
 func (a *PaymentUniverse) ExecuteCondition(ctx context.Context, args experimental.ConditionExecutorArgs) (bool, error) {
-	//TODO implement me
-	panic("implement me")
+	return false, nil
 }

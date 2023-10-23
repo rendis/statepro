@@ -2,9 +2,7 @@ package admission
 
 import (
 	"context"
-	"fmt"
 	"github.com/rendis/statepro/v3/experimental"
-	"log"
 )
 
 func NewAdmissionQM() *AdmissionQM {
@@ -23,8 +21,7 @@ func (a AdmissionQM) GetQuantumMachineDescription() string {
 }
 
 func (a AdmissionQM) ExecuteObserver(ctx context.Context, args experimental.ObserverExecutorArgs) (bool, error) {
-	//TODO implement me
-	panic("implement me")
+	return false, nil
 }
 
 func (a AdmissionQM) ExecuteAction(ctx context.Context, args experimental.ActionExecutorArgs) error {
@@ -33,12 +30,11 @@ func (a AdmissionQM) ExecuteAction(ctx context.Context, args experimental.Action
 
 	switch action.Src {
 	case "logEntryToStatus":
-		return logEntryToStatus(ctx)
+		return logEntryToStatus(ctx, args.GetRealityName(), args.GetUniverseName())
 	case "logExitFromStatus":
-		return logExitFromStatus(ctx)
+		return logExitFromStatus(ctx, args.GetRealityName(), args.GetUniverseName())
 	default:
-		log.Printf("ERROR: action not found. Action name: '%s'\n", action.Src)
-		return fmt.Errorf("action not found. Action name: '%s'", action.Src)
+		return nil
 	}
 }
 
@@ -51,6 +47,6 @@ func (a AdmissionQM) ExecuteInvoke(ctx context.Context, args experimental.Invoke
 	case "notifyStatusChanged":
 		notifyStatusChanged(ctx, mctx, event)
 	default:
-		log.Printf("ERROR: invoke not found. Invoke name: '%s'\n", invoke.Src)
+		return
 	}
 }

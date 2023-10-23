@@ -3,12 +3,6 @@ package theoretical
 // UniversalConstantsModel is the json representation of universal constants.
 // Universal constants are operations that are always executed over any reality and will be executed before any other operation.
 type UniversalConstantsModel struct {
-	// Observers is the list of observers that are always executed when the reality receives an event.
-	// Validations:
-	// * optional
-	// * if not nil, each ObserverModel must be valid.
-	Observers []*ObserverModel `json:"observers,omitempty" bson:"observers,omitempty" xml:"observers,omitempty" yaml:"observers,omitempty"`
-
 	// EntryInvokes is the list of invokes that are always executed when the reality is established (Asynchronously).
 	// Validations:
 	// * optional
