@@ -91,9 +91,10 @@ type ExUniverse struct {
 	eventAccumulator instrumentation.Accumulator
 }
 
-//------------- Universe interface implementation -------------
+//------------- Blocking methods -------------
 
-func (u *ExUniverse) HandleEvent(ctx context.Context, realityName *string, evt instrumentation.Event, universeContext any) ([]string, instrumentation.Event, error) {
+// handleEvent handles an Event where depending on the state of the universe
+func (u *ExUniverse) handleEvent(ctx context.Context, realityName *string, evt instrumentation.Event, universeContext any) ([]string, instrumentation.Event, error) {
 	u.universeMtx.Lock()
 	defer u.universeMtx.Unlock()
 
@@ -110,57 +111,11 @@ func (u *ExUniverse) HandleEvent(ctx context.Context, realityName *string, evt i
 	return targets, evt, err
 }
 
-// CanHandleEvent returns true if the universe can handle the given Event
-// A universe can handle an Event if all the following conditions are true:
-// - not in superposition state
-// - current reality is established and not final
-// - the current reality can handle the Event
-func (u *ExUniverse) CanHandleEvent(evt instrumentation.Event) bool {
-	if u.inSuperposition || u.currentReality == nil || u.isFinalReality {
-		return false
-	}
-
-	realityModel := u.model.GetReality(*u.currentReality)
-	if _, ok := realityModel.On[evt.GetEventName()]; !ok {
-		return false
-	}
-
-	return true
-}
-
-func (u *ExUniverse) IsActive() bool {
-	return u.initialized && (u.inSuperposition || !u.isFinalReality)
-}
-
-func (u *ExUniverse) IsInitialized() bool {
-	return u.initialized
-}
-
-func (u *ExUniverse) PlaceOn(realityName string) error {
-	u.universeMtx.Lock()
-	defer u.universeMtx.Unlock()
-
-	realityModel, ok := u.model.Realities[realityName]
-	if !ok {
-		return fmt.Errorf("reality '%s' does not exist", realityName)
-	}
-
-	u.initialized = true
-	u.currentReality = &realityName
-	u.realityInitialized = true
-	u.inSuperposition = false
-	u.realityBeforeSuperposition = nil
-	u.externalTargets = nil
-	u.eventAccumulator = newEventAccumulator()
-	u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
-	return nil
-}
-
-func (u *ExUniverse) PlaceOnInitial() error {
-	return u.PlaceOn(u.model.Initial)
-}
-
-func (u *ExUniverse) Start(ctx context.Context, universeContext any) ([]string, instrumentation.Event, error) {
+// start starts the universe on the default reality (initial reality)
+// start set initial reality as the current reality and execute:
+// - always operations
+// - initial operations
+func (u *ExUniverse) start(ctx context.Context, universeContext any) ([]string, instrumentation.Event, error) {
 	u.universeMtx.Lock()
 	defer u.universeMtx.Unlock()
 
@@ -180,7 +135,11 @@ func (u *ExUniverse) Start(ctx context.Context, universeContext any) ([]string, 
 	return targets, evt, err
 }
 
-func (u *ExUniverse) StartOnReality(ctx context.Context, realityName string, universeContext any) ([]string, instrumentation.Event, error) {
+// startOnReality starts the universe on the given reality
+// startOnReality set the given reality as the current reality and execute:
+// - always operations
+// - initial operations
+func (u *ExUniverse) startOnReality(ctx context.Context, realityName string, universeContext any) ([]string, instrumentation.Event, error) {
 	u.universeMtx.Lock()
 	defer u.universeMtx.Unlock()
 
@@ -200,8 +159,33 @@ func (u *ExUniverse) StartOnReality(ctx context.Context, realityName string, uni
 	return targets, evt, err
 }
 
-// GetSnapshot returns a snapshot of the universe
-func (u *ExUniverse) GetSnapshot() instrumentation.SerializedUniverseSnapshot {
+// placeOn sets the given reality as the current reality
+// placeOn not execute always, initial or exit operations, only set the current reality
+func (u *ExUniverse) placeOn(realityName string) error {
+	u.universeMtx.Lock()
+	defer u.universeMtx.Unlock()
+
+	realityModel, ok := u.model.Realities[realityName]
+	if !ok {
+		return fmt.Errorf("reality '%s' does not exist", realityName)
+	}
+
+	u.initialized = true
+	u.currentReality = &realityName
+	u.realityInitialized = true
+	u.inSuperposition = false
+	u.realityBeforeSuperposition = nil
+	u.externalTargets = nil
+	u.eventAccumulator = newEventAccumulator()
+	u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
+	return nil
+}
+
+// getSnapshot returns a snapshot of the universe
+func (u *ExUniverse) getSnapshot() instrumentation.SerializedUniverseSnapshot {
+	u.universeMtx.Lock()
+	defer u.universeMtx.Unlock()
+
 	var infoSnapshot = universeInfoSnapshot{
 		ID:                         u.id,
 		Initialized:                u.initialized,
@@ -221,8 +205,11 @@ func (u *ExUniverse) GetSnapshot() instrumentation.SerializedUniverseSnapshot {
 	return m
 }
 
-// LoadSnapshot loads a snapshot of the universe
-func (u *ExUniverse) LoadSnapshot(universeSnapshot instrumentation.SerializedUniverseSnapshot) error {
+// loadSnapshot loads a snapshot of the universe
+func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUniverseSnapshot) error {
+	u.universeMtx.Lock()
+	defer u.universeMtx.Unlock()
+
 	snapshot, err := devtoolkit.MapToStruct[universeInfoSnapshot](universeSnapshot)
 	if err != nil {
 		return errors.Join(fmt.Errorf("error loading snapshot for universe '%s'", u.id), err)
@@ -247,7 +234,34 @@ func (u *ExUniverse) LoadSnapshot(universeSnapshot instrumentation.SerializedUni
 	return nil
 }
 
-//------------------------------------------------------------------------------------------------------//
+//--------------------------------------------------------//
+
+// canHandleEvent returns true if the universe can handle the given Event
+// A universe can handle an Event if all the following conditions are true:
+// - not in superposition state
+// - current reality is established and not final
+// - the current reality can handle the Event
+func (u *ExUniverse) canHandleEvent(evt instrumentation.Event) bool {
+	if u.inSuperposition || u.currentReality == nil || u.isFinalReality {
+		return false
+	}
+
+	realityModel := u.model.GetReality(*u.currentReality)
+	if _, ok := realityModel.On[evt.GetEventName()]; !ok {
+		return false
+	}
+
+	return true
+}
+
+// isActive returns true if the universe is active
+// A universe is active if:
+// - has been initialized &&
+// - || it is in superposition state
+// - || the current reality is established and it is not final
+func (u *ExUniverse) isActive() bool {
+	return u.initialized && (u.inSuperposition || !u.isFinalReality)
+}
 
 func (u *ExUniverse) universeDecorator(operation func() error) ([]string, error) {
 	// clear externalTargets
@@ -260,24 +274,6 @@ func (u *ExUniverse) universeDecorator(operation func() error) ([]string, error)
 
 	// return externalTargets
 	return u.externalTargets, nil
-}
-
-func (u *ExUniverse) sendEvent(ctx context.Context, evt instrumentation.Event, universeContext any) ([]string, instrumentation.Event, error) {
-	var sendEventFn = func() error {
-		return u.receiveEvent(ctx, evt)
-	}
-
-	targets, err := u.universeDecorator(sendEventFn)
-	return targets, evt, err
-}
-
-func (u *ExUniverse) sendEventToReality(ctx context.Context, realityName string, evt instrumentation.Event) ([]string, instrumentation.Event, error) {
-	var sendEventFn = func() error {
-		return u.receiveEventToReality(ctx, realityName, evt)
-	}
-
-	targets, err := u.universeDecorator(sendEventFn)
-	return targets, evt, err
 }
 
 // receiveEventToReality receives an Event only if one of the following conditions is met:
@@ -293,7 +289,7 @@ func (u *ExUniverse) receiveEventToReality(ctx context.Context, reality string, 
 
 		if isNewReality {
 			// establish new reality
-			if err := u.establishNewReality(ctx, reality, event); err != nil {
+			if err = u.establishNewReality(ctx, reality, event); err != nil {
 				return errors.Join(fmt.Errorf("error establishing new reality '%s'", reality), err)
 			}
 		}

@@ -13,10 +13,10 @@ type initFunc func(context.Context, any, *ExUniverse, []string) ([]string, instr
 
 var qmInitFunctions = map[refType]initFunc{
 	RefTypeUniverse: func(ctx context.Context, uCtx any, u *ExUniverse, _ []string) ([]string, instrumentation.Event, error) {
-		return u.Start(ctx, uCtx)
+		return u.start(ctx, uCtx)
 	},
 	RefTypeUniverseReality: func(ctx context.Context, uCtx any, u *ExUniverse, p []string) ([]string, instrumentation.Event, error) {
-		return u.StartOnReality(ctx, p[1], uCtx)
+		return u.startOnReality(ctx, p[1], uCtx)
 	},
 }
 
@@ -112,7 +112,7 @@ func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation
 	var pairs []devtoolkit.Pair[instrumentation.Event, []string]
 
 	for _, u := range qm.getActiveUniverses() {
-		externalTargets, _, err := u.HandleEvent(ctx, nil, event, qm.machineContext)
+		externalTargets, _, err := u.handleEvent(ctx, nil, event, qm.machineContext)
 		if err != nil {
 			return err
 		}
@@ -132,7 +132,7 @@ func (qm *ExQuantumMachine) LazySendEvent(ctx context.Context, event instrumenta
 	var pairs []devtoolkit.Pair[instrumentation.Event, []string]
 
 	for _, u := range qm.getLazyActiveUniverses(event) {
-		externalTargets, _, err := u.HandleEvent(ctx, nil, event, qm.machineContext)
+		externalTargets, _, err := u.handleEvent(ctx, nil, event, qm.machineContext)
 		if err != nil {
 			return err
 		}
@@ -152,13 +152,13 @@ func (qm *ExQuantumMachine) GetSnapshot() *instrumentation.MachineSnapshot {
 	var machineSnapshot = &instrumentation.MachineSnapshot{}
 
 	for _, u := range qm.universes {
-		universeSnapshot := u.GetSnapshot()
+		universeSnapshot := u.getSnapshot()
 
 		// add snapshot
 		machineSnapshot.AddUniverseSnapshot(u.id, universeSnapshot)
 
 		// if universe is not active, continue
-		if !u.IsActive() {
+		if !u.isActive() {
 			continue
 		}
 
@@ -193,7 +193,7 @@ func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapsh
 			continue
 		}
 
-		err := u.LoadSnapshot(universeSnapshot)
+		err := u.loadSnapshot(universeSnapshot)
 		if err != nil {
 			return err
 		}
@@ -300,7 +300,7 @@ func (qm *ExQuantumMachine) ExecuteExitAction(ctx context.Context, args *instrum
 func (qm *ExQuantumMachine) getActiveUniverses() []*ExUniverse {
 	var activeUniverses []*ExUniverse
 	for _, u := range qm.universes {
-		if u.IsActive() {
+		if u.isActive() {
 			activeUniverses = append(activeUniverses, u)
 		}
 	}
@@ -310,7 +310,7 @@ func (qm *ExQuantumMachine) getActiveUniverses() []*ExUniverse {
 func (qm *ExQuantumMachine) getLazyActiveUniverses(event instrumentation.Event) []*ExUniverse {
 	var activeUniverses []*ExUniverse
 	for _, u := range qm.universes {
-		if u.CanHandleEvent(event) {
+		if u.canHandleEvent(event) {
 			activeUniverses = append(activeUniverses, u)
 		}
 	}
@@ -356,7 +356,7 @@ func (qm *ExQuantumMachine) executeTransitions(ctx context.Context, event instru
 			realityName = &parts[1]
 		}
 
-		newTransitions, _, err := exUniverse.HandleEvent(ctx, realityName, event, qm.machineContext)
+		newTransitions, _, err := exUniverse.handleEvent(ctx, realityName, event, qm.machineContext)
 		if err != nil {
 			return nil, err
 		}
