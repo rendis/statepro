@@ -30,8 +30,8 @@ type QuantumMachineModel struct {
 	// * initial can be:
 	//	- mix of realities and universes
 	//	- only one reality per universe. To reference a reality from another universe
-	//    the format is 'UniverseModel.ID@UniverseModel.Version:RealityModel.ID'.
-	//	- one or more universes. To reference a universe the format is 'UniverseModel.ID@UniverseModel.Version'.
+	//    the format is 'UniverseModel.ID:RealityModel.ID'.
+	//	- one or more universes. To reference a universe the format is 'UniverseModel.ID'.
 	Initials []string `json:"initials,omitempty" bson:"initials,omitempty" xml:"initials,omitempty" yaml:"initials,omitempty"`
 
 	// UniversalConstants is the list of universal constants of the machine.
@@ -54,8 +54,8 @@ type QuantumMachineModel struct {
 }
 
 // GetBinary returns the byte array representation of the machine model.
-func (u *QuantumMachineModel) GetBinary() ([]byte, error) {
-	return json.Marshal(u)
+func (q *QuantumMachineModel) GetBinary() ([]byte, error) {
+	return json.Marshal(q)
 }
 
 // ToMap returns the map representation of the machine model.

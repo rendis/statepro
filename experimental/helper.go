@@ -7,22 +7,28 @@ import (
 
 type refType int
 
+// <universeId> and <realityId> validations:
+//	* no white space
+//	* only letters, numbers, underscore (_) and dash (-)
+// 	* must start with a letter
+//	* min length: 1
+
 const (
-	// RefTypeUniverse format: <universeId>@<universeVersion>
+	// RefTypeUniverse format -> U:<universeId>
 	RefTypeUniverse refType = iota
 
-	// RefTypeUniverseReality format: <universeId>@<universeVersion>:<realityId>
+	// RefTypeUniverseReality format -> U:<universeId>:<realityId>
 	RefTypeUniverseReality
 
-	// RefTypeReality format: <realityId>
+	// RefTypeReality format -> <realityId>
 	RefTypeReality
 )
 
 // regex
 const (
-	universePattern        = `^([^@]{1,}@[^@]{1,})$`
-	universeRealityPattern = `^([^@]{1,}@[^@]{1,}):([^:]{1,})$`
-	realityPattern         = `^([^@:]{1,})$`
+	universePattern        = `^U:([a-zA-Z][a-zA-Z0-9_-]*[a-zA-Z0-9])$`
+	universeRealityPattern = `^U:([a-zA-Z][a-zA-Z0-9_-]*[a-zA-Z0-9]):([a-zA-Z][a-zA-Z0-9_-]*[a-zA-Z0-9])$`
+	realityPattern         = `^([a-zA-Z][a-zA-Z0-9_-]*[a-zA-Z0-9])$`
 )
 
 type refTypePattern struct {
@@ -37,8 +43,8 @@ var patterns = []refTypePattern{
 	{ref: RefTypeReality, regEx: regexp.MustCompile(realityPattern)},
 }
 
-// getReferenceType returns the refType and parts of the ref
-func getReferenceType(ref string) (refType, []string, error) {
+// processReference returns the refType and parts of the ref
+func processReference(ref string) (refType, []string, error) {
 	for _, p := range patterns {
 		matches := p.regEx.FindStringSubmatch(ref)
 		if matches != nil {

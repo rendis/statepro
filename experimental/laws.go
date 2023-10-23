@@ -11,14 +11,12 @@ type QuantumMachineLaws interface {
 	// GetQuantumMachineId returns the quantum machine id.
 	GetQuantumMachineId() string
 
-	// GetQuantumMachineVersion returns the quantum machine version.
-	GetQuantumMachineVersion() string
-
 	// GetQuantumMachineDescription returns the quantum machine description.
 	GetQuantumMachineDescription() string
 
 	// ExecuteObserver executes an observer in the quantum machine.
 	// Parameters:
+	// 	- ctx: the context
 	// 	- quantumMachineContext: the quantum machine context
 	// 	- accumulatorStatistics: the accumulator statistics
 	// 	- event: last event triggered (contained in the accumulator statistics)
@@ -27,6 +25,7 @@ type QuantumMachineLaws interface {
 	// 	- bool: observer result
 	// 	- error: if an error occurs
 	ExecuteObserver(
+		ctx context.Context,
 		quantumMachineContext any,
 		accumulatorStatistics AccumulatorStatistics,
 		event Event,
@@ -35,12 +34,14 @@ type QuantumMachineLaws interface {
 
 	// ExecuteAction executes an action in the universe.
 	// Parameters:
+	// 	- ctx: the context
 	// 	- quantumMachineContext: the quantum machine context
 	// 	- event: last event triggered
 	// 	- action: the action to execute
 	// Returns:
 	// 	- error: if an error occurs
 	ExecuteAction(
+		ctx context.Context,
 		quantumMachineContext any,
 		event Event,
 		action theoretical.ActionModel,
@@ -48,16 +49,16 @@ type QuantumMachineLaws interface {
 
 	// ExecuteInvoke executes an invoke in the universe.
 	// Parameters:
+	// 	- ctx: the context
 	// 	- quantumMachineContext: the quantum machine context
 	// 	- event: last event triggered
 	// 	- invoke: the invoke to execute
-	// Returns:
-	// 	- error: if an error occurs
 	ExecuteInvoke(
+		ctx context.Context,
 		quantumMachineContext any,
 		event Event,
 		invoke theoretical.InvokeModel,
-	) error
+	)
 }
 
 // UniverseLaws is the interface that must be implemented by a universe.
@@ -66,10 +67,6 @@ type UniverseLaws interface {
 	// GetUniverseId returns the universe id.
 	// Used to link universe with the universe json definition
 	GetUniverseId() string
-
-	// GetUniverseVersion returns the universe version.
-	// Used to link universe with the universe json definition
-	GetUniverseVersion() string
 
 	// GetUniverseDescription returns the universe description.
 	GetUniverseDescription() string
@@ -86,51 +83,48 @@ type UniverseLaws interface {
 
 	// ExecuteObserver executes an observer in the universe.
 	// Parameters:
-	//	- observerName: the observer Name to execute
-	// 	- args: the observer arguments
+	// 	- ctx: the context
 	// 	- universeContext: the universe context
-	// 	- event: last event triggered (contained in the accumulator statistics)
 	// 	- accumulatorStatistics: the accumulator statistics
+	// 	- event: last event triggered (contained in the accumulator statistics)
+	// 	- observer: the observer to execute
 	// Returns:
 	// 	- bool: observer result
 	// 	- error: if an error occurs
 	ExecuteObserver(
 		ctx context.Context,
-		observerName string,
-		args map[string]any,
 		universeContext any,
-		event Event,
 		accumulatorStatistics AccumulatorStatistics,
+		event Event,
+		observer theoretical.ObserverModel,
 	) (bool, error)
 
 	// ExecuteAction executes an action in the universe.
 	// Parameters:
-	// 	- actionName: the action Name to execute
-	// 	- args: the action arguments
+	// 	- ctx: the context
 	// 	- universeContext: the universe context
 	// 	- event: last event triggered
+	// 	- action: the action to execute
 	// Returns:
 	// 	- error: if an error occurs
 	ExecuteAction(
 		ctx context.Context,
-		actionName string,
-		args map[string]any,
 		universeContext any,
 		event Event,
+		action theoretical.ActionModel,
 	) error
 
 	// ExecuteInvoke executes an invoke in the universe.
 	// Parameters:
-	// 	- invokeName: the invoke Name to execute
-	// 	- args: the invoke arguments
+	// 	- ctx: the context
 	// 	- universeContext: the universe context
 	// 	- event: last event triggered
+	// 	- invoke: the invoke to execute
 	ExecuteInvoke(
 		ctx context.Context,
-		invokeName string,
-		args map[string]any,
 		universeContext any,
 		event Event,
+		invoke theoretical.InvokeModel,
 	)
 
 	// ExecuteCondition executes a condition in the universe.

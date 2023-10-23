@@ -68,6 +68,10 @@ func (e *event) ToBuilder() EventBuilder {
 	}
 }
 
+func (e *event) String() string {
+	return fmt.Sprintf("%s", e.Name)
+}
+
 // -------------------------------------- //
 // ---- Event Accumulator Definition ---- //
 // -------------------------------------- //
@@ -83,9 +87,6 @@ type Accumulator interface {
 
 	// GetStatistics returns the event accumulator statistics
 	GetStatistics() AccumulatorStatistics
-
-	// Clear clears the event accumulator
-	Clear()
 
 	// GetActiveRealities returns the realities that have accumulated events
 	GetActiveRealities() []string
@@ -109,15 +110,25 @@ type AccumulatorStatistics interface {
 	CountAllEventsNames() int
 }
 
-// NewEventAccumulator returns a new event accumulator
-func NewEventAccumulator() Accumulator {
+// newEventAccumulator returns a new event accumulator
+func newEventAccumulator() Accumulator {
 	return &eventAccumulator{
 		RealitiesEvents: map[string][]Event{},
 	}
 }
 
 type eventAccumulator struct {
+	// RealitiesEvents is the map of realities and their accumulated events
+	// The map key is the reality Name and the value is the accumulated events
 	RealitiesEvents map[string][]Event `json:"realities_events,omitempty" bson:"realitiesEvents,omitempty" xml:"realitiesEvents,omitempty" yaml:"realitiesEvents,omitempty"`
+}
+
+func (ea *eventAccumulator) String() string {
+	var msg string
+	for realityName, events := range ea.RealitiesEvents {
+		msg += fmt.Sprintf("%s: %v\n", realityName, events)
+	}
+	return msg
 }
 
 // Accumulator implementation
@@ -132,13 +143,6 @@ func (ea *eventAccumulator) Accumulate(realityName string, event Event) {
 
 func (ea *eventAccumulator) GetStatistics() AccumulatorStatistics {
 	return ea
-}
-
-func (ea *eventAccumulator) Clear() {
-	for realityName := range ea.RealitiesEvents {
-		delete(ea.RealitiesEvents, realityName)
-	}
-	ea.RealitiesEvents = map[string][]Event{}
 }
 
 func (ea *eventAccumulator) GetActiveRealities() []string {

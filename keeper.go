@@ -26,18 +26,14 @@ func RegisterQuantumMachineLaws(laws experimental.QuantumMachineLaws) error {
 	defer quantumMachinesKeeperMtx.Unlock()
 
 	// check if the quantum machine laws is already registered.
-	qmId := laws.GetQuantumMachineId()
-	qmVersion := laws.GetQuantumMachineVersion()
-	uniqueId := buildUniqueId(qmId, qmVersion)
-
-	// check if the quantum machine laws is already registered.
-	if _, ok := quantumMachinesLaws[uniqueId]; ok {
-		log.Printf("[ERROR] quantum machine laws already registered. Id: '%s', Version: '%s'", qmId, qmVersion)
+	mId := laws.GetQuantumMachineId()
+	if _, ok := quantumMachinesLaws[mId]; ok {
+		log.Printf("[ERROR] quantum machine laws '%s' already registered", mId)
 		return ErrQuantumMachineLawsAlreadyRegistered
 	}
 
 	// register the quantum machine laws.
-	quantumMachinesLaws[uniqueId] = laws
+	quantumMachinesLaws[mId] = laws
 	return nil
 }
 
@@ -47,18 +43,14 @@ func RegisterUniverseLaws(laws experimental.UniverseLaws) error {
 	defer universeKeeperMtx.Unlock()
 
 	// check if the universe laws is already registered.
-	universeId := laws.GetUniverseId()
-	universeVersion := laws.GetUniverseVersion()
-	uniqueId := buildUniqueId(universeId, universeVersion)
-
-	// check if the universe laws is already registered.
-	if _, ok := universesLaws[uniqueId]; ok {
-		log.Printf("[ERROR] universe laws already registered. Id: '%s', Version: '%s'", universeId, universeVersion)
+	uId := laws.GetUniverseId()
+	if _, ok := universesLaws[uId]; ok {
+		log.Printf("[ERROR] universe laws '%s'already registered", uId)
 		return ErrUniverseLawsAlreadyRegistered
 	}
 
 	// register the universe laws.
-	universesLaws[uniqueId] = laws
+	universesLaws[uId] = laws
 	return nil
 }
 

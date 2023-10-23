@@ -8,6 +8,10 @@ import (
 // ----- theoretical.QuantumMachineModel Serializers/Deserializers -----
 
 func DesFromMap(source map[string]any) (*theoretical.QuantumMachineModel, error) {
+	if source == nil {
+		return nil, nil
+	}
+
 	jsonStr, err := json.Marshal(source)
 	if err != nil {
 		return nil, err

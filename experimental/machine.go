@@ -55,7 +55,7 @@ type ExQuantumMachine struct {
 	laws QuantumMachineLaws
 
 	// universes is the map of the quantum machine universes
-	// key: theoretical.UniverseModel.ID@theoretical.UniverseModel.Version
+	// key: theoretical.UniverseModel.ID
 	universes map[string]*ExUniverse
 
 	// quantumMachineMtx is the mutex for the quantum machine
@@ -67,8 +67,10 @@ func (qm *ExQuantumMachine) Init(ctx context.Context, machineContext any) error 
 
 	var pairs []devtoolkit.Pair[Event, []string]
 
-	for _, initial := range qm.model.Initials {
-		refT, parts, err := getReferenceType(initial)
+	for _, ref := range qm.model.Initials {
+
+		// get reference type and parts
+		refT, parts, err := processReference(ref)
 		if err != nil {
 			return err
 		}
@@ -76,17 +78,17 @@ func (qm *ExQuantumMachine) Init(ctx context.Context, machineContext any) error 
 		// check if universe exists
 		universe, ok := qm.universes[parts[0]]
 		if !ok {
-			return fmt.Errorf("universe '%s' not found on initial universes", parts[0])
+			return fmt.Errorf("universe '%s' not found on ref universes", parts[0])
 		}
 
 		// get init function
-		f, ok := qmInitFunctions[refT]
+		initFn, ok := qmInitFunctions[refT]
 		if !ok {
 			return fmt.Errorf("invalid ref type '%d'", refT)
 		}
 
 		// execute init function
-		transitions, evt, err := f(ctx, universe, parts)
+		transitions, evt, err := initFn(ctx, universe, parts)
 		if err != nil {
 			return err
 		}
@@ -102,7 +104,7 @@ func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event Event) error {
 	var pairs []devtoolkit.Pair[Event, []string]
 
 	for _, u := range qm.getActiveUniverses() {
-		externalTargets, _, err := u.HandleExternalEvent(ctx, nil, event)
+		externalTargets, _, err := u.HandleEvent(ctx, nil, event)
 		if err != nil {
 			return err
 		}
@@ -164,10 +166,14 @@ func (qm *ExQuantumMachine) executeTargetPairs(ctx context.Context, pairs []devt
 		pairs = pairs[1:]
 
 		// execute transition
-		e, t := pair.GetAll()
-		newTargets, err := qm.executeTransitions(ctx, e, t)
+		evt, targets := pair.GetAll()
+		newTargets, err := qm.executeTransitions(ctx, evt, targets)
 		if err != nil {
 			return err
+		}
+
+		if len(newTargets) == 0 {
+			continue
 		}
 
 		// add new targets to the queue
@@ -183,7 +189,7 @@ func (qm *ExQuantumMachine) executeTransitions(ctx context.Context, evt Event, t
 	var newTargets []string
 
 	for _, target := range targets {
-		refT, parts, _ := getReferenceType(target)
+		refT, parts, _ := processReference(target)
 		exUniverse := qm.universes[parts[0]]
 
 		var realityName *string = nil
@@ -191,7 +197,7 @@ func (qm *ExQuantumMachine) executeTransitions(ctx context.Context, evt Event, t
 			realityName = &parts[1]
 		}
 
-		newTransitions, _, err := exUniverse.HandleExternalEvent(ctx, realityName, evt)
+		newTransitions, _, err := exUniverse.HandleEvent(ctx, realityName, evt)
 		if err != nil {
 			return nil, err
 		}

@@ -1,5 +1,23 @@
 package theoretical
 
+type TransitionType string
+
+const (
+	// TransitionTypeDefault is the default transition type. It is used when no type is specified.
+	// If the condition is true, the reality that triggers it is abandoned
+	// This type of transition can target all types of realities (internal and external).
+	TransitionTypeDefault TransitionType = "default"
+
+	// TransitionTypeNotify is the notify transition type. It is used to notify the target realities.
+	// If the condition is true, the reality that triggers it is NOT abandoned.
+	// This type of transition can only target external universes or realities.
+	TransitionTypeNotify TransitionType = "notify"
+)
+
+func IsNotifyTransition(transitionType TransitionType) bool {
+	return transitionType == TransitionTypeNotify
+}
+
 // TransitionModel is the json representation of a transition.
 type TransitionModel struct {
 	// Condition is the condition that allows the transition to be executed.
@@ -9,6 +27,13 @@ type TransitionModel struct {
 	// * if not nil, must be valid.
 	Condition *ConditionModel `json:"condition,omitempty" bson:"condition,omitempty" xml:"condition,omitempty" yaml:"condition,omitempty"`
 
+	// Type is the type of the transition.
+	// Validations:
+	// * optional
+	// * if not nil, must be valid.
+	// * if nil, TransitionTypeDefault is used.
+	Type *TransitionType `json:"type,omitempty" bson:"type,omitempty" xml:"type,omitempty" yaml:"type,omitempty"`
+
 	// Targets is the list of targets of the transition.
 	// Validations:
 	// * required
@@ -17,8 +42,8 @@ type TransitionModel struct {
 	// 	- one reality of the same universe: 'RealityModel.ID'.
 	//  - mix of universe and realities from other universes.
 	//    format:
-	//   	+ UniverseModel.ID@UniverseModel.Version
-	//  	+ UniverseModel.ID@UniverseModel.Version:RealityModel.ID
+	//   	+ UniverseModel.ID
+	//  	+ UniverseModel.ID:RealityModel.ID
 	Targets []string `json:"targets,omitempty" bson:"targets,omitempty" xml:"targets,omitempty" yaml:"targets,omitempty"`
 
 	// Actions is the list of actions that are executed when the transition is executed (when the condition is true).
@@ -35,4 +60,15 @@ type TransitionModel struct {
 	// Validations:
 	// * optional
 	Description *string `json:"description,omitempty" bson:"description,omitempty" xml:"description,omitempty" yaml:"description,omitempty"`
+}
+
+func (t *TransitionModel) GetTransitionType() TransitionType {
+	if t.Type == nil {
+		return TransitionTypeDefault
+	}
+	return *t.Type
+}
+
+func (t *TransitionModel) IsNotifyTransition() bool {
+	return IsNotifyTransition(t.GetTransitionType())
 }

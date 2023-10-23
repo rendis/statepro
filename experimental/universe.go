@@ -16,6 +16,16 @@ const (
 
 type ExUniverseSnapshot map[string]any
 
+type universeInfoSnapshot struct {
+	ID                         string      `json:"id" bson:"id" xml:"id"`
+	Initialized                bool        `json:"initialized" bson:"initialized" xml:"initialized"`
+	CurrentReality             *string     `json:"currentReality,omitempty" bson:"currentReality,omitempty" xml:"currentReality,omitempty"`
+	RealityInitialized         bool        `json:"realityInitialized" bson:"realityInitialized" xml:"realityInitialized"`
+	InSuperposition            bool        `json:"inSuperposition" bson:"inSuperposition" xml:"inSuperposition"`
+	RealityBeforeSuperposition *string     `json:"realityBeforeSuperposition,omitempty" bson:"realityBeforeSuperposition,omitempty" xml:"realityBeforeSuperposition,omitempty"`
+	Accumulator                Accumulator `json:"accumulator,omitempty" bson:"accumulator,omitempty" xml:"accumulator,omitempty"`
+}
+
 func NewExUniverse(id string, model *theoretical.UniverseModel, laws UniverseLaws) *ExUniverse {
 	return &ExUniverse{
 		id:    id,
@@ -24,19 +34,11 @@ func NewExUniverse(id string, model *theoretical.UniverseModel, laws UniverseLaw
 	}
 }
 
-type universeInfoSnapshot struct {
-	ID                 string      `json:"id,omitempty" bson:"id,omitempty" xml:"id,omitempty"`
-	Initialized        bool        `json:"initialized,omitempty" bson:"initialized,omitempty" xml:"initialized,omitempty"`
-	CurrentReality     *string     `json:"currentReality,omitempty" bson:"currentReality,omitempty" xml:"currentReality,omitempty"`
-	RealityInitialized bool        `json:"realityInitialized,omitempty" bson:"realityInitialized,omitempty" xml:"realityInitialized,omitempty"`
-	InSuperposition    bool        `json:"inSuperposition,omitempty" bson:"inSuperposition,omitempty" xml:"inSuperposition,omitempty"`
-	Accumulator        Accumulator `json:"accumulator,omitempty" bson:"accumulator,omitempty" xml:"accumulator,omitempty"`
-}
-
 type ExUniverse struct {
 	id string
 
 	// initialized true when the universe is initialized
+	// the universe is initialized when the first operation is executed
 	initialized bool
 
 	// universeContext is the universe context
@@ -54,9 +56,12 @@ type ExUniverse struct {
 	// currentReality is the current reality of the ExUniverse
 	currentReality *string
 
-	// finalReality true when the current reality type belongs to the final states
+	// realityBeforeSuperposition is the reality before the ExUniverse entered in superposition
+	realityBeforeSuperposition *string
+
+	// isFinalReality true when the current reality type belongs to the final states
 	// used to know when the ExUniverse has been exited and finalized
-	finalReality bool
+	isFinalReality bool
 
 	// realityInitialized true when the current reality always transitions are executed
 	realityInitialized bool
@@ -75,143 +80,130 @@ type ExUniverse struct {
 }
 
 func (u *ExUniverse) IsActive() bool {
-	u.universeMtx.Lock()
-	defer u.universeMtx.Unlock()
-	return u.initialized && (u.inSuperposition || (u.currentReality != nil && !u.finalReality))
+	return u.initialized && (u.inSuperposition || (u.currentReality != nil && !u.isFinalReality))
 }
 
 func (u *ExUniverse) IsInitialized() bool {
-	u.universeMtx.Lock()
-	defer u.universeMtx.Unlock()
 	return u.initialized
 }
 
-func (u *ExUniverse) HandleExternalEvent(ctx context.Context, realityName *string, evt Event) ([]string, Event, error) {
+func (u *ExUniverse) HandleEvent(ctx context.Context, realityName *string, evt Event) ([]string, Event, error) {
 	u.universeMtx.Lock()
 	defer u.universeMtx.Unlock()
 
-	// u.initialized == false && realityName == nil -> PlaceOnInitial & SendEvent
-	if !u.initialized && realityName == nil {
-		_ = u.PlaceOnInitial(ctx)
-		return u.SendEvent(ctx, evt)
+	var handleEventFn func() error
+
+	if realityName != nil {
+		handleEventFn = func() error { return u.receiveEventToReality(ctx, *realityName, evt) }
+	} else {
+		handleEventFn = func() error { return u.receiveEvent(ctx, evt) }
 	}
 
-	// u.initialized == false && realityName != nil -> PlaceOn & SendEvent
-	if !u.initialized && realityName != nil {
-		_ = u.PlaceOn(ctx, *realityName)
-		return u.SendEvent(ctx, evt)
-	}
-
-	// u.initialized == true && realityName == nil -> SendEvent
-	if u.initialized && realityName == nil {
-		return u.SendEvent(ctx, evt)
-	}
-
-	// u.initialized == true && realityName != nil -> SendEventToReality
-	if u.initialized && realityName != nil {
-		return u.SendEventToReality(ctx, *realityName, evt)
-	}
-
-	return nil, nil, nil
+	targets, err := u.universeDecorator(handleEventFn)
+	return targets, evt, err
 }
 
-func (u *ExUniverse) PlaceOn(ctx context.Context, realityName string) error {
+func (u *ExUniverse) PlaceOn(realityName string) error {
 	u.universeMtx.Lock()
 	defer u.universeMtx.Unlock()
 
-	if _, ok := u.model.Realities[realityName]; !ok {
+	realityModel, ok := u.model.Realities[realityName]
+	if !ok {
 		return fmt.Errorf("reality '%s' does not exist", realityName)
 	}
 
-	return u.establishNewReality(ctx, &realityName, nil)
+	u.initialized = true
+	u.currentReality = &realityName
+	u.realityInitialized = true
+	u.inSuperposition = false
+	u.realityBeforeSuperposition = nil
+	u.externalTargets = nil
+	u.eventAccumulator = newEventAccumulator()
+	u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
+	return nil
 }
 
-func (u *ExUniverse) PlaceOnInitial(ctx context.Context) error {
-	u.universeMtx.Lock()
-	defer u.universeMtx.Unlock()
-
-	return u.establishNewReality(ctx, &u.model.Initial, nil)
+func (u *ExUniverse) PlaceOnInitial() error {
+	return u.PlaceOn(u.model.Initial)
 }
 
 func (u *ExUniverse) Start(ctx context.Context) ([]string, Event, error) {
 	u.universeMtx.Lock()
 	defer u.universeMtx.Unlock()
 
-	if err := u.establishNewReality(ctx, &u.model.Initial, nil); err != nil {
-		return nil, nil, err
-	}
-
 	evt := &event{EvtType: startEventName}
 
-	ts, err := u.externalTransitionsDecorator(func() error { return u.processNewEvent(ctx, evt) })
-	return ts, evt, err
+	var initFn = func() error {
+		if err := u.initializeUniverseOn(ctx, u.model.Initial, evt); err != nil {
+			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.id), err)
+		}
+		return nil
+	}
+
+	targets, err := u.universeDecorator(initFn)
+	return targets, evt, err
 }
 
 func (u *ExUniverse) StartOnReality(ctx context.Context, realityName string) ([]string, Event, error) {
 	u.universeMtx.Lock()
 	defer u.universeMtx.Unlock()
 
-	if _, ok := u.model.Realities[realityName]; !ok {
-		return nil, nil, fmt.Errorf("reality '%s' does not exist", realityName)
+	evt := &event{EvtType: startEventName}
+
+	var initFn = func() error {
+		if err := u.initializeUniverseOn(ctx, realityName, evt); err != nil {
+			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.id), err)
+		}
+		return nil
 	}
 
-	if err := u.establishNewReality(ctx, &realityName, nil); err != nil {
-		return nil, nil, err
-	}
-
-	evt := &event{EvtType: EventTypeBigBangOn}
-
-	ts, err := u.externalTransitionsDecorator(func() error { return u.processNewEvent(ctx, evt) })
-	return ts, evt, err
+	targets, err := u.universeDecorator(initFn)
+	return targets, evt, err
 }
 
 func (u *ExUniverse) SendEvent(ctx context.Context, evt Event) ([]string, Event, error) {
 	u.universeMtx.Lock()
 	defer u.universeMtx.Unlock()
 
-	ts, err := u.externalTransitionsDecorator(func() error { return u.processNewEvent(ctx, evt) })
-	return ts, evt, err
+	var sendEventFn = func() error {
+		return u.receiveEvent(ctx, evt)
+	}
+
+	targets, err := u.universeDecorator(sendEventFn)
+	return targets, evt, err
 }
 
 func (u *ExUniverse) SendEventToReality(ctx context.Context, realityName string, evt Event) ([]string, Event, error) {
 	u.universeMtx.Lock()
 	defer u.universeMtx.Unlock()
 
-	if _, ok := u.model.Realities[realityName]; !ok {
-		return nil, nil, fmt.Errorf("reality '%s' does not exist", realityName)
+	var sendEventFn = func() error {
+		return u.receiveEventToReality(ctx, realityName, evt)
 	}
 
-	ts, err := u.externalTransitionsDecorator(func() error {
-		if u.inSuperposition {
-			if newReality, err := u.executeEventOnSuperimposedReality(ctx, &realityName, evt); !newReality {
-				return err
-			}
-		}
-		if *u.currentReality != realityName {
-			return fmt.Errorf("reality '%s' is not the current reality", realityName)
-		}
-		return u.processEventOnEstablishedReality(ctx, evt)
-	})
-
-	return ts, evt, err
+	targets, err := u.universeDecorator(sendEventFn)
+	return targets, evt, err
 }
 
+// GetSnapshot returns a snapshot of the universe
 func (u *ExUniverse) GetSnapshot() ExUniverseSnapshot {
-	var ss = universeInfoSnapshot{
-		ID:                 u.id,
-		Initialized:        u.initialized,
-		CurrentReality:     u.currentReality,
-		RealityInitialized: u.realityInitialized,
-		InSuperposition:    u.inSuperposition,
-		Accumulator:        u.eventAccumulator,
+	var infoSnapshot = universeInfoSnapshot{
+		ID:                         u.id,
+		Initialized:                u.initialized,
+		CurrentReality:             u.currentReality,
+		RealityInitialized:         u.realityInitialized,
+		InSuperposition:            u.inSuperposition,
+		RealityBeforeSuperposition: u.realityBeforeSuperposition,
+		Accumulator:                u.eventAccumulator,
 	}
 
-	m, _ := devtoolkit.StructToMap(ss)
+	m, _ := devtoolkit.StructToMap(infoSnapshot)
 	return m
 }
 
-func (u *ExUniverse) LoadSnapshot(snapshotMap ExUniverseSnapshot) error {
-	snapshot, err := devtoolkit.MapToStruct[universeInfoSnapshot](snapshotMap)
+// LoadSnapshot loads a snapshot of the universe
+func (u *ExUniverse) LoadSnapshot(universeSnapshot ExUniverseSnapshot) error {
+	snapshot, err := devtoolkit.MapToStruct[universeInfoSnapshot](universeSnapshot)
 	if err != nil {
 		return errors.Join(fmt.Errorf("error loading snapshot for universe '%s'", u.id), err)
 	}
@@ -221,6 +213,7 @@ func (u *ExUniverse) LoadSnapshot(snapshotMap ExUniverseSnapshot) error {
 	u.currentReality = snapshot.CurrentReality
 	u.realityInitialized = snapshot.RealityInitialized
 	u.inSuperposition = snapshot.InSuperposition
+	u.realityBeforeSuperposition = snapshot.RealityBeforeSuperposition
 	u.eventAccumulator = snapshot.Accumulator
 
 	if u.currentReality != nil {
@@ -228,15 +221,15 @@ func (u *ExUniverse) LoadSnapshot(snapshotMap ExUniverseSnapshot) error {
 		if realityModel == nil {
 			return fmt.Errorf("reality '%s' does not exist", *u.currentReality)
 		}
-		u.finalReality = theoretical.IsFinalState(realityModel.Type)
+		u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
 	}
 
 	return nil
 }
 
-//----------------------------------
+//------------------------------------------------------------------------------------------------------//
 
-func (u *ExUniverse) externalTransitionsDecorator(operation func() error) ([]string, error) {
+func (u *ExUniverse) universeDecorator(operation func() error) ([]string, error) {
 	// clear externalTargets
 	u.externalTargets = nil
 
@@ -245,305 +238,215 @@ func (u *ExUniverse) externalTransitionsDecorator(operation func() error) ([]str
 		return nil, err
 	}
 
+	// return externalTargets
 	return u.externalTargets, nil
 }
 
-func (u *ExUniverse) processNewEvent(ctx context.Context, evt Event) error {
+// receiveEventToReality receives an event only if one of the following conditions is met:
+//   - the ExUniverse is in superposition
+//   - not in superposition but the current reality is the target reality and not a final reality
+func (u *ExUniverse) receiveEventToReality(ctx context.Context, reality string, event Event) error {
+	// handling superposition
 	if u.inSuperposition {
-		if newReality, err := u.processEventOnSuperposition(ctx, evt); !newReality {
-			return err
-		}
-		// if new reality is established then continue processing the event on the established reality (the new reality)
-	}
-	return u.processEventOnEstablishedReality(ctx, evt)
-}
-
-func (u *ExUniverse) processEventOnSuperposition(ctx context.Context, evt Event) (bool, error) {
-	// get candidate realities from accumulator
-	candidates := u.eventAccumulator.GetActiveRealities()
-
-	for _, candidate := range candidates {
-		newReality, err := u.executeEventOnSuperimposedReality(ctx, &candidate, evt)
-		if !newReality && err != nil {
-			return false, err
-		}
-
-		if newReality {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func (u *ExUniverse) executeEventOnSuperimposedReality(ctx context.Context, realityName *string, evt Event) (bool, error) {
-	// if realityName is not nil send to the given reality
-	realityModel := u.model.GetReality(*realityName)
-
-	// accumulate event
-	u.eventAccumulator.Accumulate(*realityName, evt)
-
-	// execute observers
-	isNewReality, err := u.executeObservers(ctx, realityModel, evt)
-
-	// false && nil -> return nil
-	if !isNewReality && err == nil {
-		return false, nil
-	}
-
-	// false && err -> return err
-	if !isNewReality && err != nil {
-		return false, errors.Join(fmt.Errorf("error executing observers for reality '%s' in universe '%s'", *realityName, u.id), err)
-	}
-
-	// true -> : establish new reality
-	// err will be ignored
-	if e := u.establishNewReality(ctx, realityName, evt); e != nil {
-		return false, errors.Join(fmt.Errorf("error establishing new reality '%s' in universe '%s'", *realityName, u.id), e)
-	}
-
-	return true, nil
-}
-
-func (u *ExUniverse) processEventOnEstablishedReality(ctx context.Context, evt Event) error {
-	realityModel := u.model.GetReality(*u.currentReality)
-
-	// execute always transitions
-	approvedTransition, err := u.executeAlways(ctx, realityModel, evt)
-	if err != nil {
-		return err
-	}
-
-	if approvedTransition != nil {
-		return u.processApprovedTransition(ctx, approvedTransition, evt)
-	}
-
-	// if no always transitions are approved then execute on transitions
-	return u.executeOnEntryProcess(ctx, evt)
-}
-
-func (u *ExUniverse) processApprovedTransition(ctx context.Context, approvedTransition *theoretical.TransitionModel, evt Event) error {
-	if len(approvedTransition.Targets) == 1 {
-		refT, parts, err := getReferenceType(approvedTransition.Targets[0])
+		isNewReality, err := u.accumulateEventForReality(ctx, reality, event)
 		if err != nil {
-			return errors.Join(fmt.Errorf("error getting reference type for target '%s' in universe '%s'", approvedTransition.Targets[0], u.id), err)
+			return errors.Join(fmt.Errorf("error accumulating event for reality '%s'", reality), err)
 		}
 
-		if refT == RefTypeReality {
-			return u.establishNewReality(ctx, &parts[0], evt)
+		if isNewReality {
+			// establish new reality
+			if err := u.establishNewReality(ctx, reality, event); err != nil {
+				return errors.Join(fmt.Errorf("error establishing new reality '%s'", reality), err)
+			}
 		}
-	}
 
-	return u.establishNewSuperposition(ctx, approvedTransition.Targets, evt)
-}
-
-func (u *ExUniverse) establishNewReality(ctx context.Context, realityName *string, evt Event) error {
-	// u.currentReality != nil means that the universe has an established reality and now is going to be exited
-	if err := u.executeOnExitProcess(ctx, evt); err != nil {
-		return errors.Join(fmt.Errorf("error executing on exit process for reality '%s' in universe '%s'", *u.currentReality, u.id), err)
-	}
-
-	realityModel := u.model.GetReality(*realityName)
-
-	// update reality
-	u.initialized = true
-	u.currentReality = realityName
-	u.finalReality = theoretical.IsFinalState(realityModel.Type)
-	u.inSuperposition = false
-	u.realityInitialized = false
-	u.externalTargets = nil
-
-	return nil
-}
-
-func (u *ExUniverse) establishNewSuperposition(ctx context.Context, targets []string, evt Event) error {
-	if !u.finalReality {
-		u.currentReality = nil
-
-		// u.currentReality != nil means that the universe has an established reality and now is going to be exited
-		if err := u.executeOnExitProcess(ctx, evt); err != nil {
-			return errors.Join(fmt.Errorf("error executing on exit process for reality '%s' in universe '%s'", *u.currentReality, u.id), err)
-		}
-	}
-
-	u.externalTargets = targets
-	u.inSuperposition = !u.finalReality
-	u.eventAccumulator.Clear()
-
-	return nil
-}
-
-//----------------------------------
-
-func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, evt Event) error {
-	if u.currentReality == nil {
 		return nil
 	}
 
-	realityModel := u.model.GetReality(*u.currentReality)
-
-	// execute entry actions
-	if err := u.executeEntryActions(ctx, realityModel, evt); err != nil {
-		return err
+	// handling not final current reality
+	if !u.isFinalReality && *u.currentReality == reality {
+		return u.onEvent(ctx, event)
 	}
 
-	// launch entry invoke
-	u.executeEntryInvokes(ctx, realityModel, evt)
-
-	// execute on transitions
-	approvedTransitions, err := u.executeOn(ctx, realityModel, evt)
-	if err != nil {
-		return err
+	// return error
+	var currentRealityName string
+	if u.currentReality != nil {
+		currentRealityName = *u.currentReality
 	}
-
-	// process new targets
-	return u.processApprovedTransition(ctx, approvedTransitions, evt)
+	return fmt.Errorf(
+		"universe '%s' can't receive external event to reality '%s'. inSuperposition: '%t', currentRealityName: '%s', IsFinalReality: '%t'",
+		u.id, reality, u.inSuperposition, currentRealityName, u.isFinalReality,
+	)
 }
 
-func (u *ExUniverse) executeOnExitProcess(ctx context.Context, evt Event) error {
-	if u.currentReality == nil {
+// receiveEvent receives an event only if one of the following conditions is met:
+//   - the ExUniverse is in superposition (the event will be accumulated for each reality)
+//   - universe is not initialized, the event initializes the universe and will be received by the initial reality
+//   - not in superposition and the current reality not a final reality
+func (u *ExUniverse) receiveEvent(ctx context.Context, event Event) error {
+	// handling superposition
+	if u.inSuperposition {
+		isNewReality, realityName, err := u.accumulateEventForAllRealities(ctx, event)
+		if err != nil {
+			return errors.Join(fmt.Errorf("error accumulating event for all realities"), err)
+		}
+
+		if !isNewReality {
+			return nil
+		}
+
+		// establish new reality
+		if err = u.establishNewReality(ctx, realityName, event); err != nil {
+			return errors.Join(fmt.Errorf("error establishing new reality '%s'", realityName), err)
+		}
+	}
+
+	// handling not initialized universe
+	if !u.initialized {
+		if err := u.initializeUniverseOn(ctx, u.model.Initial, event); err != nil {
+			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.id), err)
+		}
 		return nil
 	}
 
+	// handling not final current reality
+	if !u.isFinalReality {
+		return u.onEvent(ctx, event)
+	}
+
+	// return error
+	var currentRealityName string
+	if u.currentReality != nil {
+		currentRealityName = *u.currentReality
+	}
+
+	return fmt.Errorf(
+		"universe '%s' can't receive external event. inSuperposition: '%t', currentRealityName: '%s', IsFinalReality: '%t'",
+		u.id, u.inSuperposition, currentRealityName, u.isFinalReality,
+	)
+}
+
+func (u *ExUniverse) onEvent(ctx context.Context, event Event) error {
 	realityModel := u.model.GetReality(*u.currentReality)
-
-	// execute exit actions
-	if err := u.executeExitActions(ctx, realityModel, evt); err != nil {
-		return err
-	}
-
-	// launch exit invoke
-	u.executeExitInvokes(ctx, realityModel, evt)
-
-	return nil
-}
-
-func (u *ExUniverse) executeAlways(ctx context.Context, realityModel *theoretical.RealityModel, evt Event) (*theoretical.TransitionModel, error) {
-	approvedTransition, err := u.getApprovedTransition(ctx, realityModel.Always, evt)
-	if err != nil {
-		return nil, errors.Join(fmt.Errorf("error executing always transitions for reality '%s' in universe '%s'", realityModel.ID, u.id), err)
-	}
-	u.realityInitialized = true
-	return approvedTransition, err
-}
-
-func (u *ExUniverse) executeObservers(ctx context.Context, realityModel *theoretical.RealityModel, evt Event) (bool, error) {
-	// context & cancel function for observers
-	var cancelCtx, cancelCtxFunc = context.WithCancel(ctx)
-	defer cancelCtxFunc()
-
-	// buffered channels
-	var newRealityChan = make(chan bool, 1)
-	var errChan = make(chan error, 1)
-
-	// execute observers
-	var wg sync.WaitGroup
-	for _, observer := range realityModel.Observers {
-		wg.Add(1)
-		go func(observerModel *theoretical.ObserverModel) {
-			defer wg.Done()
-			nr, e := u.executeObserver(cancelCtx, observerModel, evt)
-
-			if e != nil && len(errChan) == 0 {
-				select {
-				case errChan <- e:
-				default:
-				}
-			}
-
-			if nr && len(newRealityChan) == 0 {
-				select {
-				case newRealityChan <- true:
-					cancelCtxFunc()
-				default:
-				}
-			}
-
-		}(observer)
-	}
-
-	// wait for all observers to finish
-	wg.Wait()
-
-	// close channels
-	close(newRealityChan)
-	close(errChan)
-
-	// new reality flags
-	var newReality bool
-	var err error
-
-	// check if there is an error
-	select {
-	case err = <-errChan:
-	default:
-	}
-
-	// check if there is a new reality
-	select {
-	case newReality = <-newRealityChan:
-	default:
-	}
-
-	return newReality, err
-}
-
-func (u *ExUniverse) executeEntryInvokes(ctx context.Context, realityModel *theoretical.RealityModel, evt Event) {
-	u.executeInvokes(ctx, realityModel.EntryInvokes, evt)
-}
-
-func (u *ExUniverse) executeExitInvokes(ctx context.Context, realityModel *theoretical.RealityModel, evt Event) {
-	u.executeInvokes(ctx, realityModel.ExitInvokes, evt)
-}
-
-func (u *ExUniverse) executeInvokes(ctx context.Context, invokeModels []*theoretical.InvokeModel, evt Event) {
-	for _, invokeModel := range invokeModels {
-		go u.executeInvoke(ctx, invokeModel, evt)
-	}
-}
-
-func (u *ExUniverse) executeEntryActions(ctx context.Context, realityModel *theoretical.RealityModel, evt Event) error {
-	if err := u.executeActions(ctx, realityModel.EntryActions, evt); err != nil {
-		return errors.Join(fmt.Errorf("error executing entry actions for reality '%s' in universe '%s'", realityModel.ID, u.id), err)
-	}
-	return nil
-}
-
-func (u *ExUniverse) executeExitActions(ctx context.Context, realityModel *theoretical.RealityModel, evt Event) error {
-	if err := u.executeActions(ctx, realityModel.ExitActions, evt); err != nil {
-		return errors.Join(fmt.Errorf("error executing exit actions for reality '%s' in universe '%s'", realityModel.ID, u.id), err)
-	}
-	return nil
-}
-
-func (u *ExUniverse) executeActions(ctx context.Context, actionModels []*theoretical.ActionModel, evt Event) error {
-	for _, actionModel := range actionModels {
-		if err := u.executeAction(ctx, actionModel, evt); err != nil {
-			return errors.Join(fmt.Errorf("error executing action '%s'", actionModel.Src), err)
-		}
-	}
-	return nil
-}
-
-func (u *ExUniverse) executeOn(ctx context.Context, realityModel *theoretical.RealityModel, evt Event) (*theoretical.TransitionModel, error) {
-	transitions, ok := realityModel.On[evt.GetEventName()]
+	transitions, ok := realityModel.On[event.GetEventName()]
 	if !ok {
-		return nil, nil
-	}
-	approvedTransition, err := u.getApprovedTransition(ctx, transitions, evt)
-	if err == nil {
-		return nil, errors.Join(fmt.Errorf("error executing on transitions for reality '%s' in universe '%s'", realityModel.ID, u.id), err)
+		return fmt.Errorf("reality '%s' does not have transitions for event '%s'", realityModel.ID, event.GetEventName())
 	}
 
-	return approvedTransition, err
+	approvedTransition, err := u.getApprovedTransition(ctx, transitions, event)
+	if err != nil {
+		return errors.Join(fmt.Errorf("error executing on transitions for reality '%s'", realityModel.ID), err)
+	}
+
+	if err = u.doCyclicTransition(ctx, approvedTransition, event); err != nil {
+		return errors.Join(fmt.Errorf("error executing on transitions for reality '%s'", realityModel.ID), err)
+	}
+
+	return nil
+}
+
+func (u *ExUniverse) initializeUniverseOn(ctx context.Context, realityName string, event Event) error {
+	// establish initial reality
+	if err := u.establishNewReality(ctx, realityName, event); err != nil {
+		return errors.Join(fmt.Errorf("error establishing initial reality '%s'", realityName), err)
+	}
+
+	// mark universe as initialized
+	u.initialized = true
+	return nil
+}
+
+func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, event Event) error {
+	// set current reality
+	u.currentReality = &reality
+
+	// quit superposition
+	u.inSuperposition = false
+	u.realityBeforeSuperposition = nil
+
+	// get if the current reality is a final reality
+	realityModel := u.model.GetReality(reality)
+	u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
+
+	// execute always
+	if err := u.executeAlways(ctx, event); err != nil {
+		return errors.Join(fmt.Errorf("error executing always transitions for universe '%s'", u.id), err)
+	}
+
+	// check if the always process left the system in superposition
+	if u.inSuperposition {
+		return nil
+	}
+
+	// mark current reality as initialized
+	u.realityInitialized = true
+
+	// execute on entry process
+	if err := u.executeOnEntryProcess(ctx, event); err != nil {
+		return errors.Join(fmt.Errorf("error executing on entry process for universe '%s'", u.id), err)
+	}
+
+	return nil
+}
+
+func (u *ExUniverse) executeAlways(ctx context.Context, event Event) error {
+	// execute current reality always transitions
+	realityModel := u.model.GetReality(*u.currentReality)
+	approvedTransition, err := u.getApprovedTransition(ctx, realityModel.Always, event)
+	if err != nil {
+		return errors.Join(fmt.Errorf("error executing always transitions for reality '%s'", realityModel.ID), err)
+	}
+
+	return u.doCyclicTransition(ctx, approvedTransition, event)
+}
+
+// doCyclicTransition executes transition and always transitions of the current reality and goes to the next reality if necessary
+// doCyclicTransition ends when:
+//   - there are no always transitions
+//   - there are always transitions but none of them are approved
+//   - there are always transitions but all of them point to another universe (superposition)
+func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition *theoretical.TransitionModel, event Event) error {
+	for {
+		// if no approved transition or no targets -> return nil
+		if approvedTransition == nil || len(approvedTransition.Targets) == 0 {
+			return nil
+		}
+
+		// len(targets) > 1 -> set superposition
+		if len(approvedTransition.Targets) > 1 {
+			return u.initSuperposition(ctx, approvedTransition.Targets, event)
+		}
+
+		// len(targets) == 1 && target points to another universe -> set superposition
+		refTyp, _, err := processReference(approvedTransition.Targets[0])
+		if err != nil {
+			return errors.Join(fmt.Errorf("error processing reference '%s'", approvedTransition.Targets[0]), err)
+		}
+		if refTyp != RefTypeReality {
+			return u.initSuperposition(ctx, approvedTransition.Targets, event)
+		}
+
+		// set current reality
+		u.currentReality = &approvedTransition.Targets[0]
+
+		// execute current reality always transitions
+		realityModel := u.model.GetReality(*u.currentReality)
+		approvedTransition, err = u.getApprovedTransition(ctx, realityModel.Always, event)
+		if err != nil {
+			return errors.Join(fmt.Errorf("error executing always transitions for reality '%s'", realityModel.ID), err)
+		}
+	}
 }
 
 func (u *ExUniverse) getApprovedTransition(ctx context.Context, transitionModels []*theoretical.TransitionModel, evt Event) (*theoretical.TransitionModel, error) {
+	if transitionModels == nil || len(transitionModels) == 0 {
+		return nil, nil
+	}
 
 	for _, transition := range transitionModels {
-		doTransition, e := u.executeCondition(ctx, transition.Condition, evt)
-		if e != nil {
-			return nil, errors.Join(fmt.Errorf("error executing always transition condition '%s' in universe '%s'", transition.Condition.Src, u.id), e)
+		doTransition, err := u.executeCondition(ctx, transition.Condition, evt)
+		if err != nil {
+			return nil, errors.Join(fmt.Errorf("error executing always transition condition '%s'", transition.Condition.Src), err)
 		}
 
 		if doTransition {
@@ -552,49 +455,6 @@ func (u *ExUniverse) getApprovedTransition(ctx context.Context, transitionModels
 	}
 
 	return nil, nil
-}
-
-//----------------------------------
-
-func (u *ExUniverse) executeTransition(ctx context.Context, transitionModel *theoretical.TransitionModel, evt Event) (bool, error) {
-	doTransition, err := u.executeCondition(ctx, transitionModel.Condition, evt)
-
-	if err != nil {
-		return false, errors.Join(fmt.Errorf("error executing transition condition '%s' in universe '%s'", transitionModel.Condition.Src, u.id), err)
-	}
-
-	return doTransition, nil
-}
-
-func (u *ExUniverse) executeObserver(ctx context.Context, observerModel *theoretical.ObserverModel, evt Event) (bool, error) {
-	return u.laws.ExecuteObserver(
-		ctx,
-		observerModel.Src,
-		observerModel.Args,
-		u.universeContext,
-		evt,
-		u.eventAccumulator.GetStatistics(),
-	)
-}
-
-func (u *ExUniverse) executeAction(ctx context.Context, actionModel *theoretical.ActionModel, evt Event) error {
-	return u.laws.ExecuteAction(
-		ctx,
-		actionModel.Src,
-		actionModel.Args,
-		u.universeContext,
-		evt,
-	)
-}
-
-func (u *ExUniverse) executeInvoke(ctx context.Context, invokeModel *theoretical.InvokeModel, evt Event) {
-	u.laws.ExecuteInvoke(
-		ctx,
-		invokeModel.Src,
-		invokeModel.Args,
-		u.universeContext,
-		evt,
-	)
 }
 
 func (u *ExUniverse) executeCondition(ctx context.Context, conditionModel *theoretical.ConditionModel, evt Event) (bool, error) {
@@ -610,4 +470,150 @@ func (u *ExUniverse) executeCondition(ctx context.Context, conditionModel *theor
 		u.universeContext,
 		evt,
 	)
+}
+
+func (u *ExUniverse) initSuperposition(ctx context.Context, targets []string, event Event) error {
+	// execute on exit process
+	if err := u.executeOnExitProcess(ctx, event); err != nil {
+		return err
+	}
+
+	// set superposition
+	u.realityBeforeSuperposition = u.currentReality
+	u.currentReality = nil
+	u.inSuperposition = true
+	u.externalTargets = targets
+	u.eventAccumulator = newEventAccumulator()
+	return nil
+}
+
+func (u *ExUniverse) executeOnExitProcess(ctx context.Context, event Event) error {
+	realityModel := u.model.GetReality(*u.currentReality)
+
+	// execute on exit actions
+	if err := u.executeActions(ctx, realityModel.ExitActions, event); err != nil {
+		return errors.Join(
+			fmt.Errorf("error executing on exit actions for reality '%s'", realityModel.ID),
+			err,
+		)
+	}
+
+	// execute on exit invokes, invokes are executed asynchronously
+	u.executeInvokes(ctx, realityModel.ExitInvokes, event)
+
+	return nil
+}
+
+func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event Event) error {
+	realityModel := u.model.GetReality(*u.currentReality)
+
+	// execute on entry actions
+	if err := u.executeActions(ctx, realityModel.EntryActions, event); err != nil {
+		return errors.Join(
+			fmt.Errorf("error executing on entry actions for reality '%s'", realityModel.ID),
+			err,
+		)
+	}
+
+	// execute on entry invokes, invokes are executed asynchronously
+	u.executeInvokes(ctx, realityModel.EntryInvokes, event)
+
+	return nil
+}
+
+func (u *ExUniverse) executeActions(ctx context.Context, actionModels []*theoretical.ActionModel, event Event) error {
+	if actionModels == nil || len(actionModels) == 0 {
+		return nil
+	}
+
+	// execute actions
+	for _, action := range actionModels {
+		if err := u.laws.ExecuteAction(ctx, u.universeContext, event, *action); err != nil {
+			return errors.Join(fmt.Errorf("error executing action '%s'", action.Src), err)
+		}
+	}
+
+	return nil
+}
+
+func (u *ExUniverse) executeInvokes(ctx context.Context, invokeModels []*theoretical.InvokeModel, event Event) {
+	if invokeModels == nil || len(invokeModels) == 0 {
+		return
+	}
+
+	// execute invokes
+	for _, invoke := range invokeModels {
+		go u.laws.ExecuteInvoke(
+			ctx,
+			u.universeContext,
+			event,
+			*invoke,
+		)
+	}
+}
+
+func (u *ExUniverse) accumulateEventForReality(ctx context.Context, realityName string, event Event) (bool, error) {
+	// accumulate event
+	u.eventAccumulator.Accumulate(realityName, event)
+
+	// execute observers
+	realityModel := u.model.GetReality(realityName)
+	isNewReality, err := u.executeObservers(ctx, realityModel, event)
+	if err != nil {
+		return false, errors.Join(fmt.Errorf("error executing observers for reality '%s'", realityModel.ID), err)
+	}
+	return isNewReality, nil
+}
+
+func (u *ExUniverse) accumulateEventForAllRealities(ctx context.Context, event Event) (bool, string, error) {
+	priorityRealities := u.eventAccumulator.GetActiveRealities()
+	var priorityRealitiesMap = make(map[string]bool)
+
+	// accumulate event for priority realities
+	for _, reality := range priorityRealities {
+		priorityRealitiesMap[reality] = true
+		isNewReality, err := u.accumulateEventForReality(ctx, reality, event)
+		if err != nil {
+			return false, "", errors.Join(fmt.Errorf("error accumulating event for reality '%s'", reality), err)
+		}
+
+		if isNewReality {
+			return true, reality, nil
+		}
+	}
+
+	// accumulate event for other realities
+	for reality := range u.model.Realities {
+		if _, ok := priorityRealitiesMap[reality]; !ok {
+			isNewReality, err := u.accumulateEventForReality(ctx, reality, event)
+			if err != nil {
+				return false, "", errors.Join(fmt.Errorf("error accumulating event for reality '%s'", reality), err)
+			}
+
+			if isNewReality {
+				return true, reality, nil
+			}
+		}
+	}
+
+	return false, "", nil
+}
+
+func (u *ExUniverse) executeObservers(ctx context.Context, realityModel *theoretical.RealityModel, evt Event) (bool, error) {
+	if realityModel.Observers == nil || len(realityModel.Observers) == 0 {
+		return false, nil
+	}
+
+	for _, observer := range realityModel.Observers {
+		isApproved, err := u.laws.ExecuteObserver(ctx, u.universeContext, u.eventAccumulator.GetStatistics(), evt, *observer)
+		if err != nil {
+			return false, errors.Join(fmt.Errorf("error executing observer '%s'", observer.Src), err)
+		}
+
+		if isApproved {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

@@ -15,24 +15,28 @@ type Universe interface {
 	// IsInitialized returns true if the universe has been initialized
 	IsInitialized() bool
 
-	// HandleExternalEvent handles an external event
-	// Depending on the state of the universe it will call Start, StartOnReality, SendEvent or SendEventToReality
-	HandleExternalEvent(ctx context.Context, realityName *string, evt Event) ([]string, Event, error)
+	// HandleEvent handles an event where depending on the state of the universe
+	// it will call Start, SendEvent or SendEventToReality
+	HandleEvent(ctx context.Context, realityName *string, evt Event) ([]string, Event, error)
 
 	// PlaceOn sets the given reality as the current reality
-	// PlaceOn not execute initials operations, only set the current reality
-	PlaceOn(ctx context.Context, realityName string) error
+	// PlaceOn not execute always, initial or exit operations, only set the current reality
+	PlaceOn(realityName string) error
 
 	// PlaceOnInitial sets the initial reality as the current reality
 	// PlaceOnInitial not execute initials operations, only set the current reality
-	PlaceOnInitial(ctx context.Context) error
+	PlaceOnInitial() error
 
 	// Start starts the universe on the default reality (initial reality)
-	// Start set initial reality as the current reality and execute the initials operations
+	// Start set initial reality as the current reality and execute:
+	// - always operations
+	// - initial operations
 	Start(ctx context.Context) ([]string, Event, error)
 
 	// StartOnReality starts the universe on the given reality
-	// StartOnReality set the given reality as the current reality and execute the initials operations
+	// StartOnReality set the given reality as the current reality and execute:
+	// - always operations
+	// - initial operations
 	StartOnReality(ctx context.Context, realityName string) ([]string, Event, error)
 
 	// SendEvent sends an event to:

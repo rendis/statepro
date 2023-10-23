@@ -68,8 +68,8 @@ type RealityModel struct {
 	// * if not nil, each TransitionModel must be valid.
 	// * over each group of transitions:
 	//	- must have only one transition to a reality of the same universe (format: 'RealityModel.ID').
-	//	- can have one or more transitions that point to other universes (format: 'UniverseModel.ID@UniverseModel.Version').
-	//	- can have one or more transitions that point to realities from other universes (format: 'UniverseModel.ID@UniverseModel.Version:RealityModel.ID').
+	//	- can have one or more transitions that point to other universes (format: 'UniverseModel.ID').
+	//	- can have one or more transitions that point to realities from other universes (format: 'UniverseModel.ID:RealityModel.ID').
 	On map[string][]*TransitionModel `json:"on,omitempty" bson:"on,omitempty" xml:"on,omitempty" yaml:"on,omitempty"`
 
 	// EntryInvokes is the list of invokes that are executed when the reality is established (Asynchronously).
