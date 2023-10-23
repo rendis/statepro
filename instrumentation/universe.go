@@ -6,7 +6,6 @@ import (
 
 type Universe interface {
 	// HandleEvent handles an Event where depending on the state of the universe
-	// it will call Start, SendEvent or SendEventToReality
 	HandleEvent(ctx context.Context, realityName *string, event Event) ([]string, Event, error)
 
 	// CanHandleEvent returns true if the universe can handle the given Event
@@ -45,15 +44,6 @@ type Universe interface {
 	// - always operations
 	// - initial operations
 	StartOnReality(ctx context.Context, realityName string) ([]string, Event, error)
-
-	// SendEvent sends an Event to:
-	// - the current reality if the universe is in not in superposition state
-	// - the realities candidates to be the current reality if the universe is in superposition state
-	SendEvent(ctx context.Context, event Event) ([]string, Event, error)
-
-	// SendEventToReality sends an Event to a specific reality in a universe in superposition state
-	// Can be used to send events to current reality, preferred use SendEvent method for this purpose
-	SendEventToReality(ctx context.Context, realityName string, event Event) ([]string, Event, error)
 
 	// GetSnapshot returns a snapshot of the universe
 	GetSnapshot() SerializedUniverseSnapshot

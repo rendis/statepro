@@ -51,57 +51,62 @@ type observerExecutorArgs struct {
 	observer              theoretical.ObserverModel
 }
 
-func (o observerExecutorArgs) GetContext() any {
+func (o *observerExecutorArgs) GetContext() any {
 	return o.context
 }
 
-func (o observerExecutorArgs) GetRealityName() string {
+func (o *observerExecutorArgs) GetRealityName() string {
 	return o.realityName
 }
 
-func (o observerExecutorArgs) GetUniverseName() string {
+func (o *observerExecutorArgs) GetUniverseName() string {
 	return o.universeName
 }
 
-func (o observerExecutorArgs) GetAccumulatorStatistics() instrumentation.AccumulatorStatistics {
+func (o *observerExecutorArgs) GetAccumulatorStatistics() instrumentation.AccumulatorStatistics {
 	return o.accumulatorStatistics
 }
 
-func (o observerExecutorArgs) GetEvent() instrumentation.Event {
+func (o *observerExecutorArgs) GetEvent() instrumentation.Event {
 	return o.event
 }
 
-func (o observerExecutorArgs) GetObserver() theoretical.ObserverModel {
+func (o *observerExecutorArgs) GetObserver() theoretical.ObserverModel {
 	return o.observer
 }
 
 // --------- ActionExecutorArgs ---------//
 type actionExecutorArgs struct {
-	context      any
-	realityName  string
-	universeName string
-	event        instrumentation.Event
-	action       theoretical.ActionModel
+	context       any
+	realityName   string
+	universeName  string
+	event         instrumentation.Event
+	action        theoretical.ActionModel
+	getSnapshotFn func() *instrumentation.MachineSnapshot
 }
 
-func (a actionExecutorArgs) GetContext() any {
+func (a *actionExecutorArgs) GetContext() any {
 	return a.context
 }
 
-func (a actionExecutorArgs) GetRealityName() string {
+func (a *actionExecutorArgs) GetRealityName() string {
 	return a.realityName
 }
 
-func (a actionExecutorArgs) GetUniverseName() string {
+func (a *actionExecutorArgs) GetUniverseName() string {
 	return a.universeName
 }
 
-func (a actionExecutorArgs) GetEvent() instrumentation.Event {
+func (a *actionExecutorArgs) GetEvent() instrumentation.Event {
 	return a.event
 }
 
-func (a actionExecutorArgs) GetAction() theoretical.ActionModel {
+func (a *actionExecutorArgs) GetAction() theoretical.ActionModel {
 	return a.action
+}
+
+func (a *actionExecutorArgs) GetSnapshot() *instrumentation.MachineSnapshot {
+	return a.getSnapshotFn()
 }
 
 //--------- InvokeExecutorArgs ---------//
@@ -114,23 +119,23 @@ type invokeExecutorArgs struct {
 	invoke       theoretical.InvokeModel
 }
 
-func (i invokeExecutorArgs) GetContext() any {
+func (i *invokeExecutorArgs) GetContext() any {
 	return i.context
 }
 
-func (i invokeExecutorArgs) GetRealityName() string {
+func (i *invokeExecutorArgs) GetRealityName() string {
 	return i.realityName
 }
 
-func (i invokeExecutorArgs) GetUniverseName() string {
+func (i *invokeExecutorArgs) GetUniverseName() string {
 	return i.universeName
 }
 
-func (i invokeExecutorArgs) GetEvent() instrumentation.Event {
+func (i *invokeExecutorArgs) GetEvent() instrumentation.Event {
 	return i.event
 }
 
-func (i invokeExecutorArgs) GetInvoke() theoretical.InvokeModel {
+func (i *invokeExecutorArgs) GetInvoke() theoretical.InvokeModel {
 	return i.invoke
 }
 
@@ -144,22 +149,22 @@ type conditionExecutorArgs struct {
 	condition    theoretical.ConditionModel
 }
 
-func (c conditionExecutorArgs) GetContext() any {
+func (c *conditionExecutorArgs) GetContext() any {
 	return c.context
 }
 
-func (c conditionExecutorArgs) GetRealityName() string {
+func (c *conditionExecutorArgs) GetRealityName() string {
 	return c.realityName
 }
 
-func (c conditionExecutorArgs) GetUniverseName() string {
+func (c *conditionExecutorArgs) GetUniverseName() string {
 	return c.universeName
 }
 
-func (c conditionExecutorArgs) GetEvent() instrumentation.Event {
+func (c *conditionExecutorArgs) GetEvent() instrumentation.Event {
 	return c.event
 }
 
-func (c conditionExecutorArgs) GetCondition() theoretical.ConditionModel {
+func (c *conditionExecutorArgs) GetCondition() theoretical.ConditionModel {
 	return c.condition
 }

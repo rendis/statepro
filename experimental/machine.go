@@ -9,14 +9,14 @@ import (
 	"sync"
 )
 
-type initFunc func(context.Context, *ExUniverse, []string) ([]string, instrumentation.Event, error)
+type initFunc func(context.Context, any, *ExUniverse, []string) ([]string, instrumentation.Event, error)
 
 var qmInitFunctions = map[refType]initFunc{
-	RefTypeUniverse: func(ctx context.Context, u *ExUniverse, _ []string) ([]string, instrumentation.Event, error) {
-		return u.Start(ctx)
+	RefTypeUniverse: func(ctx context.Context, uCtx any, u *ExUniverse, _ []string) ([]string, instrumentation.Event, error) {
+		return u.Start(ctx, uCtx)
 	},
-	RefTypeUniverseReality: func(ctx context.Context, u *ExUniverse, p []string) ([]string, instrumentation.Event, error) {
-		return u.StartOnReality(ctx, p[1])
+	RefTypeUniverseReality: func(ctx context.Context, uCtx any, u *ExUniverse, p []string) ([]string, instrumentation.Event, error) {
+		return u.StartOnReality(ctx, p[1], uCtx)
 	},
 }
 
@@ -96,7 +96,7 @@ func (qm *ExQuantumMachine) Init(ctx context.Context, machineContext any) error 
 		}
 
 		// execute init function
-		transitions, evt, err := initFn(ctx, universe, parts)
+		transitions, evt, err := initFn(ctx, machineContext, universe, parts)
 		if err != nil {
 			return err
 		}
@@ -112,7 +112,7 @@ func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation
 	var pairs []devtoolkit.Pair[instrumentation.Event, []string]
 
 	for _, u := range qm.getActiveUniverses() {
-		externalTargets, _, err := u.HandleEvent(ctx, nil, event)
+		externalTargets, _, err := u.HandleEvent(ctx, nil, event, qm.machineContext)
 		if err != nil {
 			return err
 		}
@@ -132,7 +132,7 @@ func (qm *ExQuantumMachine) LazySendEvent(ctx context.Context, event instrumenta
 	var pairs []devtoolkit.Pair[instrumentation.Event, []string]
 
 	for _, u := range qm.getLazyActiveUniverses(event) {
-		externalTargets, _, err := u.HandleEvent(ctx, nil, event)
+		externalTargets, _, err := u.HandleEvent(ctx, nil, event, qm.machineContext)
 		if err != nil {
 			return err
 		}
@@ -256,11 +256,12 @@ func (qm *ExQuantumMachine) ExecuteEntryAction(ctx context.Context, args *instru
 
 	for _, action := range qm.model.UniversalConstants.EntryActions {
 		a := &actionExecutorArgs{
-			context:      args.Context,
-			realityName:  args.RealityName,
-			universeName: args.UniverseName,
-			event:        args.Event,
-			action:       *action,
+			context:       args.Context,
+			realityName:   args.RealityName,
+			universeName:  args.UniverseName,
+			event:         args.Event,
+			action:        *action,
+			getSnapshotFn: qm.GetSnapshot,
 		}
 		if err := qm.actionExecutor.ExecuteAction(ctx, a); err != nil {
 			return err
@@ -280,11 +281,12 @@ func (qm *ExQuantumMachine) ExecuteExitAction(ctx context.Context, args *instrum
 
 	for _, action := range qm.model.UniversalConstants.ExitActions {
 		a := &actionExecutorArgs{
-			context:      args.Context,
-			realityName:  args.RealityName,
-			universeName: args.UniverseName,
-			event:        args.Event,
-			action:       *action,
+			context:       args.Context,
+			realityName:   args.RealityName,
+			universeName:  args.UniverseName,
+			event:         args.Event,
+			action:        *action,
+			getSnapshotFn: qm.GetSnapshot,
 		}
 		if err := qm.actionExecutor.ExecuteAction(ctx, a); err != nil {
 			return err
@@ -354,7 +356,7 @@ func (qm *ExQuantumMachine) executeTransitions(ctx context.Context, event instru
 			realityName = &parts[1]
 		}
 
-		newTransitions, _, err := exUniverse.HandleEvent(ctx, realityName, event)
+		newTransitions, _, err := exUniverse.HandleEvent(ctx, realityName, event, qm.machineContext)
 		if err != nil {
 			return nil, err
 		}

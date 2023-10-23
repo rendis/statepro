@@ -32,6 +32,7 @@ type ConstantsLawsExecutor interface {
 	ExecuteExitInvokes(ctx context.Context, args *QuantumMachineExecutorArgs)
 	ExecuteEntryAction(ctx context.Context, args *QuantumMachineExecutorArgs) error
 	ExecuteExitAction(ctx context.Context, args *QuantumMachineExecutorArgs) error
+	GetSnapshot() *MachineSnapshot
 }
 
 type QuantumMachineExecutorArgs struct {
@@ -115,6 +116,7 @@ type ActionExecutorArgs interface {
 	GetUniverseName() string
 	GetEvent() Event
 	GetAction() theoretical.ActionModel
+	GetSnapshot() *MachineSnapshot
 }
 
 type InvokeExecutorArgs interface {

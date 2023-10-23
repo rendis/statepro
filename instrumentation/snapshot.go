@@ -59,3 +59,19 @@ func (ms *MachineSnapshot) AddUniverseSnapshot(universeId string, snapshot Seria
 	}
 	ms.Snapshots[universeId] = snapshot
 }
+
+func (ms *MachineSnapshot) GetResume() UniversesResume {
+	return ms.Resume
+}
+
+func (ms *MachineSnapshot) GetActiveUniverses() map[string]string {
+	return ms.Resume.ActiveUniverses
+}
+
+func (ms *MachineSnapshot) GetFinalizedUniverses() map[string]string {
+	return ms.Resume.FinalizedUniverses
+}
+
+func (ms *MachineSnapshot) GetSuperpositionUniverses() map[string]string {
+	return ms.Resume.SuperpositionUniverses
+}

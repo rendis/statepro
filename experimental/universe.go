@@ -93,11 +93,12 @@ type ExUniverse struct {
 
 //------------- Universe interface implementation -------------
 
-func (u *ExUniverse) HandleEvent(ctx context.Context, realityName *string, evt instrumentation.Event) ([]string, instrumentation.Event, error) {
+func (u *ExUniverse) HandleEvent(ctx context.Context, realityName *string, evt instrumentation.Event, universeContext any) ([]string, instrumentation.Event, error) {
 	u.universeMtx.Lock()
 	defer u.universeMtx.Unlock()
 
 	var handleEventFn func() error
+	u.universeContext = universeContext
 
 	if realityName != nil {
 		handleEventFn = func() error { return u.receiveEventToReality(ctx, *realityName, evt) }
@@ -159,10 +160,11 @@ func (u *ExUniverse) PlaceOnInitial() error {
 	return u.PlaceOn(u.model.Initial)
 }
 
-func (u *ExUniverse) Start(ctx context.Context) ([]string, instrumentation.Event, error) {
+func (u *ExUniverse) Start(ctx context.Context, universeContext any) ([]string, instrumentation.Event, error) {
 	u.universeMtx.Lock()
 	defer u.universeMtx.Unlock()
 
+	u.universeContext = universeContext
 	evt := NewEventBuilder(startEventName).
 		SetEvtType(instrumentation.EventTypeStart).
 		Build()
@@ -178,10 +180,11 @@ func (u *ExUniverse) Start(ctx context.Context) ([]string, instrumentation.Event
 	return targets, evt, err
 }
 
-func (u *ExUniverse) StartOnReality(ctx context.Context, realityName string) ([]string, instrumentation.Event, error) {
+func (u *ExUniverse) StartOnReality(ctx context.Context, realityName string, universeContext any) ([]string, instrumentation.Event, error) {
 	u.universeMtx.Lock()
 	defer u.universeMtx.Unlock()
 
+	u.universeContext = universeContext
 	evt := NewEventBuilder(startOnEventName).
 		SetEvtType(instrumentation.EventTypeStartOn).
 		Build()
@@ -194,30 +197,6 @@ func (u *ExUniverse) StartOnReality(ctx context.Context, realityName string) ([]
 	}
 
 	targets, err := u.universeDecorator(initFn)
-	return targets, evt, err
-}
-
-func (u *ExUniverse) SendEvent(ctx context.Context, evt instrumentation.Event) ([]string, instrumentation.Event, error) {
-	u.universeMtx.Lock()
-	defer u.universeMtx.Unlock()
-
-	var sendEventFn = func() error {
-		return u.receiveEvent(ctx, evt)
-	}
-
-	targets, err := u.universeDecorator(sendEventFn)
-	return targets, evt, err
-}
-
-func (u *ExUniverse) SendEventToReality(ctx context.Context, realityName string, evt instrumentation.Event) ([]string, instrumentation.Event, error) {
-	u.universeMtx.Lock()
-	defer u.universeMtx.Unlock()
-
-	var sendEventFn = func() error {
-		return u.receiveEventToReality(ctx, realityName, evt)
-	}
-
-	targets, err := u.universeDecorator(sendEventFn)
 	return targets, evt, err
 }
 
@@ -281,6 +260,24 @@ func (u *ExUniverse) universeDecorator(operation func() error) ([]string, error)
 
 	// return externalTargets
 	return u.externalTargets, nil
+}
+
+func (u *ExUniverse) sendEvent(ctx context.Context, evt instrumentation.Event, universeContext any) ([]string, instrumentation.Event, error) {
+	var sendEventFn = func() error {
+		return u.receiveEvent(ctx, evt)
+	}
+
+	targets, err := u.universeDecorator(sendEventFn)
+	return targets, evt, err
+}
+
+func (u *ExUniverse) sendEventToReality(ctx context.Context, realityName string, evt instrumentation.Event) ([]string, instrumentation.Event, error) {
+	var sendEventFn = func() error {
+		return u.receiveEventToReality(ctx, realityName, evt)
+	}
+
+	targets, err := u.universeDecorator(sendEventFn)
+	return targets, evt, err
 }
 
 // receiveEventToReality receives an Event only if one of the following conditions is met:
@@ -387,13 +384,15 @@ func (u *ExUniverse) onEvent(ctx context.Context, event instrumentation.Event) e
 }
 
 func (u *ExUniverse) initializeUniverseOn(ctx context.Context, realityName string, event instrumentation.Event) error {
+	// mark universe as initialized
+	u.initialized = true
+
 	// establish initial reality
 	if err := u.establishNewReality(ctx, realityName, event); err != nil {
+		u.initialized = false
 		return errors.Join(fmt.Errorf("error establishing initial reality '%s'", realityName), err)
 	}
 
-	// mark universe as initialized
-	u.initialized = true
 	return nil
 }
 
@@ -621,11 +620,12 @@ func (u *ExUniverse) executeActions(ctx context.Context, actionModels []*theoret
 	// execute actions
 	for _, action := range actionModels {
 		args := &actionExecutorArgs{
-			context:      u.universeContext,
-			realityName:  *u.currentReality,
-			universeName: u.id,
-			event:        event,
-			action:       *action,
+			context:       u.universeContext,
+			realityName:   *u.currentReality,
+			universeName:  u.id,
+			event:         event,
+			action:        *action,
+			getSnapshotFn: u.constantsLawsExecutor.GetSnapshot,
 		}
 		if err := u.runActionExecutor(ctx, args); err != nil {
 			return errors.Join(fmt.Errorf("error executing action '%s'", action.Src), err)
