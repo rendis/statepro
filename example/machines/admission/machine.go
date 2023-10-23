@@ -42,6 +42,8 @@ func (a AdmissionQM) ExecuteInvoke(ctx context.Context, args instrumentation.Inv
 	switch invoke.Src {
 	case "notifyStatusChanged":
 		notifyStatusChanged(ctx, mctx, event)
+	case "logTransition":
+		logTransition(ctx, args)
 	default:
 		return
 	}

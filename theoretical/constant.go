@@ -26,4 +26,16 @@ type UniversalConstantsModel struct {
 	// * optional
 	// * if not nil, each ActionModel must be valid.
 	ExitActions []*ActionModel `json:"exitActions,omitempty" bson:"exitActions,omitempty" xml:"exitActions,omitempty" yaml:"exitActions,omitempty"`
+
+	// InvokesOnTransition is the list of invokes that are always executed when a transition is executed (Asynchronously).
+	// Validations:
+	// * optional
+	// * if not nil, each InvokeModel must be valid.
+	InvokesOnTransition []*InvokeModel `json:"invokesOnTransition,omitempty" bson:"invokesOnTransition,omitempty" xml:"invokesOnTransition,omitempty" yaml:"invokesOnTransition,omitempty"`
+
+	// ActionsOnTransition is the list of actions that are always executed when a transition is executed (Synchronously).
+	// Validations:
+	// * optional
+	// * if not nil, each ActionModel must be valid.
+	ActionsOnTransition []*ActionModel `json:"actionsOnTransition,omitempty" bson:"actionsOnTransition,omitempty" xml:"actionsOnTransition,omitempty" yaml:"actionsOnTransition,omitempty"`
 }

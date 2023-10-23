@@ -5,6 +5,10 @@ import (
 	"github.com/rendis/statepro/v3/theoretical"
 )
 
+type SnapshotGenerator interface {
+	GetSnapshot() *MachineSnapshot
+}
+
 // QuantumMachineLaws is the interface that must be implemented by a quantum machine.
 // The quantum machine universeLaws are the universeLaws that may be applied to each universe.
 type QuantumMachineLaws interface {
@@ -32,7 +36,9 @@ type ConstantsLawsExecutor interface {
 	ExecuteExitInvokes(ctx context.Context, args *QuantumMachineExecutorArgs)
 	ExecuteEntryAction(ctx context.Context, args *QuantumMachineExecutorArgs) error
 	ExecuteExitAction(ctx context.Context, args *QuantumMachineExecutorArgs) error
-	GetSnapshot() *MachineSnapshot
+	ExecuteTransitionInvokes(ctx context.Context, args *QuantumMachineExecutorArgs)
+	ExecuteTransitionAction(ctx context.Context, args *QuantumMachineExecutorArgs) error
+	SnapshotGenerator
 }
 
 type QuantumMachineExecutorArgs struct {
@@ -116,7 +122,7 @@ type ActionExecutorArgs interface {
 	GetUniverseName() string
 	GetEvent() Event
 	GetAction() theoretical.ActionModel
-	GetSnapshot() *MachineSnapshot
+	SnapshotGenerator
 }
 
 type InvokeExecutorArgs interface {

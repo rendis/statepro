@@ -295,6 +295,52 @@ func (qm *ExQuantumMachine) ExecuteExitAction(ctx context.Context, args *instrum
 	return nil
 }
 
+func (qm *ExQuantumMachine) ExecuteTransitionInvokes(ctx context.Context, args *instrumentation.QuantumMachineExecutorArgs) {
+	if qm.model.UniversalConstants == nil || len(qm.model.UniversalConstants.InvokesOnTransition) == 0 {
+		return
+	}
+
+	if qm.invokeExecutor == nil {
+		return
+	}
+
+	for _, invoke := range qm.model.UniversalConstants.InvokesOnTransition {
+		a := &invokeExecutorArgs{
+			context:      args.Context,
+			realityName:  args.RealityName,
+			universeName: args.UniverseName,
+			event:        args.Event,
+			invoke:       *invoke,
+		}
+		go qm.invokeExecutor.ExecuteInvoke(ctx, a)
+	}
+}
+
+func (qm *ExQuantumMachine) ExecuteTransitionAction(ctx context.Context, args *instrumentation.QuantumMachineExecutorArgs) error {
+	if qm.model.UniversalConstants == nil || len(qm.model.UniversalConstants.ActionsOnTransition) == 0 {
+		return nil
+	}
+
+	if qm.actionExecutor == nil {
+		return nil
+	}
+
+	for _, action := range qm.model.UniversalConstants.ActionsOnTransition {
+		a := &actionExecutorArgs{
+			context:       args.Context,
+			realityName:   args.RealityName,
+			universeName:  args.UniverseName,
+			event:         args.Event,
+			action:        *action,
+			getSnapshotFn: qm.GetSnapshot,
+		}
+		if err := qm.actionExecutor.ExecuteAction(ctx, a); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 //-----------------------------------------------------------
 
 func (qm *ExQuantumMachine) getActiveUniverses() []*ExUniverse {

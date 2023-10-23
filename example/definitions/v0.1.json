@@ -19,9 +19,7 @@
           "description": "Admission created, means that a place was reserved for the user",
           "always": [
             {
-              "targets": [
-                "WAITING_CONFIRMATION"
-              ]
+              "targets": ["WAITING_CONFIRMATION"]
             }
           ]
         },
@@ -32,9 +30,7 @@
           "on": {
             "confirm": [
               {
-                "targets": [
-                  "CONFIRMED"
-                ],
+                "targets": ["CONFIRMED"],
                 "description": "User confirmed the admission"
               }
             ]
@@ -208,6 +204,12 @@
     "exitActions": [
       {
         "src": "logExitFromStatus"
+      }
+    ],
+
+    "invokesOnTransition": [
+      {
+        "src": "logTransition"
       }
     ]
   }

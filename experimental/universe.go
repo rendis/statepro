@@ -451,12 +451,26 @@ func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition 
 			return nil
 		}
 
-		// execute transition actions
+		// execute constants transition actions
+		args := instrumentation.QuantumMachineExecutorArgs{
+			Context:      u.universeContext,
+			RealityName:  *u.currentReality,
+			UniverseName: u.id,
+			Event:        event,
+		}
+		if err := u.constantsLawsExecutor.ExecuteTransitionAction(ctx, &args); err != nil {
+			return errors.Join(fmt.Errorf("error executing constants transition actions for reality '%s'", *u.currentReality), err)
+		}
+
+		// execute universe transition actions
 		if err := u.executeActions(ctx, approvedTransition.Actions, event); err != nil {
 			return errors.Join(fmt.Errorf("error executing transition actions for reality '%s'", *u.currentReality), err)
 		}
 
-		// execute transition invokes
+		// execute constants transition invokes, invokes are executed asynchronously
+		u.constantsLawsExecutor.ExecuteTransitionInvokes(ctx, &args)
+
+		// execute universe transition invokes
 		u.executeInvokes(ctx, approvedTransition.Invokes, event)
 
 		// get is transition is of type notify, save external targets and return nil
