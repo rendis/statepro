@@ -2,7 +2,7 @@ package admission
 
 import (
 	"context"
-	"github.com/rendis/statepro/v3/experimental"
+	"github.com/rendis/statepro/v3/instrumentation"
 )
 
 func NewAdmissionQM() *AdmissionQM {
@@ -20,7 +20,7 @@ func (a AdmissionQM) GetQuantumMachineDescription() string {
 	return "Admission quantum machine laws"
 }
 
-func (a AdmissionQM) ExecuteAction(ctx context.Context, args experimental.ActionExecutorArgs) error {
+func (a AdmissionQM) ExecuteAction(ctx context.Context, args instrumentation.ActionExecutorArgs) error {
 
 	action := args.GetAction()
 
@@ -34,7 +34,7 @@ func (a AdmissionQM) ExecuteAction(ctx context.Context, args experimental.Action
 	}
 }
 
-func (a AdmissionQM) ExecuteInvoke(ctx context.Context, args experimental.InvokeExecutorArgs) {
+func (a AdmissionQM) ExecuteInvoke(ctx context.Context, args instrumentation.InvokeExecutorArgs) {
 	invoke := args.GetInvoke()
 	event := args.GetEvent()
 	mctx := args.GetContext()

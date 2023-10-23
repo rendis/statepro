@@ -1,40 +1,41 @@
 package experimental
 
 import (
+	"github.com/rendis/statepro/v3/instrumentation"
 	"github.com/rendis/statepro/v3/theoretical"
 )
 
 // --------- laws executor extractors ---------//
-func getUniverseObserverExecutor(laws any) ObserverExecutor {
-	if executor, ok := laws.(ObserverExecutor); ok {
+func getUniverseObserverExecutor(laws any) instrumentation.ObserverExecutor {
+	if executor, ok := laws.(instrumentation.ObserverExecutor); ok {
 		return executor
 	}
 	return nil
 }
 
-func getUniverseActionExecutor(laws any) ActionExecutor {
-	if executor, ok := laws.(ActionExecutor); ok {
+func getUniverseActionExecutor(laws any) instrumentation.ActionExecutor {
+	if executor, ok := laws.(instrumentation.ActionExecutor); ok {
 		return executor
 	}
 	return nil
 }
 
-func getUniverseInvokeExecutor(laws any) InvokeExecutor {
-	if executor, ok := laws.(InvokeExecutor); ok {
+func getUniverseInvokeExecutor(laws any) instrumentation.InvokeExecutor {
+	if executor, ok := laws.(instrumentation.InvokeExecutor); ok {
 		return executor
 	}
 	return nil
 }
 
-func getUniverseConditionExecutor(laws any) ConditionExecutor {
-	if executor, ok := laws.(ConditionExecutor); ok {
+func getUniverseConditionExecutor(laws any) instrumentation.ConditionExecutor {
+	if executor, ok := laws.(instrumentation.ConditionExecutor); ok {
 		return executor
 	}
 	return nil
 }
 
-func getObservableKnowledgeExtractor(laws any) ObservableKnowledgeExtractorExecutor {
-	if executor, ok := laws.(ObservableKnowledgeExtractorExecutor); ok {
+func getObservableKnowledgeExtractor(laws any) instrumentation.ObservableKnowledgeExtractorExecutor {
+	if executor, ok := laws.(instrumentation.ObservableKnowledgeExtractorExecutor); ok {
 		return executor
 	}
 	return nil
@@ -45,8 +46,8 @@ type observerExecutorArgs struct {
 	context               any
 	realityName           string
 	universeName          string
-	accumulatorStatistics AccumulatorStatistics
-	event                 Event
+	accumulatorStatistics instrumentation.AccumulatorStatistics
+	event                 instrumentation.Event
 	observer              theoretical.ObserverModel
 }
 
@@ -62,11 +63,11 @@ func (o observerExecutorArgs) GetUniverseName() string {
 	return o.universeName
 }
 
-func (o observerExecutorArgs) GetAccumulatorStatistics() AccumulatorStatistics {
+func (o observerExecutorArgs) GetAccumulatorStatistics() instrumentation.AccumulatorStatistics {
 	return o.accumulatorStatistics
 }
 
-func (o observerExecutorArgs) GetEvent() Event {
+func (o observerExecutorArgs) GetEvent() instrumentation.Event {
 	return o.event
 }
 
@@ -79,7 +80,7 @@ type actionExecutorArgs struct {
 	context      any
 	realityName  string
 	universeName string
-	event        Event
+	event        instrumentation.Event
 	action       theoretical.ActionModel
 }
 
@@ -95,7 +96,7 @@ func (a actionExecutorArgs) GetUniverseName() string {
 	return a.universeName
 }
 
-func (a actionExecutorArgs) GetEvent() Event {
+func (a actionExecutorArgs) GetEvent() instrumentation.Event {
 	return a.event
 }
 
@@ -109,7 +110,7 @@ type invokeExecutorArgs struct {
 	context      any
 	realityName  string
 	universeName string
-	event        Event
+	event        instrumentation.Event
 	invoke       theoretical.InvokeModel
 }
 
@@ -125,7 +126,7 @@ func (i invokeExecutorArgs) GetUniverseName() string {
 	return i.universeName
 }
 
-func (i invokeExecutorArgs) GetEvent() Event {
+func (i invokeExecutorArgs) GetEvent() instrumentation.Event {
 	return i.event
 }
 
@@ -139,7 +140,7 @@ type conditionExecutorArgs struct {
 	context      any
 	realityName  string
 	universeName string
-	event        Event
+	event        instrumentation.Event
 	condition    theoretical.ConditionModel
 }
 
@@ -155,7 +156,7 @@ func (c conditionExecutorArgs) GetUniverseName() string {
 	return c.universeName
 }
 
-func (c conditionExecutorArgs) GetEvent() Event {
+func (c conditionExecutorArgs) GetEvent() instrumentation.Event {
 	return c.event
 }
 

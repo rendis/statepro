@@ -3,7 +3,7 @@ package admission
 import (
 	"context"
 	"fmt"
-	"github.com/rendis/statepro/v3/experimental"
+	"github.com/rendis/statepro/v3/instrumentation"
 	"log"
 )
 
@@ -22,7 +22,7 @@ func (a *AdmissionUniverse) GetUniverseDescription() string {
 	panic("implement me")
 }
 
-func (a *AdmissionUniverse) ExecuteObserver(ctx context.Context, args experimental.ObserverExecutorArgs) (bool, error) {
+func (a *AdmissionUniverse) ExecuteObserver(ctx context.Context, args instrumentation.ObserverExecutorArgs) (bool, error) {
 	observer := args.GetObserver()
 	accumulatorStatistics := args.GetAccumulatorStatistics()
 
@@ -35,7 +35,7 @@ func (a *AdmissionUniverse) ExecuteObserver(ctx context.Context, args experiment
 	}
 }
 
-func (a *AdmissionUniverse) ExecuteAction(ctx context.Context, args experimental.ActionExecutorArgs) error {
+func (a *AdmissionUniverse) ExecuteAction(ctx context.Context, args instrumentation.ActionExecutorArgs) error {
 	action := args.GetAction()
 
 	switch action.Src {

@@ -1,43 +1,12 @@
 package experimental
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/rendis/statepro/v3/instrumentation"
+)
 
-// Accumulator allows to accumulate events in different realities for a given universe
-type Accumulator interface {
-	// Accumulate accumulates an event in the given reality
-	// Only events that exist in the RealityModel.On will be accumulated
-	// Parameters:
-	// 	- realityName: the reality name
-	// 	- event: the event to accumulate
-	Accumulate(realityName string, event Event)
-
-	// GetStatistics returns the event accumulator statistics
-	GetStatistics() AccumulatorStatistics
-
-	// GetActiveRealities returns the realities that have accumulated events
-	GetActiveRealities() []string
-}
-
-// AccumulatorStatistics allows to get statistics from an event accumulator
-type AccumulatorStatistics interface {
-	// GetRealitiesEvents returns the accumulated events for each reality
-	// Events can be repeated if they are accumulated in more than one reality
-	// The map key is the reality name and the value is the accumulated events
-	GetRealitiesEvents() map[string][]Event
-
-	// GetRealityEvents returns the accumulated events for the given reality
-	// Events can be repeated if they were received more than once
-	GetRealityEvents(realityName string) []Event
-
-	// GetAllEventsNames returns the accumulated events names for all realities (without repetitions)
-	GetAllEventsNames() []string
-
-	// CountAllEventsNames returns the number of accumulated events names for all realities (without repetitions)
-	CountAllEventsNames() int
-}
-
-// newEventAccumulator returns a new event accumulator
-func newEventAccumulator() Accumulator {
+// newEventAccumulator returns a new Event accumulator
+func newEventAccumulator() instrumentation.Accumulator {
 	return &eventAccumulator{
 		RealitiesEvents: map[string][]*event{},
 	}
@@ -59,7 +28,7 @@ func (ea *eventAccumulator) String() string {
 
 // Accumulator implementation
 
-func (ea *eventAccumulator) Accumulate(realityName string, evt Event) {
+func (ea *eventAccumulator) Accumulate(realityName string, evt instrumentation.Event) {
 	if ea.RealitiesEvents == nil {
 		ea.RealitiesEvents = map[string][]*event{}
 	}
@@ -71,7 +40,7 @@ func (ea *eventAccumulator) Accumulate(realityName string, evt Event) {
 	ea.RealitiesEvents[realityName] = append(ea.RealitiesEvents[realityName], evt.(*event))
 }
 
-func (ea *eventAccumulator) GetStatistics() AccumulatorStatistics {
+func (ea *eventAccumulator) GetStatistics() instrumentation.AccumulatorStatistics {
 	return ea
 }
 
@@ -85,10 +54,10 @@ func (ea *eventAccumulator) GetActiveRealities() []string {
 
 // AccumulatorStatistics implementation
 
-func (ea *eventAccumulator) GetRealitiesEvents() map[string][]Event {
-	var resp = map[string][]Event{}
+func (ea *eventAccumulator) GetRealitiesEvents() map[string][]instrumentation.Event {
+	var resp = map[string][]instrumentation.Event{}
 	for k, evts := range ea.RealitiesEvents {
-		resp[k] = []Event{}
+		resp[k] = []instrumentation.Event{}
 		for _, evt := range evts {
 			resp[k] = append(resp[k], evt)
 		}
@@ -96,10 +65,10 @@ func (ea *eventAccumulator) GetRealitiesEvents() map[string][]Event {
 	return resp
 }
 
-func (ea *eventAccumulator) GetRealityEvents(realityName string) []Event {
-	var events []Event
-	for _, evt := range ea.RealitiesEvents[realityName] {
-		events = append(events, evt)
+func (ea *eventAccumulator) GetRealityEvents(realityName string) []instrumentation.Event {
+	var events []instrumentation.Event
+	for _, event := range ea.RealitiesEvents[realityName] {
+		events = append(events, event)
 	}
 	return events
 }
@@ -109,10 +78,10 @@ func (ea *eventAccumulator) GetAllEventsNames() []string {
 	eventsProcessed := map[string]bool{}
 
 	for _, events := range ea.RealitiesEvents {
-		for _, event := range events {
-			if _, ok := eventsProcessed[event.GetEventName()]; !ok {
-				eventsNames = append(eventsNames, event.GetEventName())
-				eventsProcessed[event.GetEventName()] = true
+		for _, evt := range events {
+			if _, ok := eventsProcessed[evt.GetEventName()]; !ok {
+				eventsNames = append(eventsNames, evt.GetEventName())
+				eventsProcessed[evt.GetEventName()] = true
 			}
 		}
 	}

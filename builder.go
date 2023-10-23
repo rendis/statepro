@@ -3,10 +3,11 @@ package statepro
 import (
 	"fmt"
 	"github.com/rendis/statepro/v3/experimental"
+	"github.com/rendis/statepro/v3/instrumentation"
 	"github.com/rendis/statepro/v3/theoretical"
 )
 
-func NewQuantumMachine(qmModel *theoretical.QuantumMachineModel) (QuantumMachine, error) {
+func NewQuantumMachine(qmModel *theoretical.QuantumMachineModel) (instrumentation.QuantumMachine, error) {
 	qmLaws := GetQuantumMachineLaws(qmModel.ID)
 	if qmLaws == nil {
 		return nil, fmt.Errorf("quantum machine laws not found. QuantumMachineId: '%s'", qmModel.ID)

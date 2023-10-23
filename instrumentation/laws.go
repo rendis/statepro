@@ -1,4 +1,4 @@
-package experimental
+package instrumentation
 
 import (
 	"context"
@@ -26,25 +26,25 @@ type UniverseLaws interface {
 	GetUniverseDescription() string
 }
 
-// constantsLawsExecutor is the interface that must be implemented by a quantum machine executor.
-type constantsLawsExecutor interface {
-	ExecuteEntryInvokes(ctx context.Context, args *quantumMachineExecutorArgs)
-	ExecuteExitInvokes(ctx context.Context, args *quantumMachineExecutorArgs)
-	ExecuteEntryAction(ctx context.Context, args *quantumMachineExecutorArgs) error
-	ExecuteExitAction(ctx context.Context, args *quantumMachineExecutorArgs) error
+// ConstantsLawsExecutor is the interface that must be implemented by a quantum machine executor.
+type ConstantsLawsExecutor interface {
+	ExecuteEntryInvokes(ctx context.Context, args *QuantumMachineExecutorArgs)
+	ExecuteExitInvokes(ctx context.Context, args *QuantumMachineExecutorArgs)
+	ExecuteEntryAction(ctx context.Context, args *QuantumMachineExecutorArgs) error
+	ExecuteExitAction(ctx context.Context, args *QuantumMachineExecutorArgs) error
 }
 
-type quantumMachineExecutorArgs struct {
-	context               any
-	realityName           string
-	universeName          string
-	event                 Event
-	accumulatorStatistics AccumulatorStatistics
+type QuantumMachineExecutorArgs struct {
+	Context               any
+	RealityName           string
+	UniverseName          string
+	Event                 Event
+	AccumulatorStatistics AccumulatorStatistics
 }
 
 // ObserverExecutor executes an observer in the quantum machine.
 // Parameters:
-//   - ctx: the context
+//   - ctx: the Context
 //   - args: the observer executor arguments
 //
 // Returns:
@@ -56,7 +56,7 @@ type ObserverExecutor interface {
 
 // ActionExecutor executes an action in the quantum machine.
 // Parameters:
-//   - ctx: the context
+//   - ctx: the Context
 //   - args: the action executor arguments
 //
 // Returns:
@@ -67,7 +67,7 @@ type ActionExecutor interface {
 
 // InvokeExecutor executes an invoke in the quantum machine.
 // Parameters:
-//   - ctx: the context
+//   - ctx: the Context
 //   - args: the invoke executor arguments
 type InvokeExecutor interface {
 	ExecuteInvoke(ctx context.Context, args InvokeExecutorArgs)
@@ -85,14 +85,14 @@ type ConditionExecutor interface {
 	ExecuteCondition(ctx context.Context, args ConditionExecutorArgs) (bool, error)
 }
 
-// ObservableKnowledgeExtractorExecutor extracts the universe knowledge from any quantum machine context.
-// This method allows the context segmentation, so the universe only knows and can access to the knowledge that is relevant to it.
+// ObservableKnowledgeExtractorExecutor extracts the universe knowledge from any quantum machine Context.
+// This method allows the Context segmentation, so the universe only knows and can access to the knowledge that is relevant to it.
 // universeContext can be equal to quantumMachineContext, but it is not recommended.
 // Parameters:
-//   - quantumMachineContext: the quantum machine context (global context)
+//   - quantumMachineContext: the quantum machine Context (global Context)
 //
 // Returns:
-//   - universeContext: the universe context (local context)
+//   - universeContext: the universe Context (local Context)
 //   - error: if an error occurs
 type ObservableKnowledgeExtractorExecutor interface {
 	ExtractObservableKnowledge(quantumMachineContext any) (universeContext any, err error)

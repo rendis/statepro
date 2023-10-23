@@ -1,37 +1,24 @@
 package experimental
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/rendis/statepro/v3/instrumentation"
+)
 
 // --------- Event --------- //
 
-type EventType string
-
-const (
-	EventTypeBigBang   EventType = "BigBang"   // event triggered when the universe starts
-	EventTypeBigBangOn EventType = "BigBangOn" // event triggered when the universe starts on a reality
-	EventTypeAlways    EventType = "Always"    // event triggered from reality from its "always transitions"
-	EventTypeOn        EventType = "On"        // event triggered from reality from its "on transitions"
-	EventTypeOnEntry   EventType = "OnEntry"   // event used to force the current reality to execute logic on entry
-)
-
-type Event interface {
-	// GetEventName returns the event name
-	GetEventName() string
-
-	// GetData returns the event data
-	GetData() map[string]any
-
-	// DataContainsKey returns true if the event data contains the given key
-	DataContainsKey(key string) bool
-
-	// GetEvtType returns the event type
-	GetEvtType() EventType
+func NewEvent(name string, data map[string]any, evtType instrumentation.EventType) instrumentation.Event {
+	return &event{
+		name:    name,
+		data:    data,
+		evtType: evtType,
+	}
 }
 
 type event struct {
 	name    string
 	data    map[string]any
-	evtType EventType
+	evtType instrumentation.EventType
 }
 
 func (e *event) GetEventName() string {
@@ -50,7 +37,7 @@ func (e *event) DataContainsKey(key string) bool {
 	return ok
 }
 
-func (e *event) GetEvtType() EventType {
+func (e *event) GetEvtType() instrumentation.EventType {
 	return e.evtType
 }
 
@@ -58,42 +45,37 @@ func (e *event) String() string {
 	return fmt.Sprintf("%s", e.name)
 }
 
-// --------- Event Builder --------- //
+// ---------  Event Builder --------- //
 
-// NewEventBuilder returns a new event builder
-func NewEventBuilder(name string) *EventBuilder {
+func NewEventBuilder(name string) instrumentation.EventBuilder {
 	return &EventBuilder{
 		data:    map[string]any{},
 		name:    name,
-		evtType: EventTypeOn,
+		evtType: instrumentation.EventTypeOn,
 	}
 }
 
 type EventBuilder struct {
 	name    string
 	data    map[string]any
-	evtType EventType
+	evtType instrumentation.EventType
 }
 
-func (eb *EventBuilder) SetEventName(name string) *EventBuilder {
+func (eb *EventBuilder) SetEventName(name string) instrumentation.EventBuilder {
 	eb.name = name
 	return eb
 }
 
-func (eb *EventBuilder) SetData(data map[string]any) *EventBuilder {
+func (eb *EventBuilder) SetData(data map[string]any) instrumentation.EventBuilder {
 	eb.data = data
 	return eb
 }
 
-func (eb *EventBuilder) SetEvtType(evtType EventType) *EventBuilder {
+func (eb *EventBuilder) SetEvtType(evtType instrumentation.EventType) instrumentation.EventBuilder {
 	eb.evtType = evtType
 	return eb
 }
 
-func (eb *EventBuilder) Build() Event {
-	return &event{
-		name:    eb.name,
-		data:    eb.data,
-		evtType: eb.evtType,
-	}
+func (eb *EventBuilder) Build() instrumentation.Event {
+	return NewEvent(eb.name, eb.data, eb.evtType)
 }

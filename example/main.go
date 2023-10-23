@@ -9,7 +9,7 @@ import (
 	"github.com/rendis/statepro/v3/example/universes/form"
 	"github.com/rendis/statepro/v3/example/universes/payment"
 	"github.com/rendis/statepro/v3/example/universes/sign"
-	"github.com/rendis/statepro/v3/experimental"
+	"github.com/rendis/statepro/v3/instrumentation"
 	"log"
 
 	"os"
@@ -29,7 +29,7 @@ func main() {
 	ss := qm.GetSnapshot()
 
 	// confirm
-	event := experimental.NewEventBuilder("confirm").Build()
+	event := statepro.NewEventBuilder("confirm").Build()
 
 	if err = qm.SendEvent(ctx, event); err != nil {
 		log.Fatal(err)
@@ -38,7 +38,7 @@ func main() {
 	ss = qm.GetSnapshot()
 
 	//sing
-	event = experimental.NewEventBuilder("sign").Build()
+	event = statepro.NewEventBuilder("sign").Build()
 
 	if err = qm.LazySendEvent(ctx, event); err != nil {
 		log.Fatal(err)
@@ -52,7 +52,7 @@ func main() {
 	}
 
 	//fill
-	event = experimental.NewEventBuilder("fill").Build()
+	event = statepro.NewEventBuilder("fill").Build()
 
 	if err = qm2.LazySendEvent(ctx, event); err != nil {
 		log.Fatal(err)
@@ -62,7 +62,7 @@ func main() {
 
 }
 
-func loadDefinition() statepro.QuantumMachine {
+func loadDefinition() instrumentation.QuantumMachine {
 	var path = "example/definitions/v0.1.json"
 
 	arrByte, err := os.ReadFile(path)
