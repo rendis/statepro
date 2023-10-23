@@ -72,6 +72,9 @@ type ExQuantumMachine struct {
 //--------- QuantumMachine interface implementation ---------
 
 func (qm *ExQuantumMachine) Init(ctx context.Context, machineContext any) error {
+	qm.quantumMachineMtx.Lock()
+	defer qm.quantumMachineMtx.Unlock()
+
 	qm.machineContext = machineContext
 
 	var pairs []devtoolkit.Pair[instrumentation.Event, []string]
@@ -109,6 +112,9 @@ func (qm *ExQuantumMachine) Init(ctx context.Context, machineContext any) error 
 }
 
 func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation.Event) error {
+	qm.quantumMachineMtx.Lock()
+	defer qm.quantumMachineMtx.Unlock()
+
 	var pairs []devtoolkit.Pair[instrumentation.Event, []string]
 
 	for _, u := range qm.getActiveUniverses() {
@@ -129,6 +135,9 @@ func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation
 }
 
 func (qm *ExQuantumMachine) LazySendEvent(ctx context.Context, event instrumentation.Event) error {
+	qm.quantumMachineMtx.Lock()
+	defer qm.quantumMachineMtx.Unlock()
+
 	var pairs []devtoolkit.Pair[instrumentation.Event, []string]
 
 	for _, u := range qm.getLazyActiveUniverses(event) {
@@ -146,6 +155,29 @@ func (qm *ExQuantumMachine) LazySendEvent(ctx context.Context, event instrumenta
 	}
 
 	return qm.executeTargetPairs(ctx, pairs)
+}
+
+func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapshot) error {
+	qm.quantumMachineMtx.Lock()
+	defer qm.quantumMachineMtx.Unlock()
+
+	if snapshot == nil {
+		return nil
+	}
+
+	for _, u := range qm.universes {
+		universeSnapshot, ok := snapshot.Snapshots[u.id]
+
+		if !ok {
+			continue
+		}
+
+		err := u.loadSnapshot(universeSnapshot)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (qm *ExQuantumMachine) GetSnapshot() *instrumentation.MachineSnapshot {
@@ -179,26 +211,6 @@ func (qm *ExQuantumMachine) GetSnapshot() *instrumentation.MachineSnapshot {
 	}
 
 	return machineSnapshot
-}
-
-func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapshot) error {
-	if snapshot == nil {
-		return nil
-	}
-
-	for _, u := range qm.universes {
-		universeSnapshot, ok := snapshot.Snapshots[u.id]
-
-		if !ok {
-			continue
-		}
-
-		err := u.loadSnapshot(universeSnapshot)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 //--------- constantsLawsExecutor interface implementation ---------

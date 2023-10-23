@@ -5,7 +5,7 @@ import (
 	"github.com/rendis/statepro/v3/theoretical"
 )
 
-type SnapshotGenerator interface {
+type SnapshotExtractor interface {
 	GetSnapshot() *MachineSnapshot
 }
 
@@ -38,7 +38,7 @@ type ConstantsLawsExecutor interface {
 	ExecuteExitAction(ctx context.Context, args *QuantumMachineExecutorArgs) error
 	ExecuteTransitionInvokes(ctx context.Context, args *QuantumMachineExecutorArgs)
 	ExecuteTransitionAction(ctx context.Context, args *QuantumMachineExecutorArgs) error
-	SnapshotGenerator
+	SnapshotExtractor
 }
 
 type QuantumMachineExecutorArgs struct {
@@ -122,7 +122,7 @@ type ActionExecutorArgs interface {
 	GetUniverseName() string
 	GetEvent() Event
 	GetAction() theoretical.ActionModel
-	SnapshotGenerator
+	SnapshotExtractor
 }
 
 type InvokeExecutorArgs interface {

@@ -7,7 +7,6 @@ import (
 	"github.com/rendis/devtoolkit"
 	"github.com/rendis/statepro/v3/instrumentation"
 	"github.com/rendis/statepro/v3/theoretical"
-	"sync"
 )
 
 const (
@@ -62,9 +61,6 @@ type ExUniverse struct {
 	invokeExecutor    instrumentation.InvokeExecutor
 	conditionExecutor instrumentation.ConditionExecutor
 
-	// universeMtx is the mutex for the ExUniverse
-	universeMtx sync.Mutex
-
 	// currentReality is the current reality of the ExUniverse
 	currentReality *string
 
@@ -91,13 +87,8 @@ type ExUniverse struct {
 	eventAccumulator instrumentation.Accumulator
 }
 
-//------------- Blocking methods -------------
-
 // handleEvent handles an Event where depending on the state of the universe
 func (u *ExUniverse) handleEvent(ctx context.Context, realityName *string, evt instrumentation.Event, universeContext any) ([]string, instrumentation.Event, error) {
-	u.universeMtx.Lock()
-	defer u.universeMtx.Unlock()
-
 	var handleEventFn func() error
 	u.universeContext = universeContext
 
@@ -116,9 +107,6 @@ func (u *ExUniverse) handleEvent(ctx context.Context, realityName *string, evt i
 // - always operations
 // - initial operations
 func (u *ExUniverse) start(ctx context.Context, universeContext any) ([]string, instrumentation.Event, error) {
-	u.universeMtx.Lock()
-	defer u.universeMtx.Unlock()
-
 	u.universeContext = universeContext
 	evt := NewEventBuilder(startEventName).
 		SetEvtType(instrumentation.EventTypeStart).
@@ -140,9 +128,6 @@ func (u *ExUniverse) start(ctx context.Context, universeContext any) ([]string, 
 // - always operations
 // - initial operations
 func (u *ExUniverse) startOnReality(ctx context.Context, realityName string, universeContext any) ([]string, instrumentation.Event, error) {
-	u.universeMtx.Lock()
-	defer u.universeMtx.Unlock()
-
 	u.universeContext = universeContext
 	evt := NewEventBuilder(startOnEventName).
 		SetEvtType(instrumentation.EventTypeStartOn).
@@ -162,9 +147,6 @@ func (u *ExUniverse) startOnReality(ctx context.Context, realityName string, uni
 // placeOn sets the given reality as the current reality
 // placeOn not execute always, initial or exit operations, only set the current reality
 func (u *ExUniverse) placeOn(realityName string) error {
-	u.universeMtx.Lock()
-	defer u.universeMtx.Unlock()
-
 	realityModel, ok := u.model.Realities[realityName]
 	if !ok {
 		return fmt.Errorf("reality '%s' does not exist", realityName)
@@ -183,9 +165,6 @@ func (u *ExUniverse) placeOn(realityName string) error {
 
 // getSnapshot returns a snapshot of the universe
 func (u *ExUniverse) getSnapshot() instrumentation.SerializedUniverseSnapshot {
-	u.universeMtx.Lock()
-	defer u.universeMtx.Unlock()
-
 	var infoSnapshot = universeInfoSnapshot{
 		ID:                         u.id,
 		Initialized:                u.initialized,
@@ -207,9 +186,6 @@ func (u *ExUniverse) getSnapshot() instrumentation.SerializedUniverseSnapshot {
 
 // loadSnapshot loads a snapshot of the universe
 func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUniverseSnapshot) error {
-	u.universeMtx.Lock()
-	defer u.universeMtx.Unlock()
-
 	snapshot, err := devtoolkit.MapToStruct[universeInfoSnapshot](universeSnapshot)
 	if err != nil {
 		return errors.Join(fmt.Errorf("error loading snapshot for universe '%s'", u.id), err)
