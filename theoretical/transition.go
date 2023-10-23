@@ -52,6 +52,13 @@ type TransitionModel struct {
 	// * if not nil, each ActionModel must be valid.
 	Actions []*ActionModel `json:"actions,omitempty" bson:"actions,omitempty" xml:"actions,omitempty" yaml:"actions,omitempty"`
 
+	// Invokes is the list of invocations that are executed when the transition is executed (when the condition is true).
+	// * Invocations are executed asynchronously.
+	// Validations:
+	// * optional
+	// * if not nil, each InvokeModel must be valid.
+	Invokes []*InvokeModel `json:"invokes,omitempty" bson:"invokes,omitempty" xml:"invokes,omitempty" yaml:"invokes,omitempty"`
+
 	// Description is the description of the transition. Optional.
 	// Validations:
 	// * optional

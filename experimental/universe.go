@@ -456,6 +456,9 @@ func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition 
 			return errors.Join(fmt.Errorf("error executing transition actions for reality '%s'", *u.currentReality), err)
 		}
 
+		// execute transition invokes
+		u.executeInvokes(ctx, approvedTransition.Invokes, event)
+
 		// get is transition is of type notify, save external targets and return nil
 		if approvedTransition.IsNotification() {
 			u.externalTargets = approvedTransition.Targets
@@ -645,7 +648,7 @@ func (u *ExUniverse) executeInvokes(ctx context.Context, invokeModels []*theoret
 			event:        event,
 			invoke:       *invoke,
 		}
-		go u.runInvokeExecutor(ctx, args)
+		u.runInvokeExecutor(ctx, args)
 	}
 }
 
