@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/rendis/statepro/v3/experimental"
-	"github.com/rendis/statepro/v3/theoretical"
 	"log"
 )
 
@@ -23,20 +22,15 @@ func (a AdmissionQM) GetQuantumMachineDescription() string {
 	return "Admission quantum machine laws"
 }
 
-func (a AdmissionQM) ExecuteObserver(
-	ctx context.Context,
-	quantumMachineContext any,
-	accumulatorStatistics experimental.AccumulatorStatistics,
-	event experimental.Event,
-	observer theoretical.ObserverModel,
-) (bool, error) {
+func (a AdmissionQM) ExecuteObserver(ctx context.Context, args experimental.ObserverExecutorArgs) (bool, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (a AdmissionQM) ExecuteAction(
-	ctx context.Context, quantumMachineContext any, event experimental.Event, action theoretical.ActionModel,
-) error {
+func (a AdmissionQM) ExecuteAction(ctx context.Context, args experimental.ActionExecutorArgs) error {
+
+	action := args.GetAction()
+
 	switch action.Src {
 	case "logEntryToStatus":
 		return logEntryToStatus(ctx)
@@ -48,12 +42,14 @@ func (a AdmissionQM) ExecuteAction(
 	}
 }
 
-func (a AdmissionQM) ExecuteInvoke(
-	ctx context.Context, quantumMachineContext any, event experimental.Event, invoke theoretical.InvokeModel,
-) {
+func (a AdmissionQM) ExecuteInvoke(ctx context.Context, args experimental.InvokeExecutorArgs) {
+	invoke := args.GetInvoke()
+	event := args.GetEvent()
+	mctx := args.GetContext()
+
 	switch invoke.Src {
 	case "notifyStatusChanged":
-		notifyStatusChanged(ctx, quantumMachineContext, event)
+		notifyStatusChanged(ctx, mctx, event)
 	default:
 		log.Printf("ERROR: invoke not found. Invoke name: '%s'\n", invoke.Src)
 	}

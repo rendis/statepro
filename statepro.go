@@ -10,7 +10,9 @@ type QuantumMachine interface {
 
 	SendEvent(ctx context.Context, event experimental.Event) error
 
-	GetSnapshot() experimental.ExQuantumMachineSnapshot
+	LazySendEvent(ctx context.Context, event experimental.Event) error
 
-	LoadSnapshot(snapshot experimental.ExQuantumMachineSnapshot) error
+	GetSnapshot() *experimental.ExQuantumMachineSnapshot
+
+	LoadSnapshot(snapshot *experimental.ExQuantumMachineSnapshot) error
 }

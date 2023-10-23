@@ -27,6 +27,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// confirm
 	event, _ := experimental.NewEventBuilder().
 		SetEventName("confirm").
 		Build()
@@ -35,7 +36,33 @@ func main() {
 		log.Fatal(err)
 	}
 
+	//sing
+	event, _ = experimental.NewEventBuilder().
+		SetEventName("sign").
+		Build()
+
+	if err = qm.LazySendEvent(ctx, event); err != nil {
+		log.Fatal(err)
+	}
+
+	ss := qm.GetSnapshot()
+
+	qm2 := loadDefinition()
+	if err = qm2.LoadSnapshot(ss); err != nil {
+		log.Fatal(err)
+	}
+
+	//fill
+	event, _ = experimental.NewEventBuilder().
+		SetEventName("fill").
+		Build()
+
+	if err = qm2.LazySendEvent(ctx, event); err != nil {
+		log.Fatal(err)
+	}
+
 	log.Println("done")
+
 }
 
 func loadDefinition() statepro.QuantumMachine {

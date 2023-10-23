@@ -12,6 +12,13 @@ type Universe interface {
 	// - || the current reality is established and it is not final
 	IsActive() bool
 
+	// CanHandleEvent returns true if the universe can handle the given event
+	// A universe can handle an event if all the following conditions are true:
+	// - not in superposition state
+	// - current reality is established and not final
+	// - the current reality can handle the event
+	CanHandleEvent(evt Event) bool
+
 	// IsInitialized returns true if the universe has been initialized
 	IsInitialized() bool
 

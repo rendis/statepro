@@ -14,10 +14,6 @@ const (
 	TransitionTypeNotify TransitionType = "notify"
 )
 
-func IsNotifyTransition(transitionType TransitionType) bool {
-	return transitionType == TransitionTypeNotify
-}
-
 // TransitionModel is the json representation of a transition.
 type TransitionModel struct {
 	// Condition is the condition that allows the transition to be executed.
@@ -62,13 +58,6 @@ type TransitionModel struct {
 	Description *string `json:"description,omitempty" bson:"description,omitempty" xml:"description,omitempty" yaml:"description,omitempty"`
 }
 
-func (t *TransitionModel) GetTransitionType() TransitionType {
-	if t.Type == nil {
-		return TransitionTypeDefault
-	}
-	return *t.Type
-}
-
-func (t *TransitionModel) IsNotifyTransition() bool {
-	return IsNotifyTransition(t.GetTransitionType())
+func (t *TransitionModel) IsNotification() bool {
+	return t.Type != nil && *t.Type == TransitionTypeNotify
 }

@@ -3,7 +3,6 @@ package payment
 import (
 	"context"
 	"github.com/rendis/statepro/v3/experimental"
-	"github.com/rendis/statepro/v3/theoretical"
 )
 
 func NewPaymentUniverse() *PaymentUniverse {
@@ -25,22 +24,22 @@ func (a *PaymentUniverse) ExtractObservableKnowledge(quantumMachineContext any) 
 	panic("implement me")
 }
 
-func (a *PaymentUniverse) ExecuteObserver(ctx context.Context, universeContext any, accumulatorStatistics experimental.AccumulatorStatistics, event experimental.Event, observer theoretical.ObserverModel) (bool, error) {
+func (a *PaymentUniverse) ExecuteObserver(ctx context.Context, args experimental.ObserverExecutorArgs) (bool, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (a *PaymentUniverse) ExecuteAction(ctx context.Context, universeContext any, event experimental.Event, action theoretical.ActionModel) error {
+func (a *PaymentUniverse) ExecuteAction(ctx context.Context, args experimental.ActionExecutorArgs) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (a *PaymentUniverse) ExecuteInvoke(ctx context.Context, universeContext any, event experimental.Event, invoke theoretical.InvokeModel) {
+func (a *PaymentUniverse) ExecuteInvoke(ctx context.Context, args experimental.InvokeExecutorArgs) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (a *PaymentUniverse) ExecuteCondition(ctx context.Context, conditionName string, args map[string]any, universeContext any, event experimental.Event) (bool, error) {
+func (a *PaymentUniverse) ExecuteCondition(ctx context.Context, args experimental.ConditionExecutorArgs) (bool, error) {
 	//TODO implement me
 	panic("implement me")
 }

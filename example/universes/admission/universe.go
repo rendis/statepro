@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/rendis/statepro/v3/experimental"
-	"github.com/rendis/statepro/v3/theoretical"
 	"log"
 )
 
@@ -28,17 +27,22 @@ func (a *AdmissionUniverse) ExtractObservableKnowledge(quantumMachineContext any
 	panic("implement me")
 }
 
-func (a *AdmissionUniverse) ExecuteObserver(ctx context.Context, universeContext any, accumulatorStatistics experimental.AccumulatorStatistics, event experimental.Event, observer theoretical.ObserverModel) (bool, error) {
+func (a *AdmissionUniverse) ExecuteObserver(ctx context.Context, args experimental.ObserverExecutorArgs) (bool, error) {
+	observer := args.GetObserver()
+	accumulatorStatistics := args.GetAccumulatorStatistics()
+
 	switch observer.Src {
 	case "isAdmissionCompleted":
-		return isAdmissionCompleted(ctx, accumulatorStatistics)
+		return isAdmissionCompleted(ctx, args.GetRealityName(), accumulatorStatistics)
 	default:
 		log.Printf("ERROR: observer not found. Observer name: '%s'\n", observer.Src)
 		return false, fmt.Errorf("observer not found. Observer name: '%s'", observer.Src)
 	}
 }
 
-func (a *AdmissionUniverse) ExecuteAction(ctx context.Context, universeContext any, event experimental.Event, action theoretical.ActionModel) error {
+func (a *AdmissionUniverse) ExecuteAction(ctx context.Context, args experimental.ActionExecutorArgs) error {
+	action := args.GetAction()
+
 	switch action.Src {
 	case "logMultiUniverseTransition":
 		return logMultiUniverseTransition(ctx)
@@ -48,12 +52,12 @@ func (a *AdmissionUniverse) ExecuteAction(ctx context.Context, universeContext a
 	}
 }
 
-func (a *AdmissionUniverse) ExecuteInvoke(ctx context.Context, universeContext any, event experimental.Event, invoke theoretical.InvokeModel) {
+func (a *AdmissionUniverse) ExecuteInvoke(ctx context.Context, args experimental.InvokeExecutorArgs) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (a *AdmissionUniverse) ExecuteCondition(ctx context.Context, conditionName string, args map[string]any, universeContext any, event experimental.Event) (bool, error) {
+func (a *AdmissionUniverse) ExecuteCondition(ctx context.Context, args experimental.ConditionExecutorArgs) (bool, error) {
 	//TODO implement me
 	panic("implement me")
 }

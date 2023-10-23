@@ -113,14 +113,14 @@ type AccumulatorStatistics interface {
 // newEventAccumulator returns a new event accumulator
 func newEventAccumulator() Accumulator {
 	return &eventAccumulator{
-		RealitiesEvents: map[string][]Event{},
+		RealitiesEvents: map[string][]*event{},
 	}
 }
 
 type eventAccumulator struct {
 	// RealitiesEvents is the map of realities and their accumulated events
 	// The map key is the reality Name and the value is the accumulated events
-	RealitiesEvents map[string][]Event `json:"realities_events,omitempty" bson:"realitiesEvents,omitempty" xml:"realitiesEvents,omitempty" yaml:"realitiesEvents,omitempty"`
+	RealitiesEvents map[string][]*event `json:"realitiesEvents,omitempty"`
 }
 
 func (ea *eventAccumulator) String() string {
@@ -133,12 +133,16 @@ func (ea *eventAccumulator) String() string {
 
 // Accumulator implementation
 
-func (ea *eventAccumulator) Accumulate(realityName string, event Event) {
-	if _, ok := ea.RealitiesEvents[realityName]; !ok {
-		ea.RealitiesEvents[realityName] = []Event{}
+func (ea *eventAccumulator) Accumulate(realityName string, evt Event) {
+	if ea.RealitiesEvents == nil {
+		ea.RealitiesEvents = map[string][]*event{}
 	}
 
-	ea.RealitiesEvents[realityName] = append(ea.RealitiesEvents[realityName], event)
+	if _, ok := ea.RealitiesEvents[realityName]; !ok {
+		ea.RealitiesEvents[realityName] = []*event{}
+	}
+
+	ea.RealitiesEvents[realityName] = append(ea.RealitiesEvents[realityName], evt.(*event))
 }
 
 func (ea *eventAccumulator) GetStatistics() AccumulatorStatistics {
@@ -156,11 +160,22 @@ func (ea *eventAccumulator) GetActiveRealities() []string {
 // AccumulatorStatistics implementation
 
 func (ea *eventAccumulator) GetRealitiesEvents() map[string][]Event {
-	return ea.RealitiesEvents
+	var resp = map[string][]Event{}
+	for k, evts := range ea.RealitiesEvents {
+		resp[k] = []Event{}
+		for _, evt := range evts {
+			resp[k] = append(resp[k], evt)
+		}
+	}
+	return resp
 }
 
 func (ea *eventAccumulator) GetRealityEvents(realityName string) []Event {
-	return ea.RealitiesEvents[realityName]
+	var events []Event
+	for _, evt := range ea.RealitiesEvents[realityName] {
+		events = append(events, evt)
+	}
+	return events
 }
 
 func (ea *eventAccumulator) GetAllEventsNames() []string {

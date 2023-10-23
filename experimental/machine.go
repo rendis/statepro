@@ -19,8 +19,6 @@ var qmInitFunctions = map[refType]initFunc{
 	},
 }
 
-type ExQuantumMachineSnapshot map[string]ExUniverseSnapshot
-
 func NewExQuantumMachine(qmm *theoretical.QuantumMachineModel, qml QuantumMachineLaws, universes []*ExUniverse) (*ExQuantumMachine, error) {
 	qm := &ExQuantumMachine{
 		model:     qmm,
@@ -120,21 +118,49 @@ func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event Event) error {
 	return qm.executeTargetPairs(ctx, pairs)
 }
 
-func (qm *ExQuantumMachine) GetSnapshot() ExQuantumMachineSnapshot {
-	var snapshot = make(ExQuantumMachineSnapshot)
-	for _, u := range qm.universes {
-		snapshot[u.id] = u.GetSnapshot()
-	}
-	return snapshot
-}
+func (qm *ExQuantumMachine) LazySendEvent(ctx context.Context, event Event) error {
+	var pairs []devtoolkit.Pair[Event, []string]
 
-func (qm *ExQuantumMachine) LoadSnapshot(snapshot ExQuantumMachineSnapshot) error {
-	for _, u := range qm.universes {
-		if _, ok := snapshot[u.id]; !ok {
+	for _, u := range qm.getLazyActiveUniverses(event) {
+		externalTargets, _, err := u.HandleEvent(ctx, nil, event)
+		if err != nil {
+			return err
+		}
+
+		if len(externalTargets) == 0 {
 			continue
 		}
 
-		err := u.LoadSnapshot(snapshot[u.id])
+		pair := devtoolkit.NewPair[Event, []string](event, externalTargets)
+		pairs = append(pairs, pair)
+	}
+
+	return qm.executeTargetPairs(ctx, pairs)
+}
+
+func (qm *ExQuantumMachine) GetSnapshot() *ExQuantumMachineSnapshot {
+	var snapshot = &ExQuantumMachineSnapshot{}
+
+	for _, u := range qm.universes {
+		snapshot.processUniverse(u)
+	}
+
+	return snapshot
+}
+
+func (qm *ExQuantumMachine) LoadSnapshot(snapshot *ExQuantumMachineSnapshot) error {
+	if snapshot == nil {
+		return nil
+	}
+
+	for _, u := range qm.universes {
+		universeSnapshot, ok := snapshot.Snapshots[u.id]
+
+		if !ok {
+			continue
+		}
+
+		err := u.LoadSnapshot(universeSnapshot)
 		if err != nil {
 			return err
 		}
@@ -152,6 +178,16 @@ func (qm *ExQuantumMachine) getActiveUniverses() []*ExUniverse {
 	var activeUniverses []*ExUniverse
 	for _, u := range qm.universes {
 		if u.IsActive() {
+			activeUniverses = append(activeUniverses, u)
+		}
+	}
+	return activeUniverses
+}
+
+func (qm *ExQuantumMachine) getLazyActiveUniverses(event Event) []*ExUniverse {
+	var activeUniverses []*ExUniverse
+	for _, u := range qm.universes {
+		if u.CanHandleEvent(event) {
 			activeUniverses = append(activeUniverses, u)
 		}
 	}
