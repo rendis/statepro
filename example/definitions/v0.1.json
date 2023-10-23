@@ -5,6 +5,7 @@
   ],
   "description": "Define all flows of an admission",
   "version": "0.1.0",
+
   "universes": {
     "admission_default_universe": {
       "id": "admission_default_universe",
@@ -77,6 +78,7 @@
         }
       }
     },
+
     "admission_default_payment_universe": {
       "id": "admission_default_payment_universe",
       "initial": "WAITING_PAYMENT",
@@ -114,6 +116,7 @@
         }
       }
     },
+
     "admission_default_form_universe": {
       "id": "admission_default_form_universe",
       "initial": "FILLING_ENROLLMENT_FORM",
@@ -151,6 +154,7 @@
         }
       }
     },
+
     "admission_default_sign_universe": {
       "id": "admission_default_sign_universe",
       "initial": "WAITING_SIGNATURE",
@@ -189,6 +193,7 @@
       }
     }
   },
+
   "universalConstants": {
     "entryInvokes": [
       {

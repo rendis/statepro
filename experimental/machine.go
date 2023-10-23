@@ -19,11 +19,19 @@ var qmInitFunctions = map[refType]initFunc{
 	},
 }
 
-func NewExQuantumMachine(qmm *theoretical.QuantumMachineModel, qml QuantumMachineLaws, universes []*ExUniverse) (*ExQuantumMachine, error) {
+func NewExQuantumMachine(
+	qmm *theoretical.QuantumMachineModel,
+	laws QuantumMachineLaws,
+	universes []*ExUniverse,
+) (*ExQuantumMachine, error) {
+
 	qm := &ExQuantumMachine{
-		model:     qmm,
-		laws:      qml,
-		universes: map[string]*ExUniverse{},
+		model:             qmm,
+		observerExecutor:  getUniverseObserverExecutor(laws),
+		actionExecutor:    getUniverseActionExecutor(laws),
+		invokeExecutor:    getUniverseInvokeExecutor(laws),
+		conditionExecutor: getUniverseConditionExecutor(laws),
+		universes:         map[string]*ExUniverse{},
 	}
 
 	for _, u := range universes {
@@ -36,7 +44,7 @@ func NewExQuantumMachine(qmm *theoretical.QuantumMachineModel, qml QuantumMachin
 			return nil, fmt.Errorf("universe '%s' already exists", u.id)
 		}
 
-		u.machineLawsExecutor = qm
+		u.constantsLawsExecutor = qm
 		qm.universes[u.id] = u
 	}
 
@@ -50,8 +58,11 @@ type ExQuantumMachine struct {
 	// machineContext is the quantum machine context
 	machineContext any
 
-	// laws of the quantum machine
-	laws QuantumMachineLaws
+	// laws executors
+	observerExecutor  ObserverExecutor
+	actionExecutor    ActionExecutor
+	invokeExecutor    InvokeExecutor
+	conditionExecutor ConditionExecutor
 
 	// universes is the map of the quantum machine universes
 	// key: theoretical.UniverseModel.ID
@@ -170,14 +181,14 @@ func (qm *ExQuantumMachine) LoadSnapshot(snapshot *ExQuantumMachineSnapshot) err
 	return nil
 }
 
-func (qm *ExQuantumMachine) ModelToMap() (map[string]any, error) {
-	return qm.model.ToMap()
-}
-
-//--------- QuantumMachineLawsExecutor interface implementation ---------
+//--------- constantsLawsExecutor interface implementation ---------
 
 func (qm *ExQuantumMachine) ExecuteEntryInvokes(ctx context.Context, args *quantumMachineExecutorArgs) {
 	if qm.model.UniversalConstants == nil || len(qm.model.UniversalConstants.EntryInvokes) == 0 {
+		return
+	}
+
+	if qm.invokeExecutor == nil {
 		return
 	}
 
@@ -189,12 +200,16 @@ func (qm *ExQuantumMachine) ExecuteEntryInvokes(ctx context.Context, args *quant
 			event:        args.event,
 			invoke:       *invoke,
 		}
-		go qm.laws.ExecuteInvoke(ctx, a)
+		go qm.invokeExecutor.ExecuteInvoke(ctx, a)
 	}
 }
 
 func (qm *ExQuantumMachine) ExecuteExitInvokes(ctx context.Context, args *quantumMachineExecutorArgs) {
 	if qm.model.UniversalConstants == nil || len(qm.model.UniversalConstants.ExitInvokes) == 0 {
+		return
+	}
+
+	if qm.invokeExecutor == nil {
 		return
 	}
 
@@ -206,12 +221,16 @@ func (qm *ExQuantumMachine) ExecuteExitInvokes(ctx context.Context, args *quantu
 			event:        args.event,
 			invoke:       *invoke,
 		}
-		go qm.laws.ExecuteInvoke(ctx, a)
+		go qm.invokeExecutor.ExecuteInvoke(ctx, a)
 	}
 }
 
 func (qm *ExQuantumMachine) ExecuteEntryAction(ctx context.Context, args *quantumMachineExecutorArgs) error {
 	if qm.model.UniversalConstants == nil || len(qm.model.UniversalConstants.EntryActions) == 0 {
+		return nil
+	}
+
+	if qm.actionExecutor == nil {
 		return nil
 	}
 
@@ -223,7 +242,7 @@ func (qm *ExQuantumMachine) ExecuteEntryAction(ctx context.Context, args *quantu
 			event:        args.event,
 			action:       *action,
 		}
-		if err := qm.laws.ExecuteAction(ctx, a); err != nil {
+		if err := qm.actionExecutor.ExecuteAction(ctx, a); err != nil {
 			return err
 		}
 	}
@@ -235,6 +254,10 @@ func (qm *ExQuantumMachine) ExecuteExitAction(ctx context.Context, args *quantum
 		return nil
 	}
 
+	if qm.actionExecutor == nil {
+		return nil
+	}
+
 	for _, action := range qm.model.UniversalConstants.ExitActions {
 		a := &actionExecutorArgs{
 			context:      args.context,
@@ -243,7 +266,7 @@ func (qm *ExQuantumMachine) ExecuteExitAction(ctx context.Context, args *quantum
 			event:        args.event,
 			action:       *action,
 		}
-		if err := qm.laws.ExecuteAction(ctx, a); err != nil {
+		if err := qm.actionExecutor.ExecuteAction(ctx, a); err != nil {
 			return err
 		}
 	}

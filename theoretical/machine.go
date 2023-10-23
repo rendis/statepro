@@ -1,7 +1,5 @@
 package theoretical
 
-import "encoding/json"
-
 // QuantumMachineModel represents a quantum machine that serves as a container for multiple universes (UniverseModel).
 // It defines its own initial states and universal constants, and may have an optional version and description.
 type QuantumMachineModel struct {
@@ -51,25 +49,4 @@ type QuantumMachineModel struct {
 	// * no white space
 	// * only letters, numbers, dot (.), underscore (_) and dash (-). Example: 1.0.0, v1.0.2, 1.0, v1 or 1.0.0-alpha.1
 	Version string `json:"version,omitempty" bson:"version,omitempty" xml:"version,omitempty" yaml:"version,omitempty"`
-}
-
-// GetBinary returns the byte array representation of the machine model.
-func (q *QuantumMachineModel) GetBinary() ([]byte, error) {
-	return json.Marshal(q)
-}
-
-// ToMap returns the map representation of the machine model.
-func (q *QuantumMachineModel) ToMap() (map[string]any, error) {
-
-	jsonData, err := json.Marshal(q)
-	if err != nil {
-		return nil, err
-	}
-
-	var m = map[string]any{}
-	if err := json.Unmarshal(jsonData, &m); err != nil {
-		return nil, err
-	}
-
-	return m, nil
 }

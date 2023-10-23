@@ -20,10 +20,6 @@ func (a AdmissionQM) GetQuantumMachineDescription() string {
 	return "Admission quantum machine laws"
 }
 
-func (a AdmissionQM) ExecuteObserver(ctx context.Context, args experimental.ObserverExecutorArgs) (bool, error) {
-	return false, nil
-}
-
 func (a AdmissionQM) ExecuteAction(ctx context.Context, args experimental.ActionExecutorArgs) error {
 
 	action := args.GetAction()

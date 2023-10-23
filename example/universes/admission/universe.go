@@ -22,11 +22,6 @@ func (a *AdmissionUniverse) GetUniverseDescription() string {
 	panic("implement me")
 }
 
-func (a *AdmissionUniverse) ExtractObservableKnowledge(quantumMachineContext any) (universeContext any, err error) {
-	//TODO implement me
-	panic("implement me")
-}
-
 func (a *AdmissionUniverse) ExecuteObserver(ctx context.Context, args experimental.ObserverExecutorArgs) (bool, error) {
 	observer := args.GetObserver()
 	accumulatorStatistics := args.GetAccumulatorStatistics()
@@ -49,11 +44,4 @@ func (a *AdmissionUniverse) ExecuteAction(ctx context.Context, args experimental
 	default:
 		return nil
 	}
-}
-
-func (a *AdmissionUniverse) ExecuteInvoke(ctx context.Context, args experimental.InvokeExecutorArgs) {
-}
-
-func (a *AdmissionUniverse) ExecuteCondition(ctx context.Context, args experimental.ConditionExecutorArgs) (bool, error) {
-	return false, nil
 }

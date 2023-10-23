@@ -10,7 +10,6 @@ import (
 	"github.com/rendis/statepro/v3/example/universes/payment"
 	"github.com/rendis/statepro/v3/example/universes/sign"
 	"github.com/rendis/statepro/v3/experimental"
-	"github.com/rendis/statepro/v3/theoretical"
 	"log"
 
 	"os"
@@ -27,25 +26,25 @@ func main() {
 		log.Fatal(err)
 	}
 
+	ss := qm.GetSnapshot()
+
 	// confirm
-	event, _ := experimental.NewEventBuilder().
-		SetEventName("confirm").
-		Build()
+	event := experimental.NewEventBuilder("confirm").Build()
 
 	if err = qm.SendEvent(ctx, event); err != nil {
 		log.Fatal(err)
 	}
 
+	ss = qm.GetSnapshot()
+
 	//sing
-	event, _ = experimental.NewEventBuilder().
-		SetEventName("sign").
-		Build()
+	event = experimental.NewEventBuilder("sign").Build()
 
 	if err = qm.LazySendEvent(ctx, event); err != nil {
 		log.Fatal(err)
 	}
 
-	ss := qm.GetSnapshot()
+	ss = qm.GetSnapshot()
 
 	qm2 := loadDefinition()
 	if err = qm2.LoadSnapshot(ss); err != nil {
@@ -53,9 +52,7 @@ func main() {
 	}
 
 	//fill
-	event, _ = experimental.NewEventBuilder().
-		SetEventName("fill").
-		Build()
+	event = experimental.NewEventBuilder("fill").Build()
 
 	if err = qm2.LazySendEvent(ctx, event); err != nil {
 		log.Fatal(err)
@@ -73,7 +70,7 @@ func loadDefinition() statepro.QuantumMachine {
 		panic(err)
 	}
 
-	tmDef, err := theoretical.BuildQuantumMachineModelFromJSONDefinition(arrByte)
+	tmDef, err := statepro.DeserializeQuantumMachineFromBinary(arrByte)
 	if err != nil {
 		panic(err)
 	}

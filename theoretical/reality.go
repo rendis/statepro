@@ -110,7 +110,7 @@ type RealityModel struct {
 	// * Actions are executed in the order they are defined.
 	// * If an action fails:
 	//	- current reality is not changed
-	//	- the error is returned
+	//	- an error will be returned
 	// Validations:
 	// * optional
 	// * if not nil, each ActionModel must be valid.
