@@ -40,7 +40,7 @@ func main() {
 	//sing
 	event = statepro.NewEventBuilder("sign").Build()
 
-	if err = qm.LazySendEvent(ctx, event); err != nil {
+	if err = qm.SendEvent(ctx, event); err != nil {
 		log.Fatal(err)
 	}
 
@@ -54,7 +54,7 @@ func main() {
 	//fill
 	event = statepro.NewEventBuilder("fill").Build()
 
-	if err = qm2.LazySendEvent(ctx, event); err != nil {
+	if err = qm2.SendEvent(ctx, event); err != nil {
 		log.Fatal(err)
 	}
 

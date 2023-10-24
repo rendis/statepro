@@ -212,21 +212,36 @@ func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUni
 //--------------------------------------------------------//
 
 // canHandleEvent returns true if the universe can handle the given Event
-// A universe can handle an Event if all the following conditions are true:
-// - not in superposition state
-// - current reality is established and not final
-// - the current reality can handle the Event
+// A universe can handle an Event if:
+// - the universe is initialized &&
+// - || current reality not final and can handle the event
+// - || in superposition and at least one reality can handle the event
 func (u *ExUniverse) canHandleEvent(evt instrumentation.Event) bool {
-	if u.inSuperposition || u.currentReality == nil || u.isFinalReality {
+	// if not initialized -> false
+	if !u.initialized {
 		return false
 	}
 
-	realityModel := u.model.GetReality(*u.currentReality)
-	if _, ok := realityModel.On[evt.GetEventName()]; !ok {
-		return false
+	if u.currentReality != nil {
+		// if current reality is final -> false
+		if u.isFinalReality {
+			return false
+		}
+
+		return u.canRealityHandleEvent(*u.currentReality, evt)
 	}
 
-	return true
+	// if in superposition, check if at least one reality can handle the event
+	if u.inSuperposition {
+		for _, realityModel := range u.model.Realities {
+			_, ok := realityModel.On[evt.GetEventName()]
+			if ok {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // isActive returns true if the universe is active
@@ -720,6 +735,16 @@ func (u *ExUniverse) executeObservers(ctx context.Context, realityModel *theoret
 	}
 
 	return false, nil
+}
+
+func (u *ExUniverse) canRealityHandleEvent(realityName string, evt instrumentation.Event) bool {
+	realityModel := u.model.GetReality(realityName)
+	if realityModel == nil {
+		return false
+	}
+
+	_, ok := realityModel.On[evt.GetEventName()]
+	return ok
 }
 
 //------------- executors -------------

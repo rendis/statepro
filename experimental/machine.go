@@ -117,29 +117,6 @@ func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation
 
 	var pairs []devtoolkit.Pair[instrumentation.Event, []string]
 
-	for _, u := range qm.getActiveUniverses() {
-		externalTargets, _, err := u.handleEvent(ctx, nil, event, qm.machineContext)
-		if err != nil {
-			return err
-		}
-
-		if len(externalTargets) == 0 {
-			continue
-		}
-
-		pair := devtoolkit.NewPair[instrumentation.Event, []string](event, externalTargets)
-		pairs = append(pairs, pair)
-	}
-
-	return qm.executeTargetPairs(ctx, pairs)
-}
-
-func (qm *ExQuantumMachine) LazySendEvent(ctx context.Context, event instrumentation.Event) error {
-	qm.quantumMachineMtx.Lock()
-	defer qm.quantumMachineMtx.Unlock()
-
-	var pairs []devtoolkit.Pair[instrumentation.Event, []string]
-
 	for _, u := range qm.getLazyActiveUniverses(event) {
 		externalTargets, _, err := u.handleEvent(ctx, nil, event, qm.machineContext)
 		if err != nil {
@@ -362,16 +339,6 @@ func (qm *ExQuantumMachine) ExecuteTransitionAction(ctx context.Context, args *i
 }
 
 //-----------------------------------------------------------
-
-func (qm *ExQuantumMachine) getActiveUniverses() []*ExUniverse {
-	var activeUniverses []*ExUniverse
-	for _, u := range qm.universes {
-		if u.isActive() {
-			activeUniverses = append(activeUniverses, u)
-		}
-	}
-	return activeUniverses
-}
 
 func (qm *ExQuantumMachine) getLazyActiveUniverses(event instrumentation.Event) []*ExUniverse {
 	var activeUniverses []*ExUniverse
