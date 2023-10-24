@@ -157,7 +157,7 @@ func (qm *ExQuantumMachine) LazySendEvent(ctx context.Context, event instrumenta
 	return qm.executeTargetPairs(ctx, pairs)
 }
 
-func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapshot) error {
+func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapshot, machineContext any) error {
 	qm.quantumMachineMtx.Lock()
 	defer qm.quantumMachineMtx.Unlock()
 
@@ -177,6 +177,8 @@ func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapsh
 			return err
 		}
 	}
+
+	qm.machineContext = machineContext
 	return nil
 }
 

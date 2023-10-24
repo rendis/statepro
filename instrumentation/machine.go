@@ -11,7 +11,7 @@ type QuantumMachine interface {
 
 	LazySendEvent(ctx context.Context, event Event) error
 
-	LoadSnapshot(snapshot *MachineSnapshot) error
+	LoadSnapshot(snapshot *MachineSnapshot, machineContext any) error
 
 	SnapshotExtractor
 }
