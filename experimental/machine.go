@@ -111,16 +111,21 @@ func (qm *ExQuantumMachine) Init(ctx context.Context, machineContext any) error 
 	return qm.executeTargetPairs(ctx, pairs)
 }
 
-func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation.Event) error {
+func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation.Event) (bool, error) {
 	qm.quantumMachineMtx.Lock()
 	defer qm.quantumMachineMtx.Unlock()
 
 	var pairs []devtoolkit.Pair[instrumentation.Event, []string]
 
-	for _, u := range qm.getLazyActiveUniverses(event) {
+	universes := qm.getLazyActiveUniverses(event)
+	if len(universes) == 0 {
+		return false, nil
+	}
+
+	for _, u := range universes {
 		externalTargets, _, err := u.handleEvent(ctx, nil, event, qm.machineContext)
 		if err != nil {
-			return err
+			return true, err
 		}
 
 		if len(externalTargets) == 0 {
@@ -131,7 +136,7 @@ func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation
 		pairs = append(pairs, pair)
 	}
 
-	return qm.executeTargetPairs(ctx, pairs)
+	return true, qm.executeTargetPairs(ctx, pairs)
 }
 
 func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapshot, machineContext any) error {

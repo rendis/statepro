@@ -10,7 +10,8 @@ type QuantumMachine interface {
 	Init(ctx context.Context, machineContext any) error
 
 	// SendEvent sends an event to all universes that can handle it.
-	SendEvent(ctx context.Context, event Event) error
+	// Returns true if the event was handled by at least one universe.
+	SendEvent(ctx context.Context, event Event) (bool, error)
 
 	// LoadSnapshot loads a snapshot into the quantum machine.
 	LoadSnapshot(snapshot *MachineSnapshot, machineContext any) error
