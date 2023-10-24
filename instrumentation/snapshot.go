@@ -32,25 +32,25 @@ type UniversesResume struct {
 	SuperpositionUniverses map[string]string `json:"superpositionUniverses,omitempty" bson:"superpositionUniverses,omitempty" xml:"superpositionUniverses,omitempty"`
 }
 
-func (ms *MachineSnapshot) AddActiveUniverse(universeId string, reality string) {
+func (ms *MachineSnapshot) AddActiveUniverse(universeCanonicalName string, reality string) {
 	if ms.Resume.ActiveUniverses == nil {
 		ms.Resume.ActiveUniverses = make(map[string]string)
 	}
-	ms.Resume.ActiveUniverses[universeId] = reality
+	ms.Resume.ActiveUniverses[universeCanonicalName] = reality
 }
 
-func (ms *MachineSnapshot) AddFinalizedUniverse(universeId string, reality string) {
+func (ms *MachineSnapshot) AddFinalizedUniverse(universeCanonicalName string, reality string) {
 	if ms.Resume.FinalizedUniverses == nil {
 		ms.Resume.FinalizedUniverses = make(map[string]string)
 	}
-	ms.Resume.FinalizedUniverses[universeId] = reality
+	ms.Resume.FinalizedUniverses[universeCanonicalName] = reality
 }
 
-func (ms *MachineSnapshot) AddSuperpositionUniverse(universeId string, reality string) {
+func (ms *MachineSnapshot) AddSuperpositionUniverse(universeCanonicalName string, reality string) {
 	if ms.Resume.SuperpositionUniverses == nil {
 		ms.Resume.SuperpositionUniverses = make(map[string]string)
 	}
-	ms.Resume.SuperpositionUniverses[universeId] = reality
+	ms.Resume.SuperpositionUniverses[universeCanonicalName] = reality
 }
 
 func (ms *MachineSnapshot) AddUniverseSnapshot(universeId string, snapshot SerializedUniverseSnapshot) {

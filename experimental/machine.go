@@ -191,24 +191,24 @@ func (qm *ExQuantumMachine) GetSnapshot() *instrumentation.MachineSnapshot {
 		// add snapshot
 		machineSnapshot.AddUniverseSnapshot(u.model.ID, universeSnapshot)
 
-		// if universe is not active, continue
-		if !u.isActive() {
+		// resume only if initialized
+		if !u.initialized {
 			continue
 		}
 
-		// add active universe resume
+		// active universe resume
 		if !u.inSuperposition && !u.isFinalReality {
-			machineSnapshot.AddActiveUniverse(u.model.ID, *u.currentReality)
+			machineSnapshot.AddActiveUniverse(u.model.CanonicalName, *u.currentReality)
 		}
 
-		// add finalized universe resume
+		// finalized universe resume
 		if !u.inSuperposition && u.isFinalReality {
-			machineSnapshot.AddFinalizedUniverse(u.model.ID, *u.currentReality)
+			machineSnapshot.AddFinalizedUniverse(u.model.CanonicalName, *u.currentReality)
 		}
 
-		// add superposition universe
+		// superposition universe resume
 		if u.inSuperposition {
-			machineSnapshot.AddSuperpositionUniverse(u.model.ID, *u.realityBeforeSuperposition)
+			machineSnapshot.AddSuperpositionUniverse(u.model.CanonicalName, *u.realityBeforeSuperposition)
 		}
 	}
 
