@@ -117,12 +117,12 @@ func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation
 
 	var pairs []devtoolkit.Pair[instrumentation.Event, []string]
 
-	universes := qm.getLazyActiveUniverses(event)
-	if len(universes) == 0 {
+	activeUniverses := qm.getLazyActiveUniverses(event)
+	if len(activeUniverses) == 0 {
 		return false, nil
 	}
 
-	for _, u := range universes {
+	for _, u := range activeUniverses {
 		externalTargets, _, err := u.handleEvent(ctx, nil, event, qm.machineContext)
 		if err != nil {
 			return true, err

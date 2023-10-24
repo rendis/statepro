@@ -214,33 +214,25 @@ func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUni
 // canHandleEvent returns true if the universe can handle the given Event
 // A universe can handle an Event if:
 // - the universe is initialized &&
+// - || in superposition
 // - || current reality not final and can handle the event
-// - || in superposition and at least one reality can handle the event
 func (u *ExUniverse) canHandleEvent(evt instrumentation.Event) bool {
 	// if not initialized -> false
 	if !u.initialized {
 		return false
 	}
 
-	if u.currentReality != nil {
-		// if current reality is final -> false
-		if u.isFinalReality {
-			return false
-		}
-
-		return u.canRealityHandleEvent(*u.currentReality, evt)
-	}
-
-	// if in superposition, check if at least one reality can handle the event
+	// if in superposition -> true
 	if u.inSuperposition {
-		for _, realityModel := range u.model.Realities {
-			_, ok := realityModel.On[evt.GetEventName()]
-			if ok {
-				return true
-			}
-		}
+		return true
 	}
 
+	// if current reality not final and can handle the event -> true
+	if u.currentReality != nil && !u.isFinalReality && u.canRealityHandleEvent(*u.currentReality, evt) {
+		return true
+	}
+
+	// otherwise -> false
 	return false
 }
 
