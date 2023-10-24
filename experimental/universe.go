@@ -212,19 +212,19 @@ func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUni
 //--------------------------------------------------------//
 
 // canHandleEvent returns true if the universe can handle the given Event
-// A universe can handle an Event if:
-// - the universe is initialized &&
-// - || in superposition
-// - || current reality not final and can handle the event
+// A universe can handle an Event if all the following conditions are met:
+// - the universe is initialized
+// - not in superposition
+// - the current reality is not a final reality
 func (u *ExUniverse) canHandleEvent(evt instrumentation.Event) bool {
 	// if not initialized -> false
 	if !u.initialized {
 		return false
 	}
 
-	// if in superposition -> true
+	// if in superposition -> false
 	if u.inSuperposition {
-		return true
+		return false
 	}
 
 	// if current reality not final and can handle the event -> true
@@ -271,7 +271,7 @@ func (u *ExUniverse) receiveEventToReality(ctx context.Context, reality string, 
 
 		if isNewReality {
 			// establish new reality
-			if err = u.establishNewReality(ctx, reality, event); err != nil {
+			if err = u.establishNewReality(ctx, reality, event, false); err != nil {
 				return errors.Join(fmt.Errorf("error establishing new reality '%s'", reality), err)
 			}
 		}
@@ -300,8 +300,11 @@ func (u *ExUniverse) receiveEventToReality(ctx context.Context, reality string, 
 //   - universe is not initialized, the Event initializes the universe and will be received by the initial reality
 //   - not in superposition and the current reality not a final reality
 func (u *ExUniverse) receiveEvent(ctx context.Context, event instrumentation.Event) error {
+	var runOnEvent = true
+
 	// handling superposition
 	if u.inSuperposition {
+		runOnEvent = false
 		isNewReality, realityName, err := u.accumulateEventForAllRealities(ctx, event)
 		if err != nil {
 			return errors.Join(fmt.Errorf("error accumulating Event for all realities"), err)
@@ -312,7 +315,7 @@ func (u *ExUniverse) receiveEvent(ctx context.Context, event instrumentation.Eve
 		}
 
 		// establish new reality
-		if err = u.establishNewReality(ctx, realityName, event); err != nil {
+		if err = u.establishNewReality(ctx, realityName, event, runOnEvent); err != nil {
 			return errors.Join(fmt.Errorf("error establishing new reality '%s'", realityName), err)
 		}
 	}
@@ -322,6 +325,10 @@ func (u *ExUniverse) receiveEvent(ctx context.Context, event instrumentation.Eve
 		if err := u.initializeUniverseOn(ctx, u.model.Initial, event); err != nil {
 			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.model.ID), err)
 		}
+		return nil
+	}
+
+	if !runOnEvent {
 		return nil
 	}
 
@@ -366,7 +373,7 @@ func (u *ExUniverse) initializeUniverseOn(ctx context.Context, realityName strin
 	u.initialized = true
 
 	// establish initial reality
-	if err := u.establishNewReality(ctx, realityName, event); err != nil {
+	if err := u.establishNewReality(ctx, realityName, event, true); err != nil {
 		u.initialized = false
 		return errors.Join(fmt.Errorf("error establishing initial reality '%s'", realityName), err)
 	}
@@ -374,7 +381,7 @@ func (u *ExUniverse) initializeUniverseOn(ctx context.Context, realityName strin
 	return nil
 }
 
-func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, event instrumentation.Event) error {
+func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, event instrumentation.Event, runOnEvent bool) error {
 	// set current reality
 	u.currentReality = &reality
 
@@ -401,6 +408,10 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 
 	// mark current reality as initialized
 	u.realityInitialized = true
+
+	if !runOnEvent {
+		return nil
+	}
 
 	// execute on entry process
 	if err := u.executeOnEntryProcess(ctx, event); err != nil {

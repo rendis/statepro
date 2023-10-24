@@ -23,9 +23,14 @@ type AccumulatorStatistics interface {
 	// The map key is the reality name and the value is the accumulated events
 	GetRealitiesEvents() map[string][]Event
 
-	// GetRealityEvents returns the accumulated events for the given reality
+	// GetRealityEvents returns the accumulated events for the given reality without repetitions
+	// Key: the event name, Value: the accumulated event (first occurrence)
+	GetRealityEvents(realityName string) map[string]Event
+
+	// GetAllRealityEvents returns the accumulated events for the given reality
 	// Events can be repeated if they were received more than once
-	GetRealityEvents(realityName string) []Event
+	// Key: the event name, Value: the accumulated events
+	GetAllRealityEvents(realityName string) map[string][]Event
 
 	// GetAllEventsNames returns the accumulated events names for all realities (without repetitions)
 	GetAllEventsNames() []string

@@ -37,6 +37,12 @@ func main() {
 
 	ss = qm.GetSnapshot()
 
+	if _, err = qm.SendEvent(ctx, event); err != nil {
+		log.Fatal(err)
+	}
+
+	ss = qm.GetSnapshot()
+
 	//sing
 	event = statepro.NewEventBuilder("sign").Build()
 

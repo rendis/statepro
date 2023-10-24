@@ -11,5 +11,12 @@ func isAdmissionCompleted(ctx context.Context, realityName string, accumulator i
 
 	events := accumulator.GetRealityEvents(realityName)
 
-	return len(events) > 1, nil
+	var approvedEvents = []string{"sign", "fill"}
+	for _, approvedEvent := range approvedEvents {
+		if _, ok := events[approvedEvent]; !ok {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }

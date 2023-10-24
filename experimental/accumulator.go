@@ -65,12 +65,41 @@ func (ea *eventAccumulator) GetRealitiesEvents() map[string][]instrumentation.Ev
 	return resp
 }
 
-func (ea *eventAccumulator) GetRealityEvents(realityName string) []instrumentation.Event {
-	var events []instrumentation.Event
-	for _, event := range ea.RealitiesEvents[realityName] {
-		events = append(events, event)
+func (ea *eventAccumulator) GetAllRealityEvents(realityName string) map[string][]instrumentation.Event {
+	var resp = map[string][]instrumentation.Event{}
+
+	// get all events for the given reality
+	realityEvents, ok := ea.RealitiesEvents[realityName]
+	if !ok {
+		return resp
 	}
-	return events
+
+	// map events by event name
+	for _, e := range realityEvents {
+		if _, ok = resp[e.GetEventName()]; !ok {
+			resp[e.GetEventName()] = []instrumentation.Event{}
+		}
+		resp[e.GetEventName()] = append(resp[e.GetEventName()], e)
+	}
+	return resp
+}
+
+func (ea *eventAccumulator) GetRealityEvents(realityName string) map[string]instrumentation.Event {
+	var resp = map[string]instrumentation.Event{}
+
+	// get all events for the given reality
+	realityEvents, ok := ea.RealitiesEvents[realityName]
+	if !ok {
+		return resp
+	}
+
+	// map events by event name
+	for _, e := range realityEvents {
+		if _, ok = resp[e.GetEventName()]; !ok {
+			resp[e.GetEventName()] = e
+		}
+	}
+	return resp
 }
 
 func (ea *eventAccumulator) GetAllEventsNames() []string {

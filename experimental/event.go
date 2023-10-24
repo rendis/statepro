@@ -9,40 +9,40 @@ import (
 
 func NewEvent(name string, data map[string]any, evtType instrumentation.EventType) instrumentation.Event {
 	return &event{
-		name:    name,
-		data:    data,
-		evtType: evtType,
+		Name:    name,
+		Data:    data,
+		EvtType: evtType,
 	}
 }
 
 type event struct {
-	name    string
-	data    map[string]any
-	evtType instrumentation.EventType
+	Name    string                    `json:"name" bson:"name" xml:"name"`
+	Data    map[string]any            `json:"data,omitempty" bson:"data,omitempty" xml:"data,omitempty"`
+	EvtType instrumentation.EventType `json:"type" bson:"type" xml:"type"`
 }
 
 func (e *event) GetEventName() string {
-	return e.name
+	return e.Name
 }
 
 func (e *event) GetData() map[string]any {
-	return e.data
+	return e.Data
 }
 
 func (e *event) DataContainsKey(key string) bool {
-	if e.data == nil {
+	if e.Data == nil {
 		return false
 	}
-	_, ok := e.data[key]
+	_, ok := e.Data[key]
 	return ok
 }
 
 func (e *event) GetEvtType() instrumentation.EventType {
-	return e.evtType
+	return e.EvtType
 }
 
 func (e *event) String() string {
-	return fmt.Sprintf("%s", e.name)
+	return fmt.Sprintf("%s", e.Name)
 }
 
 // ---------  Event Builder --------- //
