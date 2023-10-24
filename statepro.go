@@ -20,7 +20,7 @@ func NewQuantumMachine(qmModel *theoretical.QuantumMachineModel) (instrumentatio
 			return nil, fmt.Errorf("laws not found for universe id '%s'", model.ID)
 		}
 
-		universe := experimental.NewExUniverse(model.ID, model, laws)
+		universe := experimental.NewExUniverse(model, laws)
 		universes = append(universes, universe)
 	}
 

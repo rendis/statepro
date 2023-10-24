@@ -10,7 +10,18 @@ type QuantumMachineModel struct {
 	// * only letters, numbers, underscore (_) and dash (-)
 	// * must start with a letter
 	// * min length: 1
-	ID string `json:"id,omitempty" bson:"id,omitempty" xml:"id,omitempty" yaml:"id,omitempty"`
+	ID string `json:"id" bson:"id" xml:"id" yaml:"id"`
+
+	// CanonicalName serves as the invariant identifier that groups different versions of this quantum machine under a single concept.
+	// While the machine may exist in different versions, with varying attributes or configurations,
+	// the CanonicalName remains consistent across all these versions.
+	// Validations:
+	// * required
+	// * no white space
+	// * only letters, numbers, underscore (_) and dash (-)
+	// * must start with a letter
+	// * min length: 1
+	CanonicalName string `json:"canonicalName" bson:"canonicalName" xml:"canonicalName" yaml:"canonicalName"`
 
 	// Universes a map of universes of the machine, where the key is the universe id and the value is the universe model.
 	// Validations:
@@ -19,7 +30,7 @@ type QuantumMachineModel struct {
 	// * keys must be the UniverseModel.ID value.
 	// * values can't be nil.
 	// * each UniverseModel must be valid.
-	Universes map[string]*UniverseModel `json:"universes,omitempty" bson:"universes,omitempty" xml:"universes,omitempty" yaml:"universes,omitempty"`
+	Universes map[string]*UniverseModel `json:"universes" bson:"universes" xml:"universes" yaml:"universes"`
 
 	// Initials is the list of initials realities or universes of the machine.
 	// Validations:
@@ -30,7 +41,7 @@ type QuantumMachineModel struct {
 	//	- only one reality per universe. To reference a reality from another universe
 	//    the format is 'UniverseModel.ID:RealityModel.ID'.
 	//	- one or more universes. To reference a universe the format is 'UniverseModel.ID'.
-	Initials []string `json:"initials,omitempty" bson:"initials,omitempty" xml:"initials,omitempty" yaml:"initials,omitempty"`
+	Initials []string `json:"initials" bson:"initials" xml:"initials" yaml:"initials"`
 
 	// UniversalConstants is the list of universal constants of the machine.
 	// Validations:
@@ -48,5 +59,5 @@ type QuantumMachineModel struct {
 	// * required
 	// * no white space
 	// * only letters, numbers, dot (.), underscore (_) and dash (-). Example: 1.0.0, v1.0.2, 1.0, v1 or 1.0.0-alpha.1
-	Version string `json:"version,omitempty" bson:"version,omitempty" xml:"version,omitempty" yaml:"version,omitempty"`
+	Version string `json:"version" bson:"version" xml:"version" yaml:"version"`
 }

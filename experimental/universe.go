@@ -16,6 +16,8 @@ const (
 
 type universeInfoSnapshot struct {
 	ID                         string            `json:"id"`
+	CanonicalName              string            `json:"canonicalName"`
+	Version                    string            `json:"version"`
 	Initialized                bool              `json:"initialized"`
 	CurrentReality             *string           `json:"currentReality,omitempty"`
 	RealityInitialized         bool              `json:"realityInitialized"`
@@ -25,12 +27,10 @@ type universeInfoSnapshot struct {
 }
 
 func NewExUniverse(
-	id string,
 	model *theoretical.UniverseModel,
 	laws instrumentation.UniverseLaws,
 ) *ExUniverse {
 	return &ExUniverse{
-		id:                id,
 		model:             model,
 		observerExecutor:  getUniverseObserverExecutor(laws),
 		actionExecutor:    getUniverseActionExecutor(laws),
@@ -40,8 +40,6 @@ func NewExUniverse(
 }
 
 type ExUniverse struct {
-	id string
-
 	// initialized true when the universe is initialized
 	// the universe is initialized when the first operation is executed
 	initialized bool
@@ -114,7 +112,7 @@ func (u *ExUniverse) start(ctx context.Context, universeContext any) ([]string, 
 
 	var initFn = func() error {
 		if err := u.initializeUniverseOn(ctx, u.model.Initial, evt); err != nil {
-			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.id), err)
+			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.model.ID), err)
 		}
 		return nil
 	}
@@ -135,7 +133,7 @@ func (u *ExUniverse) startOnReality(ctx context.Context, realityName string, uni
 
 	var initFn = func() error {
 		if err := u.initializeUniverseOn(ctx, realityName, evt); err != nil {
-			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.id), err)
+			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.model.ID), err)
 		}
 		return nil
 	}
@@ -166,7 +164,9 @@ func (u *ExUniverse) placeOn(realityName string) error {
 // getSnapshot returns a snapshot of the universe
 func (u *ExUniverse) getSnapshot() instrumentation.SerializedUniverseSnapshot {
 	var infoSnapshot = universeInfoSnapshot{
-		ID:                         u.id,
+		ID:                         u.model.ID,
+		CanonicalName:              u.model.CanonicalName,
+		Version:                    u.model.Version,
 		Initialized:                u.initialized,
 		CurrentReality:             u.currentReality,
 		RealityInitialized:         u.realityInitialized,
@@ -188,10 +188,9 @@ func (u *ExUniverse) getSnapshot() instrumentation.SerializedUniverseSnapshot {
 func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUniverseSnapshot) error {
 	snapshot, err := devtoolkit.MapToStruct[universeInfoSnapshot](universeSnapshot)
 	if err != nil {
-		return errors.Join(fmt.Errorf("error loading snapshot for universe '%s'", u.id), err)
+		return errors.Join(fmt.Errorf("error loading snapshot for universe '%s'", u.model.ID), err)
 	}
 
-	u.id = snapshot.ID
 	u.initialized = snapshot.Initialized
 	u.currentReality = snapshot.CurrentReality
 	u.realityInitialized = snapshot.RealityInitialized
@@ -285,7 +284,7 @@ func (u *ExUniverse) receiveEventToReality(ctx context.Context, reality string, 
 	}
 	return fmt.Errorf(
 		"universe '%s' can't receive Event '%s' to reality '%s'. inSuperposition: '%t', currentRealityName: '%s', IsFinalReality: '%t'",
-		u.id, event.GetEventName(), reality, u.inSuperposition, currentRealityName, u.isFinalReality,
+		u.model.ID, event.GetEventName(), reality, u.inSuperposition, currentRealityName, u.isFinalReality,
 	)
 }
 
@@ -314,7 +313,7 @@ func (u *ExUniverse) receiveEvent(ctx context.Context, event instrumentation.Eve
 	// handling not initialized universe
 	if !u.initialized {
 		if err := u.initializeUniverseOn(ctx, u.model.Initial, event); err != nil {
-			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.id), err)
+			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.model.ID), err)
 		}
 		return nil
 	}
@@ -332,7 +331,7 @@ func (u *ExUniverse) receiveEvent(ctx context.Context, event instrumentation.Eve
 
 	return fmt.Errorf(
 		"universe '%s' can't receive external Event. inSuperposition: '%t', currentRealityName: '%s', IsFinalReality: '%t'",
-		u.id, u.inSuperposition, currentRealityName, u.isFinalReality,
+		u.model.ID, u.inSuperposition, currentRealityName, u.isFinalReality,
 	)
 }
 
@@ -385,7 +384,7 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 
 	// execute always
 	if err := u.executeAlways(ctx, event); err != nil {
-		return errors.Join(fmt.Errorf("error executing always transitions for universe '%s'", u.id), err)
+		return errors.Join(fmt.Errorf("error executing always transitions for universe '%s'", u.model.ID), err)
 	}
 
 	// check if the always process left the system in superposition
@@ -398,7 +397,7 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 
 	// execute on entry process
 	if err := u.executeOnEntryProcess(ctx, event); err != nil {
-		return errors.Join(fmt.Errorf("error executing on entry process for universe '%s'", u.id), err)
+		return errors.Join(fmt.Errorf("error executing on entry process for universe '%s'", u.model.ID), err)
 	}
 
 	return nil
@@ -429,10 +428,11 @@ func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition 
 
 		// execute constants transition actions
 		args := instrumentation.QuantumMachineExecutorArgs{
-			Context:      u.universeContext,
-			RealityName:  *u.currentReality,
-			UniverseName: u.id,
-			Event:        event,
+			Context:               u.universeContext,
+			RealityName:           *u.currentReality,
+			UniverseID:            u.model.ID,
+			UniverseCanonicalName: u.model.CanonicalName,
+			Event:                 event,
 		}
 		if err := u.constantsLawsExecutor.ExecuteTransitionAction(ctx, &args); err != nil {
 			return errors.Join(fmt.Errorf("error executing constants transition actions for reality '%s'", *u.currentReality), err)
@@ -508,11 +508,12 @@ func (u *ExUniverse) executeCondition(ctx context.Context, conditionModel *theor
 	}
 
 	args := &conditionExecutorArgs{
-		context:      u.universeContext,
-		realityName:  *u.currentReality,
-		universeName: u.id,
-		event:        event,
-		condition:    *conditionModel,
+		context:               u.universeContext,
+		realityName:           *u.currentReality,
+		universeCanonicalName: u.model.CanonicalName,
+		universeID:            u.model.ID,
+		event:                 event,
+		condition:             *conditionModel,
 	}
 	return u.runConditionExecutor(ctx, args)
 }
@@ -537,10 +538,11 @@ func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrument
 
 	// execute on constants entry actions
 	args := &instrumentation.QuantumMachineExecutorArgs{
-		Context:      u.universeContext,
-		RealityName:  realityModel.ID,
-		UniverseName: u.id,
-		Event:        event,
+		Context:               u.universeContext,
+		RealityName:           realityModel.ID,
+		UniverseCanonicalName: u.model.CanonicalName,
+		UniverseID:            u.model.ID,
+		Event:                 event,
 	}
 	if err := u.constantsLawsExecutor.ExecuteEntryAction(ctx, args); err != nil {
 		return errors.Join(
@@ -571,10 +573,11 @@ func (u *ExUniverse) executeOnExitProcess(ctx context.Context, event instrumenta
 
 	// execute on exit constants actions
 	args := &instrumentation.QuantumMachineExecutorArgs{
-		Context:      u.universeContext,
-		RealityName:  realityModel.ID,
-		UniverseName: u.id,
-		Event:        event,
+		Context:               u.universeContext,
+		RealityName:           realityModel.ID,
+		UniverseCanonicalName: u.model.CanonicalName,
+		UniverseID:            u.model.ID,
+		Event:                 event,
 	}
 
 	if err := u.constantsLawsExecutor.ExecuteExitAction(ctx, args); err != nil {
@@ -609,12 +612,13 @@ func (u *ExUniverse) executeActions(ctx context.Context, actionModels []*theoret
 	// execute actions
 	for _, action := range actionModels {
 		args := &actionExecutorArgs{
-			context:       u.universeContext,
-			realityName:   *u.currentReality,
-			universeName:  u.id,
-			event:         event,
-			action:        *action,
-			getSnapshotFn: u.constantsLawsExecutor.GetSnapshot,
+			context:               u.universeContext,
+			realityName:           *u.currentReality,
+			universeCanonicalName: u.model.CanonicalName,
+			universeID:            u.model.ID,
+			event:                 event,
+			action:                *action,
+			getSnapshotFn:         u.constantsLawsExecutor.GetSnapshot,
 		}
 		if err := u.runActionExecutor(ctx, args); err != nil {
 			return errors.Join(fmt.Errorf("error executing action '%s'", action.Src), err)
@@ -632,11 +636,12 @@ func (u *ExUniverse) executeInvokes(ctx context.Context, invokeModels []*theoret
 	// execute invokes
 	for _, invoke := range invokeModels {
 		args := &invokeExecutorArgs{
-			context:      u.universeContext,
-			realityName:  *u.currentReality,
-			universeName: u.id,
-			event:        event,
-			invoke:       *invoke,
+			context:               u.universeContext,
+			realityName:           *u.currentReality,
+			universeCanonicalName: u.model.CanonicalName,
+			universeID:            u.model.ID,
+			event:                 event,
+			invoke:                *invoke,
 		}
 		u.runInvokeExecutor(ctx, args)
 	}
@@ -698,7 +703,8 @@ func (u *ExUniverse) executeObservers(ctx context.Context, realityModel *theoret
 		args := &observerExecutorArgs{
 			context:               u.universeContext,
 			realityName:           realityModel.ID,
-			universeName:          u.id,
+			universeCanonicalName: u.model.CanonicalName,
+			universeID:            u.model.ID,
 			accumulatorStatistics: u.eventAccumulator.GetStatistics(),
 			event:                 event,
 			observer:              *observer,

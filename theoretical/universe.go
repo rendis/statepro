@@ -12,13 +12,24 @@ type UniverseModel struct {
 	// * only letters, numbers, underscore (_) and dash (-)
 	// * must start with a letter
 	// * min length: 1
-	ID string `json:"id,omitempty" bson:"id,omitempty" xml:"id,omitempty" yaml:"id,omitempty"`
+	ID string `json:"id" bson:"id" xml:"id" yaml:"id"`
+
+	// CanonicalName serves as the unchanging identifier used to group multiple versions of this individual universe under a unified concept.
+	// Different versions of the universe may have varying sets of realities, universal constants, or other attributes.
+	// However, all versions share the same CanonicalName to signify that they are variations of the same foundational concept.
+	// Validations:
+	// * required
+	// * no white space
+	// * only letters, numbers, underscore (_) and dash (-)
+	// * must start with a letter
+	// * min length: 1
+	CanonicalName string `json:"canonicalName" bson:"canonicalName" xml:"canonicalName" yaml:"canonicalName"`
 
 	// Initial is the initial reality of the universe.
 	// Validations:
 	// * required
 	// * must be a key of the Realities map.
-	Initial string `json:"initial,omitempty" bson:"initial,omitempty" xml:"initial,omitempty" yaml:"initial,omitempty"`
+	Initial string `json:"initial" bson:"initial" xml:"initial" yaml:"initial"`
 
 	// Realities is the list of Realities of the universe.
 	// Validations:
@@ -27,7 +38,7 @@ type UniverseModel struct {
 	// * keys must be the RealityModel.ID value.
 	// * values can't be nil.
 	// * each RealityModel must be valid.
-	Realities map[string]*RealityModel `json:"realities,omitempty" bson:"realities,omitempty" xml:"realities,omitempty" yaml:"realities,omitempty"`
+	Realities map[string]*RealityModel `json:"realities" bson:"realities" xml:"realities" yaml:"realities"`
 
 	// UniversalConstants is the list of universal constants of the universe.
 	// Validations:
@@ -45,7 +56,7 @@ type UniverseModel struct {
 	// * required
 	// * no white space
 	// * only letters, numbers, dot (.), underscore (_) and dash (-). Example: 1.0.0, v1.0.2, 1.0, v1 or 1.0.0-alpha.1
-	Version string `json:"version,omitempty" bson:"version,omitempty" xml:"version,omitempty" yaml:"version,omitempty"`
+	Version string `json:"version" bson:"version" xml:"version" yaml:"version"`
 }
 
 // GetReality returns the reality with the given id.

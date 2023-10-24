@@ -47,7 +47,7 @@ func main() {
 	ss = qm.GetSnapshot()
 
 	qm2 := loadDefinition()
-	if err = qm2.LoadSnapshot(ss); err != nil {
+	if err = qm2.LoadSnapshot(ss, machineCtx); err != nil {
 		log.Fatal(err)
 	}
 

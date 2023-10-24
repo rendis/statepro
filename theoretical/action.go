@@ -9,7 +9,7 @@ type ActionModel struct {
 	// * only letters and numbers
 	// * must start with a letter
 	// * min length: 1
-	Src string `json:"src,omitempty" bson:"src,omitempty" xml:"src,omitempty" yaml:"src,omitempty"`
+	Src string `json:"src" bson:"src" xml:"src" yaml:"src"`
 
 	// Args is the map of arguments to be passed to the action.
 	// Validations:

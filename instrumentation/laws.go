@@ -44,7 +44,8 @@ type ConstantsLawsExecutor interface {
 type QuantumMachineExecutorArgs struct {
 	Context               any
 	RealityName           string
-	UniverseName          string
+	UniverseID            string
+	UniverseCanonicalName string
 	Event                 Event
 	AccumulatorStatistics AccumulatorStatistics
 }
@@ -110,7 +111,8 @@ type ObservableKnowledgeExtractorExecutor interface {
 type ObserverExecutorArgs interface {
 	GetContext() any
 	GetRealityName() string
-	GetUniverseName() string
+	GetUniverseCanonicalName() string
+	GetUniverseId() string
 	GetAccumulatorStatistics() AccumulatorStatistics
 	GetEvent() Event
 	GetObserver() theoretical.ObserverModel
@@ -119,7 +121,8 @@ type ObserverExecutorArgs interface {
 type ActionExecutorArgs interface {
 	GetContext() any
 	GetRealityName() string
-	GetUniverseName() string
+	GetUniverseCanonicalName() string
+	GetUniverseId() string
 	GetEvent() Event
 	GetAction() theoretical.ActionModel
 	SnapshotExtractor
@@ -128,7 +131,8 @@ type ActionExecutorArgs interface {
 type InvokeExecutorArgs interface {
 	GetContext() any
 	GetRealityName() string
-	GetUniverseName() string
+	GetUniverseCanonicalName() string
+	GetUniverseId() string
 	GetEvent() Event
 	GetInvoke() theoretical.InvokeModel
 }
@@ -136,7 +140,8 @@ type InvokeExecutorArgs interface {
 type ConditionExecutorArgs interface {
 	GetContext() any
 	GetRealityName() string
-	GetUniverseName() string
+	GetUniverseCanonicalName() string
+	GetUniverseId() string
 	GetEvent() Event
 	GetCondition() theoretical.ConditionModel
 }

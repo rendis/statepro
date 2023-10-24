@@ -40,7 +40,7 @@ type TransitionModel struct {
 	//    format:
 	//   	+ UniverseModel.ID
 	//  	+ UniverseModel.ID:RealityModel.ID
-	Targets []string `json:"targets,omitempty" bson:"targets,omitempty" xml:"targets,omitempty" yaml:"targets,omitempty"`
+	Targets []string `json:"targets" bson:"targets" xml:"targets" yaml:"targets"`
 
 	// Actions is the list of actions that are executed when the transition is executed (when the condition is true).
 	// * Actions are executed in the order they are defined and synchronously.

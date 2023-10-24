@@ -37,12 +37,12 @@ func NewExQuantumMachine(qmm *theoretical.QuantumMachineModel, laws instrumentat
 		}
 
 		// check if universe already exists
-		if _, ok := qm.universes[u.id]; ok {
-			return nil, fmt.Errorf("universe '%s' already exists", u.id)
+		if _, ok := qm.universes[u.model.ID]; ok {
+			return nil, fmt.Errorf("universe '%s' already exists", u.model.ID)
 		}
 
 		u.constantsLawsExecutor = qm
-		qm.universes[u.id] = u
+		qm.universes[u.model.ID] = u
 	}
 
 	return qm, nil
@@ -166,7 +166,7 @@ func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapsh
 	}
 
 	for _, u := range qm.universes {
-		universeSnapshot, ok := snapshot.Snapshots[u.id]
+		universeSnapshot, ok := snapshot.Snapshots[u.model.ID]
 
 		if !ok {
 			continue
@@ -189,7 +189,7 @@ func (qm *ExQuantumMachine) GetSnapshot() *instrumentation.MachineSnapshot {
 		universeSnapshot := u.getSnapshot()
 
 		// add snapshot
-		machineSnapshot.AddUniverseSnapshot(u.id, universeSnapshot)
+		machineSnapshot.AddUniverseSnapshot(u.model.ID, universeSnapshot)
 
 		// if universe is not active, continue
 		if !u.isActive() {
@@ -198,17 +198,17 @@ func (qm *ExQuantumMachine) GetSnapshot() *instrumentation.MachineSnapshot {
 
 		// add active universe resume
 		if !u.inSuperposition && !u.isFinalReality {
-			machineSnapshot.AddActiveUniverse(u.id, *u.currentReality)
+			machineSnapshot.AddActiveUniverse(u.model.ID, *u.currentReality)
 		}
 
 		// add finalized universe resume
 		if !u.inSuperposition && u.isFinalReality {
-			machineSnapshot.AddFinalizedUniverse(u.id, *u.currentReality)
+			machineSnapshot.AddFinalizedUniverse(u.model.ID, *u.currentReality)
 		}
 
 		// add superposition universe
 		if u.inSuperposition {
-			machineSnapshot.AddSuperpositionUniverse(u.id, *u.realityBeforeSuperposition)
+			machineSnapshot.AddSuperpositionUniverse(u.model.ID, *u.realityBeforeSuperposition)
 		}
 	}
 
@@ -228,11 +228,12 @@ func (qm *ExQuantumMachine) ExecuteEntryInvokes(ctx context.Context, args *instr
 
 	for _, invoke := range qm.model.UniversalConstants.EntryInvokes {
 		a := &invokeExecutorArgs{
-			context:      args.Context,
-			realityName:  args.RealityName,
-			universeName: args.UniverseName,
-			event:        args.Event,
-			invoke:       *invoke,
+			context:               args.Context,
+			realityName:           args.RealityName,
+			universeCanonicalName: args.UniverseCanonicalName,
+			universeID:            args.UniverseID,
+			event:                 args.Event,
+			invoke:                *invoke,
 		}
 		go qm.invokeExecutor.ExecuteInvoke(ctx, a)
 	}
@@ -249,11 +250,12 @@ func (qm *ExQuantumMachine) ExecuteExitInvokes(ctx context.Context, args *instru
 
 	for _, invoke := range qm.model.UniversalConstants.ExitInvokes {
 		a := &invokeExecutorArgs{
-			context:      args.Context,
-			realityName:  args.RealityName,
-			universeName: args.UniverseName,
-			event:        args.Event,
-			invoke:       *invoke,
+			context:               args.Context,
+			realityName:           args.RealityName,
+			universeCanonicalName: args.UniverseCanonicalName,
+			universeID:            args.UniverseID,
+			event:                 args.Event,
+			invoke:                *invoke,
 		}
 		go qm.invokeExecutor.ExecuteInvoke(ctx, a)
 	}
@@ -270,12 +272,13 @@ func (qm *ExQuantumMachine) ExecuteEntryAction(ctx context.Context, args *instru
 
 	for _, action := range qm.model.UniversalConstants.EntryActions {
 		a := &actionExecutorArgs{
-			context:       args.Context,
-			realityName:   args.RealityName,
-			universeName:  args.UniverseName,
-			event:         args.Event,
-			action:        *action,
-			getSnapshotFn: qm.GetSnapshot,
+			context:               args.Context,
+			realityName:           args.RealityName,
+			universeCanonicalName: args.UniverseCanonicalName,
+			universeID:            args.UniverseID,
+			event:                 args.Event,
+			action:                *action,
+			getSnapshotFn:         qm.GetSnapshot,
 		}
 		if err := qm.actionExecutor.ExecuteAction(ctx, a); err != nil {
 			return err
@@ -295,12 +298,13 @@ func (qm *ExQuantumMachine) ExecuteExitAction(ctx context.Context, args *instrum
 
 	for _, action := range qm.model.UniversalConstants.ExitActions {
 		a := &actionExecutorArgs{
-			context:       args.Context,
-			realityName:   args.RealityName,
-			universeName:  args.UniverseName,
-			event:         args.Event,
-			action:        *action,
-			getSnapshotFn: qm.GetSnapshot,
+			context:               args.Context,
+			realityName:           args.RealityName,
+			universeCanonicalName: args.UniverseCanonicalName,
+			universeID:            args.UniverseID,
+			event:                 args.Event,
+			action:                *action,
+			getSnapshotFn:         qm.GetSnapshot,
 		}
 		if err := qm.actionExecutor.ExecuteAction(ctx, a); err != nil {
 			return err
@@ -320,11 +324,12 @@ func (qm *ExQuantumMachine) ExecuteTransitionInvokes(ctx context.Context, args *
 
 	for _, invoke := range qm.model.UniversalConstants.InvokesOnTransition {
 		a := &invokeExecutorArgs{
-			context:      args.Context,
-			realityName:  args.RealityName,
-			universeName: args.UniverseName,
-			event:        args.Event,
-			invoke:       *invoke,
+			context:               args.Context,
+			realityName:           args.RealityName,
+			universeCanonicalName: args.UniverseCanonicalName,
+			universeID:            args.UniverseID,
+			event:                 args.Event,
+			invoke:                *invoke,
 		}
 		go qm.invokeExecutor.ExecuteInvoke(ctx, a)
 	}
@@ -341,12 +346,13 @@ func (qm *ExQuantumMachine) ExecuteTransitionAction(ctx context.Context, args *i
 
 	for _, action := range qm.model.UniversalConstants.ActionsOnTransition {
 		a := &actionExecutorArgs{
-			context:       args.Context,
-			realityName:   args.RealityName,
-			universeName:  args.UniverseName,
-			event:         args.Event,
-			action:        *action,
-			getSnapshotFn: qm.GetSnapshot,
+			context:               args.Context,
+			realityName:           args.RealityName,
+			universeCanonicalName: args.UniverseCanonicalName,
+			universeID:            args.UniverseID,
+			event:                 args.Event,
+			action:                *action,
+			getSnapshotFn:         qm.GetSnapshot,
 		}
 		if err := qm.actionExecutor.ExecuteAction(ctx, a); err != nil {
 			return err

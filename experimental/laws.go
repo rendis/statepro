@@ -45,7 +45,8 @@ func getObservableKnowledgeExtractor(laws any) instrumentation.ObservableKnowled
 type observerExecutorArgs struct {
 	context               any
 	realityName           string
-	universeName          string
+	universeCanonicalName string
+	universeID            string
 	accumulatorStatistics instrumentation.AccumulatorStatistics
 	event                 instrumentation.Event
 	observer              theoretical.ObserverModel
@@ -59,8 +60,12 @@ func (o *observerExecutorArgs) GetRealityName() string {
 	return o.realityName
 }
 
-func (o *observerExecutorArgs) GetUniverseName() string {
-	return o.universeName
+func (o *observerExecutorArgs) GetUniverseCanonicalName() string {
+	return o.universeCanonicalName
+}
+
+func (o *observerExecutorArgs) GetUniverseId() string {
+	return o.universeID
 }
 
 func (o *observerExecutorArgs) GetAccumulatorStatistics() instrumentation.AccumulatorStatistics {
@@ -77,12 +82,13 @@ func (o *observerExecutorArgs) GetObserver() theoretical.ObserverModel {
 
 // --------- ActionExecutorArgs ---------//
 type actionExecutorArgs struct {
-	context       any
-	realityName   string
-	universeName  string
-	event         instrumentation.Event
-	action        theoretical.ActionModel
-	getSnapshotFn func() *instrumentation.MachineSnapshot
+	context               any
+	realityName           string
+	universeCanonicalName string
+	universeID            string
+	event                 instrumentation.Event
+	action                theoretical.ActionModel
+	getSnapshotFn         func() *instrumentation.MachineSnapshot
 }
 
 func (a *actionExecutorArgs) GetContext() any {
@@ -93,8 +99,12 @@ func (a *actionExecutorArgs) GetRealityName() string {
 	return a.realityName
 }
 
-func (a *actionExecutorArgs) GetUniverseName() string {
-	return a.universeName
+func (a *actionExecutorArgs) GetUniverseCanonicalName() string {
+	return a.universeCanonicalName
+}
+
+func (a *actionExecutorArgs) GetUniverseId() string {
+	return a.universeID
 }
 
 func (a *actionExecutorArgs) GetEvent() instrumentation.Event {
@@ -112,11 +122,12 @@ func (a *actionExecutorArgs) GetSnapshot() *instrumentation.MachineSnapshot {
 //--------- InvokeExecutorArgs ---------//
 
 type invokeExecutorArgs struct {
-	context      any
-	realityName  string
-	universeName string
-	event        instrumentation.Event
-	invoke       theoretical.InvokeModel
+	context               any
+	realityName           string
+	universeCanonicalName string
+	universeID            string
+	event                 instrumentation.Event
+	invoke                theoretical.InvokeModel
 }
 
 func (i *invokeExecutorArgs) GetContext() any {
@@ -127,8 +138,12 @@ func (i *invokeExecutorArgs) GetRealityName() string {
 	return i.realityName
 }
 
-func (i *invokeExecutorArgs) GetUniverseName() string {
-	return i.universeName
+func (i *invokeExecutorArgs) GetUniverseCanonicalName() string {
+	return i.universeCanonicalName
+}
+
+func (i *invokeExecutorArgs) GetUniverseId() string {
+	return i.universeID
 }
 
 func (i *invokeExecutorArgs) GetEvent() instrumentation.Event {
@@ -142,11 +157,12 @@ func (i *invokeExecutorArgs) GetInvoke() theoretical.InvokeModel {
 //--------- ConditionExecutorArgs ---------//
 
 type conditionExecutorArgs struct {
-	context      any
-	realityName  string
-	universeName string
-	event        instrumentation.Event
-	condition    theoretical.ConditionModel
+	context               any
+	realityName           string
+	universeCanonicalName string
+	universeID            string
+	event                 instrumentation.Event
+	condition             theoretical.ConditionModel
 }
 
 func (c *conditionExecutorArgs) GetContext() any {
@@ -157,8 +173,12 @@ func (c *conditionExecutorArgs) GetRealityName() string {
 	return c.realityName
 }
 
-func (c *conditionExecutorArgs) GetUniverseName() string {
-	return c.universeName
+func (c *conditionExecutorArgs) GetUniverseCanonicalName() string {
+	return c.universeCanonicalName
+}
+
+func (c *conditionExecutorArgs) GetUniverseId() string {
+	return c.universeID
 }
 
 func (c *conditionExecutorArgs) GetEvent() instrumentation.Event {

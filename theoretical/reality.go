@@ -33,7 +33,7 @@ type RealityModel struct {
 	// * only letters, numbers, underscore (_) and dash (-)
 	// * must start with a letter
 	// * min length: 1
-	ID string `json:"id,omitempty" bson:"id,omitempty" xml:"id,omitempty" yaml:"id,omitempty"`
+	ID string `json:"id" bson:"id" xml:"id" yaml:"id"`
 
 	// Observers is the list of observers that are always executed when the reality receives an event.
 	// Observers are executed only when the superposition state is active.
@@ -59,7 +59,7 @@ type RealityModel struct {
 	// Type is the type of the reality.
 	// Validations:
 	// * required
-	Type RealityType `json:"type,omitempty" bson:"type,omitempty" xml:"type,omitempty" yaml:"type,omitempty"`
+	Type RealityType `json:"type" bson:"type" xml:"type" yaml:"type"`
 
 	// On is the list of transitions that are executed when an event is received and the reality is established.
 	// Validations:
@@ -70,7 +70,7 @@ type RealityModel struct {
 	//	- must have only one transition to a reality of the same universe (format: 'RealityModel.ID').
 	//	- can have one or more transitions that point to other universes (format: 'UniverseModel.ID').
 	//	- can have one or more transitions that point to realities from other universes (format: 'UniverseModel.ID:RealityModel.ID').
-	On map[string][]*TransitionModel `json:"on,omitempty" bson:"on,omitempty" xml:"on,omitempty" yaml:"on,omitempty"`
+	On map[string][]*TransitionModel `json:"on" bson:"on" xml:"on" yaml:"on"`
 
 	// EntryInvokes is the list of invokes that are executed when the reality is established (Asynchronously).
 	// * EntryInvokes are executed after the EntryActions.

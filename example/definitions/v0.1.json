@@ -1,14 +1,15 @@
 {
   "id": "admission_default_machine",
+  "canonicalName": "admission_machine",
   "initials": [
     "U:admission_default_universe"
   ],
   "description": "Define all flows of an admission",
   "version": "0.1.0",
-
   "universes": {
     "admission_default_universe": {
       "id": "admission_default_universe",
+      "canonicalName": "admission",
       "initial": "CREATED",
       "description": "Define the flow of an admission",
       "version": "0.1.0",
@@ -19,7 +20,9 @@
           "description": "Admission created, means that a place was reserved for the user",
           "always": [
             {
-              "targets": ["WAITING_CONFIRMATION"]
+              "targets": [
+                "WAITING_CONFIRMATION"
+              ]
             }
           ]
         },
@@ -30,7 +33,9 @@
           "on": {
             "confirm": [
               {
-                "targets": ["CONFIRMED"],
+                "targets": [
+                  "CONFIRMED"
+                ],
                 "description": "User confirmed the admission"
               }
             ]
@@ -74,9 +79,9 @@
         }
       }
     },
-
     "admission_default_payment_universe": {
       "id": "admission_default_payment_universe",
+      "canonicalName": "admission_payment",
       "initial": "WAITING_PAYMENT",
       "description": "Define the flow of an admission payment",
       "version": "0.1.0",
@@ -112,9 +117,9 @@
         }
       }
     },
-
     "admission_default_form_universe": {
       "id": "admission_default_form_universe",
+      "canonicalName": "admission_form",
       "initial": "FILLING_ENROLLMENT_FORM",
       "description": "Define the flow of an admission enrollment form",
       "version": "0.1.0",
@@ -150,9 +155,9 @@
         }
       }
     },
-
     "admission_default_sign_universe": {
       "id": "admission_default_sign_universe",
+      "canonicalName": "admission_sign",
       "initial": "WAITING_SIGNATURE",
       "description": "Define the flow of an admission contract sign",
       "version": "0.1.0",
@@ -189,7 +194,6 @@
       }
     }
   },
-
   "universalConstants": {
     "entryInvokes": [
       {
@@ -206,7 +210,6 @@
         "src": "logExitFromStatus"
       }
     ],
-
     "invokesOnTransition": [
       {
         "src": "logTransition"

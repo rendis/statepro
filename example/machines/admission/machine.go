@@ -26,9 +26,9 @@ func (a AdmissionQM) ExecuteAction(ctx context.Context, args instrumentation.Act
 
 	switch action.Src {
 	case "logEntryToStatus":
-		return logEntryToStatus(ctx, args.GetRealityName(), args.GetUniverseName())
+		return logEntryToStatus(ctx, args.GetRealityName(), args.GetUniverseCanonicalName())
 	case "logExitFromStatus":
-		return logExitFromStatus(ctx, args.GetRealityName(), args.GetUniverseName())
+		return logExitFromStatus(ctx, args.GetRealityName(), args.GetUniverseCanonicalName())
 	default:
 		return nil
 	}
