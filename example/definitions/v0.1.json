@@ -197,7 +197,6 @@
     "admission_default_completed": {
       "id": "admission_default_completed",
       "canonicalName": "admission_completed",
-      "initial": "COMPLETED",
       "description": "Define the flow of an admission completed",
       "version": "0.1.0",
       "realities":{

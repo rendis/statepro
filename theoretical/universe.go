@@ -27,9 +27,9 @@ type UniverseModel struct {
 
 	// Initial is the initial reality of the universe.
 	// Validations:
-	// * required
+	// * optional
 	// * must be a key of the Realities map.
-	Initial string `json:"initial" bson:"initial" xml:"initial" yaml:"initial"`
+	Initial *string `json:"initial,omitempty" bson:"initial,omitempty" xml:"initial,omitempty" yaml:"initial,omitempty"`
 
 	// Realities is the list of Realities of the universe.
 	// Validations:

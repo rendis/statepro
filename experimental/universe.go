@@ -112,7 +112,12 @@ func (u *ExUniverse) start(ctx context.Context, universeContext any) ([]string, 
 		Build()
 
 	var initFn = func() error {
-		if err := u.initializeUniverseOn(ctx, u.model.Initial, evt); err != nil {
+		if u.model.Initial == nil {
+			u.initOnSuperposition()
+			return nil
+		}
+
+		if err := u.initializeUniverseOn(ctx, *u.model.Initial, evt); err != nil {
 			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.model.ID), err)
 		}
 		return nil
@@ -262,17 +267,16 @@ func (u *ExUniverse) universeDecorator(operation func() error) ([]string, error)
 // receiveEventToReality receives an Event only if one of the following conditions is met:
 //   - the Universe is in superposition.
 //   - if Universe is not initialized:
-//     -- if reality is the initial reality && the initial reality is not a final reality -> initialize universe on reality.
-//     -- if reality is not the initial reality || the initial reality is a final reality -> set superposition.
+//     -- if reality is the initial reality -> initialize universe on reality.
+//     -- otherwise, initialize universe on superposition.
 //   - not in superposition but the current reality is the target reality and not a final reality
 func (u *ExUniverse) receiveEventToReality(ctx context.Context, reality string, event instrumentation.Event) error {
 	// if not initialized
 	if !u.initialized {
-		// if reality is the initial reality && the initial reality is not a final reality -> initialize universe on reality
-		if reality == u.model.Initial && !theoretical.IsFinalState(u.model.GetReality(reality).Type) {
+		// if reality is the initial reality -> initialize universe on reality
+		if u.model.Initial != nil && reality == *u.model.Initial {
 			return u.initializeUniverseOn(ctx, reality, event)
 		}
-		// otherwise -> set superposition
 		u.initOnSuperposition()
 	}
 
@@ -315,12 +319,17 @@ func (u *ExUniverse) receiveEventToReality(ctx context.Context, reality string, 
 //     -- the Universe is initialized on the initial reality.
 //   - not in superposition and the current reality not a final reality
 func (u *ExUniverse) receiveEvent(ctx context.Context, event instrumentation.Event) error {
-	// handling not initialized universe
-	if !u.initialized {
-		if err := u.initializeUniverseOn(ctx, u.model.Initial, event); err != nil {
+	// handling not initialized universe and initial reality
+	if !u.initialized && u.model.Initial != nil {
+		if err := u.initializeUniverseOn(ctx, *u.model.Initial, event); err != nil {
 			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.model.ID), err)
 		}
 		return nil
+	}
+
+	// handling not initialized universe and not initial reality
+	if !u.initialized && u.model.Initial == nil {
+		u.initOnSuperposition()
 	}
 
 	// handling superposition
