@@ -7,5 +7,5 @@ func NewAdmissionWaitingConfirmationUniverse() *AdmissionWaitingConfirmationUniv
 type AdmissionWaitingConfirmationUniverse struct{}
 
 func (a *AdmissionWaitingConfirmationUniverse) GetUniverseId() string {
-	return "admission_default_waiting_confirmation_universe"
+	return "admission-default-waiting-confirmation-universe"
 }

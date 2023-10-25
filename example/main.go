@@ -60,7 +60,7 @@ func main() {
 	}
 
 	//fill
-	event = statepro.NewEventBuilder("filled_form").Build()
+	event = statepro.NewEventBuilder("filled-form").Build()
 
 	if _, err = qm2.SendEvent(ctx, event); err != nil {
 		log.Fatal(err)

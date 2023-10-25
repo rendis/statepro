@@ -7,5 +7,5 @@ func NewSignUniverse() *SignUniverse {
 type SignUniverse struct{}
 
 func (a *SignUniverse) GetUniverseId() string {
-	return "admission_default_sign_universe"
+	return "admission-default-sign-universe"
 }

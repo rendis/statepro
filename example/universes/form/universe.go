@@ -7,5 +7,5 @@ func NewFormUniverse() *FormUniverse {
 type FormUniverse struct{}
 
 func (a *FormUniverse) GetUniverseId() string {
-	return "admission_default_form_universe"
+	return "admission-default-form-universe"
 }

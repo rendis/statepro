@@ -1,13 +1,13 @@
 {
-  "id": "admission_default_machine",
-  "canonicalName": "admission_machine",
-  "initials": ["U:admission_default_universe"],
+  "id": "admission-default-machine",
+  "canonicalName": "admission-machine",
+  "initials": ["U:admission-default-universe"],
   "description": "Define all flows of an admission",
   "version": "0.1.0",
 
   "universes": {
-    "admission_default_universe": {
-      "id": "admission_default_universe",
+    "admission-default-universe": {
+      "id": "admission-default-universe",
       "canonicalName": "admission",
       "initial": "CREATED",
       "description": "Define the flow of an admission",
@@ -20,7 +20,7 @@
           "always": [
             {
               "targets": [
-                "U:admission_default_waiting_confirmation_universe:WAITING_CONFIRMATION"
+                "U:admission-default-waiting-confirmation-universe:WAITING-CONFIRMATION"
               ]
             }
           ]
@@ -38,15 +38,15 @@
       }
     },
 
-    "admission_default_waiting_confirmation_universe": {
-      "id": "admission_default_waiting_confirmation_universe",
-      "canonicalName": "admission_waiting_confirmation",
-      "initial": "WAITING_CONFIRMATION",
+    "admission-default-waiting-confirmation-universe": {
+      "id": "admission-default-waiting-confirmation-universe",
+      "canonicalName": "admission-waiting-confirmation",
+      "initial": "WAITING-CONFIRMATION",
       "description": "Define the flow of a waiting confirmation",
       "version": "0.1.0",
       "realities": {
-        "WAITING_CONFIRMATION": {
-          "id": "WAITING_CONFIRMATION",
+        "WAITING-CONFIRMATION": {
+          "id": "WAITING-CONFIRMATION",
           "type": "transition",
           "description": "Admission is waiting for user confirmation",
           "on": {
@@ -65,9 +65,9 @@
           "always": [
             {
               "targets": [
-                "U:admission_default_payment_universe",
-                "U:admission_default_form_universe",
-                "U:admission_default_sign_universe"
+                "U:admission-default-payment-universe",
+                "U:admission-default-form-universe",
+                "U:admission-default-sign-universe"
               ],
               "type": "notify"
             }
@@ -80,7 +80,7 @@
           "always": [
             {
               "targets": [
-                "U:admission_default_universe:CANCELLED"
+                "U:admission-default-universe:CANCELLED"
               ],
               "type": "notify"
             }
@@ -89,15 +89,15 @@
       }
     },
 
-    "admission_default_payment_universe": {
-      "id": "admission_default_payment_universe",
-      "canonicalName": "admission_payment",
-      "initial": "WAITING_PAYMENT",
+    "admission-default-payment-universe": {
+      "id": "admission-default-payment-universe",
+      "canonicalName": "admission-payment",
+      "initial": "WAITING-PAYMENT",
       "description": "Define the flow of an admission payment",
       "version": "0.1.0",
       "realities": {
-        "WAITING_PAYMENT": {
-          "id": "WAITING_PAYMENT",
+        "WAITING-PAYMENT": {
+          "id": "WAITING-PAYMENT",
           "type": "transition",
           "description": "Admission payment is waiting for payment",
           "on": {
@@ -115,7 +115,7 @@
           "description": "Admission payment was paid",
           "always": [
             {
-              "targets": ["U:admission_default_completed:COMPLETED"],
+              "targets": ["U:admission-default-enrollment-completed:COMPLETED"],
               "description": "Transition to COMPLETED when the payment is paid",
               "type": "notify"
             }
@@ -124,33 +124,33 @@
       }
     },
 
-    "admission_default_form_universe": {
-      "id": "admission_default_form_universe",
-      "canonicalName": "admission_form",
-      "initial": "FILLING_ENROLLMENT_FORM",
+    "admission-default-form-universe": {
+      "id": "admission-default-form-universe",
+      "canonicalName": "admission-form",
+      "initial": "FILLING-ENROLLMENT-FORM",
       "description": "Define the flow of an admission enrollment form",
       "version": "0.1.0",
       "realities": {
-        "FILLING_ENROLLMENT_FORM": {
-          "id": "FILLING_ENROLLMENT_FORM",
+        "FILLING-ENROLLMENT-FORM": {
+          "id": "FILLING-ENROLLMENT-FORM",
           "type": "transition",
           "description": "Admission enrollment form is being filled",
           "on": {
-            "filled_form": [
+            "filled-form": [
               {
-                "targets": ["ENROLLMENT_FORM_FILLED"],
+                "targets": ["ENROLLMENT-FORM-FILLED"],
                 "description": "User filled the admission enrollment form"
               }
             ]
           }
         },
-        "ENROLLMENT_FORM_FILLED": {
-          "id": "ENROLLMENT_FORM_FILLED",
+        "ENROLLMENT-FORM-FILLED": {
+          "id": "ENROLLMENT-FORM-FILLED",
           "type": "final",
           "description": "Admission enrollment form was completed",
           "always": [
             {
-              "targets": ["U:admission_default_completed:COMPLETED"],
+              "targets": ["U:admission-default-enrollment-completed:COMPLETED"],
               "description": "Transition to COMPLETED when the enrollment form is filled",
               "type": "notify"
             }
@@ -159,33 +159,33 @@
       }
     },
 
-    "admission_default_sign_universe": {
-      "id": "admission_default_sign_universe",
-      "canonicalName": "admission_sign",
-      "initial": "WAITING_SIGNATURE",
+    "admission-default-sign-universe": {
+      "id": "admission-default-sign-universe",
+      "canonicalName": "admission-sign",
+      "initial": "WAITING-SIGNATURE",
       "description": "Define the flow of an admission contract sign",
       "version": "0.1.0",
       "realities": {
-        "WAITING_SIGNATURE": {
-          "id": "WAITING_SIGNATURE",
+        "WAITING-SIGNATURE": {
+          "id": "WAITING-SIGNATURE",
           "type": "transition",
           "description": "Admission contract sign is waiting for sign",
           "on": {
             "signed": [
               {
-                "targets": ["CONTRACT_SIGNED"],
+                "targets": ["CONTRACT-SIGNED"],
                 "description": "User signed the admission contract sign"
               }
             ]
           }
         },
-        "CONTRACT_SIGNED": {
-          "id": "CONTRACT_SIGNED",
+        "CONTRACT-SIGNED": {
+          "id": "CONTRACT-SIGNED",
           "type": "final",
           "description": "Admission contract sign was signed",
           "always": [
             {
-              "targets": ["U:admission_default_completed:COMPLETED"],
+              "targets": ["U:admission-default-enrollment-completed:COMPLETED"],
               "description": "Transition to COMPLETED when the contract is signed",
               "type": "notify"
             }
@@ -194,9 +194,9 @@
       }
     },
 
-    "admission_default_completed": {
-      "id": "admission_default_completed",
-      "canonicalName": "admission_completed",
+    "admission-default-completed": {
+      "id": "admission-default-enrollment-completed",
+      "canonicalName": "admission-enrollment-completed",
       "description": "Define the flow of an admission completed",
       "version": "0.1.0",
       "realities":{
@@ -209,7 +209,7 @@
               "src": "builtin:observer:containsAllEvents",
               "args":{
                 "1": "paid",
-                "2": "filled_form",
+                "2": "filled-form",
                 "3": "signed"
               }
             }

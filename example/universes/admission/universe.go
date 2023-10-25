@@ -14,7 +14,7 @@ func NewAdmissionUniverse() *AdmissionUniverse {
 type AdmissionUniverse struct{}
 
 func (a *AdmissionUniverse) GetUniverseId() string {
-	return "admission_default_universe"
+	return "admission-default-universe"
 }
 
 func (a *AdmissionUniverse) ExecuteObserver(ctx context.Context, args instrumentation.ObserverExecutorArgs) (bool, error) {

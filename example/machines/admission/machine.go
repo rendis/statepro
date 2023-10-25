@@ -13,7 +13,7 @@ type AdmissionQM struct {
 }
 
 func (a AdmissionQM) GetQuantumMachineId() string {
-	return "admission_default_machine"
+	return "admission-default-machine"
 }
 
 func (a AdmissionQM) GetQuantumMachineDescription() string {

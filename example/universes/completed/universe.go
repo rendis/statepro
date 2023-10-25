@@ -7,5 +7,5 @@ func NewAdmissionCompletedUniverse() *AdmissionCompletedUniverse {
 type AdmissionCompletedUniverse struct{}
 
 func (a *AdmissionCompletedUniverse) GetUniverseId() string {
-	return "admission_default_completed"
+	return "admission-default-enrollment-completed"
 }
