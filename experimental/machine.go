@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/rendis/devtoolkit"
+	"github.com/rendis/statepro/v3/builtin"
 	"github.com/rendis/statepro/v3/instrumentation"
 	"github.com/rendis/statepro/v3/theoretical"
 	"sync"
@@ -253,16 +254,7 @@ func (qm *ExQuantumMachine) ExecuteEntryAction(ctx context.Context, args *instru
 	}
 
 	for _, action := range qm.model.UniversalConstants.EntryActions {
-		a := &actionExecutorArgs{
-			context:               args.Context,
-			realityName:           args.RealityName,
-			universeCanonicalName: args.UniverseCanonicalName,
-			universeID:            args.UniverseID,
-			event:                 args.Event,
-			action:                *action,
-			getSnapshotFn:         qm.GetSnapshot,
-		}
-		if err := qm.actionExecutor.ExecuteAction(ctx, a); err != nil {
+		if err := qm.executeAction(ctx, action, args); err != nil {
 			return err
 		}
 	}
@@ -279,16 +271,7 @@ func (qm *ExQuantumMachine) ExecuteExitAction(ctx context.Context, args *instrum
 	}
 
 	for _, action := range qm.model.UniversalConstants.ExitActions {
-		a := &actionExecutorArgs{
-			context:               args.Context,
-			realityName:           args.RealityName,
-			universeCanonicalName: args.UniverseCanonicalName,
-			universeID:            args.UniverseID,
-			event:                 args.Event,
-			action:                *action,
-			getSnapshotFn:         qm.GetSnapshot,
-		}
-		if err := qm.actionExecutor.ExecuteAction(ctx, a); err != nil {
+		if err := qm.executeAction(ctx, action, args); err != nil {
 			return err
 		}
 	}
@@ -327,16 +310,7 @@ func (qm *ExQuantumMachine) ExecuteTransitionAction(ctx context.Context, args *i
 	}
 
 	for _, action := range qm.model.UniversalConstants.ActionsOnTransition {
-		a := &actionExecutorArgs{
-			context:               args.Context,
-			realityName:           args.RealityName,
-			universeCanonicalName: args.UniverseCanonicalName,
-			universeID:            args.UniverseID,
-			event:                 args.Event,
-			action:                *action,
-			getSnapshotFn:         qm.GetSnapshot,
-		}
-		if err := qm.actionExecutor.ExecuteAction(ctx, a); err != nil {
+		if err := qm.executeAction(ctx, action, args); err != nil {
 			return err
 		}
 	}
@@ -344,6 +318,28 @@ func (qm *ExQuantumMachine) ExecuteTransitionAction(ctx context.Context, args *i
 }
 
 //-----------------------------------------------------------
+
+func (qm *ExQuantumMachine) executeAction(ctx context.Context, model *theoretical.ActionModel, args *instrumentation.QuantumMachineExecutorArgs) error {
+	a := &actionExecutorArgs{
+		context:               args.Context,
+		realityName:           args.RealityName,
+		universeCanonicalName: args.UniverseCanonicalName,
+		universeID:            args.UniverseID,
+		event:                 args.Event,
+		action:                *model,
+		actionType:            instrumentation.ActionTypeEntry,
+		getSnapshotFn:         qm.GetSnapshot,
+	}
+
+	if fn := builtin.GetBuiltinAction(model.Src); fn != nil {
+		return fn(ctx, a)
+	}
+
+	if qm.actionExecutor == nil {
+		return nil
+	}
+	return qm.actionExecutor.ExecuteAction(ctx, a)
+}
 
 func (qm *ExQuantumMachine) getLazyActiveUniverses(event instrumentation.Event) []*ExUniverse {
 	var activeUniverses []*ExUniverse

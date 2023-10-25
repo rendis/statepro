@@ -57,6 +57,7 @@ type QuantumMachineExecutorArgs struct {
 type ObserverExecutor interface {
 	ExecuteObserver(ctx context.Context, args ObserverExecutorArgs) (bool, error)
 }
+type ObserverFn func(ctx context.Context, args ObserverExecutorArgs) (bool, error)
 
 // ActionExecutor executes an action in the quantum machine.
 // Parameters:
@@ -68,6 +69,7 @@ type ObserverExecutor interface {
 type ActionExecutor interface {
 	ExecuteAction(ctx context.Context, args ActionExecutorArgs) error
 }
+type ActionFn func(ctx context.Context, args ActionExecutorArgs) error
 
 // InvokeExecutor executes an invoke in the quantum machine.
 // Parameters:
@@ -76,6 +78,7 @@ type ActionExecutor interface {
 type InvokeExecutor interface {
 	ExecuteInvoke(ctx context.Context, args InvokeExecutorArgs)
 }
+type InvokeFn func(ctx context.Context, args InvokeExecutorArgs)
 
 // ConditionExecutor executes a condition in the universe.
 // Parameters:
@@ -88,6 +91,7 @@ type InvokeExecutor interface {
 type ConditionExecutor interface {
 	ExecuteCondition(ctx context.Context, args ConditionExecutorArgs) (bool, error)
 }
+type ConditionFn func(ctx context.Context, args ConditionExecutorArgs) (bool, error)
 
 // ObservableKnowledgeExtractorExecutor extracts the universe knowledge from any quantum machine Context.
 // This method allows the Context segmentation, so the universe only knows and can access to the knowledge that is relevant to it.
@@ -121,6 +125,7 @@ type ActionExecutorArgs interface {
 	GetUniverseId() string
 	GetEvent() Event
 	GetAction() theoretical.ActionModel
+	GetActionType() ActionType
 	GetSnapshot() *MachineSnapshot
 }
 
@@ -141,3 +146,13 @@ type ConditionExecutorArgs interface {
 	GetEvent() Event
 	GetCondition() theoretical.ConditionModel
 }
+
+//---------- Enums ----------//
+
+type ActionType string
+
+const (
+	ActionTypeEntry      ActionType = "entry"
+	ActionTypeExit       ActionType = "exit"
+	ActionTypeTransition ActionType = "transition"
+)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/rendis/devtoolkit"
+	"github.com/rendis/statepro/v3/builtin"
 	"github.com/rendis/statepro/v3/instrumentation"
 	"github.com/rendis/statepro/v3/theoretical"
 )
@@ -457,7 +458,7 @@ func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition 
 		}
 
 		// execute universe transition actions
-		if err := u.executeActions(ctx, approvedTransition.Actions, event); err != nil {
+		if err := u.executeActions(ctx, approvedTransition.Actions, event, instrumentation.ActionTypeTransition); err != nil {
 			return errors.Join(fmt.Errorf("error executing transition actions for reality '%s'", *u.currentReality), err)
 		}
 
@@ -570,7 +571,7 @@ func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrument
 	}
 
 	// execute on entry universe actions
-	if err := u.executeActions(ctx, realityModel.EntryActions, event); err != nil {
+	if err := u.executeActions(ctx, realityModel.EntryActions, event, instrumentation.ActionTypeEntry); err != nil {
 		return errors.Join(
 			fmt.Errorf("error executing on entry actions for reality '%s'", realityModel.ID),
 			err,
@@ -606,7 +607,7 @@ func (u *ExUniverse) executeOnExitProcess(ctx context.Context, event instrumenta
 	}
 
 	// execute on exit universe actions
-	if err := u.executeActions(ctx, realityModel.ExitActions, event); err != nil {
+	if err := u.executeActions(ctx, realityModel.ExitActions, event, instrumentation.ActionTypeExit); err != nil {
 		return errors.Join(
 			fmt.Errorf("error executing on exit actions for reality '%s'", realityModel.ID),
 			err,
@@ -622,7 +623,12 @@ func (u *ExUniverse) executeOnExitProcess(ctx context.Context, event instrumenta
 	return nil
 }
 
-func (u *ExUniverse) executeActions(ctx context.Context, actionModels []*theoretical.ActionModel, event instrumentation.Event) error {
+func (u *ExUniverse) executeActions(
+	ctx context.Context,
+	actionModels []*theoretical.ActionModel,
+	event instrumentation.Event,
+	actionType instrumentation.ActionType,
+) error {
 	if actionModels == nil || len(actionModels) == 0 {
 		return nil
 	}
@@ -636,9 +642,10 @@ func (u *ExUniverse) executeActions(ctx context.Context, actionModels []*theoret
 			universeID:            u.model.ID,
 			event:                 event,
 			action:                *action,
+			actionType:            actionType,
 			getSnapshotFn:         u.constantsLawsExecutor.GetSnapshot,
 		}
-		if err := u.runActionExecutor(ctx, args); err != nil {
+		if err := u.runActionExecutor(ctx, action.Src, args); err != nil {
 			return errors.Join(fmt.Errorf("error executing action '%s'", action.Src), err)
 		}
 	}
@@ -727,7 +734,7 @@ func (u *ExUniverse) executeObservers(ctx context.Context, realityModel *theoret
 			event:                 event,
 			observer:              *observer,
 		}
-		isApproved, err := u.runObserverExecutor(ctx, args)
+		isApproved, err := u.runObserverExecutor(ctx, observer.Src, args)
 		if err != nil {
 			return false, errors.Join(fmt.Errorf("error executing observer '%s'", observer.Src), err)
 		}
@@ -752,14 +759,21 @@ func (u *ExUniverse) canRealityHandleEvent(realityName string, evt instrumentati
 
 //------------- executors -------------
 
-func (u *ExUniverse) runObserverExecutor(ctx context.Context, args *observerExecutorArgs) (bool, error) {
+func (u *ExUniverse) runObserverExecutor(ctx context.Context, src string, args *observerExecutorArgs) (bool, error) {
+	if fn := builtin.GetBuiltinObserver(src); fn != nil {
+		return fn(ctx, args)
+	}
+
 	if u.observerExecutor == nil {
 		return false, nil
 	}
 	return u.observerExecutor.ExecuteObserver(ctx, args)
 }
 
-func (u *ExUniverse) runActionExecutor(ctx context.Context, args *actionExecutorArgs) error {
+func (u *ExUniverse) runActionExecutor(ctx context.Context, src string, args *actionExecutorArgs) error {
+	if fn := builtin.GetBuiltinAction(src); fn != nil {
+		return fn(ctx, args)
+	}
 	if u.actionExecutor == nil {
 		return nil
 	}

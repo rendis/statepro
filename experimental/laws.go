@@ -88,6 +88,7 @@ type actionExecutorArgs struct {
 	universeID            string
 	event                 instrumentation.Event
 	action                theoretical.ActionModel
+	actionType            instrumentation.ActionType
 	getSnapshotFn         func() *instrumentation.MachineSnapshot
 }
 
@@ -113,6 +114,10 @@ func (a *actionExecutorArgs) GetEvent() instrumentation.Event {
 
 func (a *actionExecutorArgs) GetAction() theoretical.ActionModel {
 	return a.action
+}
+
+func (a *actionExecutorArgs) GetActionType() instrumentation.ActionType {
+	return a.actionType
 }
 
 func (a *actionExecutorArgs) GetSnapshot() *instrumentation.MachineSnapshot {

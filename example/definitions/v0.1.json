@@ -39,7 +39,15 @@
                 "description": "User confirmed the admission"
               }
             ]
-          }
+          },
+          "entryActions": [
+            {
+              "src": "builtin:action:logArgsWithoutKeys",
+              "args":{
+                "message": "Entry action of WAITING_CONFIRMATION"
+              }
+            }
+          ]
         },
         "CONFIRMED": {
           "id": "CONFIRMED",
