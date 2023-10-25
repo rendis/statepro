@@ -20,6 +20,7 @@ var actionRegistry = map[string]instrumentation.ActionFn{
 	"builtin:action:logBasicInfo":       LogBasicInfo,
 	"builtin:action:logArgs":            LogArgs,
 	"builtin:action:logArgsWithoutKeys": LogArgsWithoutKeys,
+	"builtin:action:logJustArgsValues":  LogJustArgsValues,
 }
 
 func GetBuiltinObserver(src string) instrumentation.ObserverFn {

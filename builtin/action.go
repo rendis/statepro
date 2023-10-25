@@ -68,3 +68,16 @@ func LogArgsWithoutKeys(ctx context.Context, args instrumentation.ActionExecutor
 	)
 	return nil
 }
+
+// LogJustArgsValues builtin action (builtin:action:logJustArgs)
+// Logs the action args without keys and info about the action.
+// Valid args:
+//   - map[string]any (key: arg name, value: any) -> keys will be ignored
+func LogJustArgsValues(ctx context.Context, args instrumentation.ActionExecutorArgs) error {
+	var argsStr []string
+	for _, v := range args.GetAction().Args {
+		argsStr = append(argsStr, fmt.Sprintf("'%v'", v))
+	}
+	abslog.InfoCtxf(ctx, "%s", strings.Join(argsStr, ", "))
+	return nil
+}
