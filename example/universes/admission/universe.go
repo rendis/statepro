@@ -17,11 +17,6 @@ func (a *AdmissionUniverse) GetUniverseId() string {
 	return "admission_default_universe"
 }
 
-func (a *AdmissionUniverse) GetUniverseDescription() string {
-	//TODO implement me
-	panic("implement me")
-}
-
 func (a *AdmissionUniverse) ExecuteObserver(ctx context.Context, args instrumentation.ObserverExecutorArgs) (bool, error) {
 	observer := args.GetObserver()
 	accumulatorStatistics := args.GetAccumulatorStatistics()

@@ -1,11 +1,10 @@
 {
   "id": "admission_default_machine",
   "canonicalName": "admission_machine",
-  "initials": [
-    "U:admission_default_universe"
-  ],
+  "initials": ["U:admission_default_universe"],
   "description": "Define all flows of an admission",
   "version": "0.1.0",
+
   "universes": {
     "admission_default_universe": {
       "id": "admission_default_universe",
@@ -21,37 +20,47 @@
           "always": [
             {
               "targets": [
-                "WAITING_CONFIRMATION"
+                "U:admission_default_waiting_confirmation_universe:WAITING_CONFIRMATION"
               ]
             }
           ]
         },
+        "CANCELLED": {
+          "id": "CANCELLED",
+          "type": "unsuccessfulFinal",
+          "description": "Admission cancelled by the user or by the campus",
+          "observers":[
+            {
+              "src": "builtin:observer:alwaysTrue"
+            }
+          ]
+        }
+      }
+    },
+
+    "admission_default_waiting_confirmation_universe": {
+      "id": "admission_default_waiting_confirmation_universe",
+      "canonicalName": "admission_waiting_confirmation",
+      "initial": "WAITING_CONFIRMATION",
+      "description": "Define the flow of a waiting confirmation",
+      "version": "0.1.0",
+      "realities": {
         "WAITING_CONFIRMATION": {
           "id": "WAITING_CONFIRMATION",
           "type": "transition",
           "description": "Admission is waiting for user confirmation",
           "on": {
-            "confirm": [
+            "confirmed": [
               {
-                "targets": [
-                  "CONFIRMED"
-                ],
+                "targets": ["CONFIRMED"],
                 "description": "User confirmed the admission"
               }
             ]
-          },
-          "entryActions": [
-            {
-              "src": "builtin:action:logArgsWithoutKeys",
-              "args":{
-                "message": "Entry action of WAITING_CONFIRMATION"
-              }
-            }
-          ]
+          }
         },
         "CONFIRMED": {
           "id": "CONFIRMED",
-          "type": "transition",
+          "type": "final",
           "description": "Admission was confirmed by the user",
           "always": [
             {
@@ -60,33 +69,26 @@
                 "U:admission_default_form_universe",
                 "U:admission_default_sign_universe"
               ],
-              "actions": [
-                {
-                  "src": "logMultiUniverseTransition",
-                  "description": "Log the transition to the other universes"
-                }
-              ]
+              "type": "notify"
             }
           ]
         },
-        "CANCELLED": {
-          "id": "CANCELLED",
+        "REJECTED": {
+          "id": "REJECTED",
           "type": "unsuccessfulFinal",
-          "description": "Admission cancelled by the user or by the campus"
-        },
-        "COMPLETED": {
-          "id": "COMPLETED",
-          "type": "final",
-          "observers": [
+          "description": "Admission rejected by the user on the confirmation step",
+          "always": [
             {
-              "src": "isAdmissionCompleted",
-              "description": "Check if the admission already completed before allowing the transition to COMPLETED"
+              "targets": [
+                "U:admission_default_universe:CANCELLED"
+              ],
+              "type": "notify"
             }
-          ],
-          "description": "Admission completed"
+          ]
         }
       }
     },
+
     "admission_default_payment_universe": {
       "id": "admission_default_payment_universe",
       "canonicalName": "admission_payment",
@@ -99,11 +101,9 @@
           "type": "transition",
           "description": "Admission payment is waiting for payment",
           "on": {
-            "pay": [
+            "paid": [
               {
-                "targets": [
-                  "PAID"
-                ],
+                "targets": ["PAID"],
                 "description": "User paid the admission"
               }
             ]
@@ -115,9 +115,7 @@
           "description": "Admission payment was paid",
           "always": [
             {
-              "targets": [
-                "U:admission_default_universe:COMPLETED"
-              ],
+              "targets": ["U:admission_default_completed:COMPLETED"],
               "description": "Transition to COMPLETED when the payment is paid",
               "type": "notify"
             }
@@ -125,6 +123,7 @@
         }
       }
     },
+
     "admission_default_form_universe": {
       "id": "admission_default_form_universe",
       "canonicalName": "admission_form",
@@ -137,11 +136,9 @@
           "type": "transition",
           "description": "Admission enrollment form is being filled",
           "on": {
-            "fill": [
+            "filled_form": [
               {
-                "targets": [
-                  "ENROLLMENT_FORM_FILLED"
-                ],
+                "targets": ["ENROLLMENT_FORM_FILLED"],
                 "description": "User filled the admission enrollment form"
               }
             ]
@@ -153,9 +150,7 @@
           "description": "Admission enrollment form was completed",
           "always": [
             {
-              "targets": [
-                "U:admission_default_universe:COMPLETED"
-              ],
+              "targets": ["U:admission_default_completed:COMPLETED"],
               "description": "Transition to COMPLETED when the enrollment form is filled",
               "type": "notify"
             }
@@ -163,6 +158,7 @@
         }
       }
     },
+
     "admission_default_sign_universe": {
       "id": "admission_default_sign_universe",
       "canonicalName": "admission_sign",
@@ -175,11 +171,9 @@
           "type": "transition",
           "description": "Admission contract sign is waiting for sign",
           "on": {
-            "sign": [
+            "signed": [
               {
-                "targets": [
-                  "CONTRACT_SIGNED"
-                ],
+                "targets": ["CONTRACT_SIGNED"],
                 "description": "User signed the admission contract sign"
               }
             ]
@@ -191,21 +185,45 @@
           "description": "Admission contract sign was signed",
           "always": [
             {
-              "targets": [
-                "U:admission_default_universe:COMPLETED"
-              ],
+              "targets": ["U:admission_default_completed:COMPLETED"],
               "description": "Transition to COMPLETED when the contract is signed",
               "type": "notify"
             }
           ]
         }
       }
+    },
+
+    "admission_default_completed": {
+      "id": "admission_default_completed",
+      "canonicalName": "admission_completed",
+      "initial": "COMPLETED",
+      "description": "Define the flow of an admission completed",
+      "version": "0.1.0",
+      "realities":{
+        "COMPLETED": {
+          "id": "COMPLETED",
+          "type": "final",
+          "description": "Admission completed",
+          "observers": [
+            {
+              "src": "builtin:observer:containsAllEvents",
+              "args":{
+                "1": "paid",
+                "2": "filled_form",
+                "3": "signed"
+              }
+            }
+          ]
+        }
+      }
     }
   },
+
   "universalConstants": {
     "entryInvokes": [
       {
-        "src": "notifyStatusChange"
+        "src": "notifyStatusChanged"
       }
     ],
     "entryActions": [
@@ -215,12 +233,13 @@
     ],
     "exitActions": [
       {
-        "src": "logExitFromStatus"
+        "src": "builtin:action:logBasicInfo"
       }
     ],
-    "invokesOnTransition": [
+
+    "actionsOnTransition": [
       {
-        "src": "logTransition"
+        "src": "builtin:action:logBasicInfo"
       }
     ]
   }

@@ -191,7 +191,11 @@ func (qm *ExQuantumMachine) GetSnapshot() *instrumentation.MachineSnapshot {
 
 		// superposition universe resume
 		if u.inSuperposition {
-			machineSnapshot.AddSuperpositionUniverse(u.model.CanonicalName, *u.realityBeforeSuperposition)
+			var realityBeforeSuperposition = "*"
+			if u.realityBeforeSuperposition != nil {
+				realityBeforeSuperposition = *u.realityBeforeSuperposition
+			}
+			machineSnapshot.AddSuperpositionUniverse(u.model.CanonicalName, realityBeforeSuperposition)
 		}
 	}
 

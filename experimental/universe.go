@@ -260,9 +260,22 @@ func (u *ExUniverse) universeDecorator(operation func() error) ([]string, error)
 }
 
 // receiveEventToReality receives an Event only if one of the following conditions is met:
-//   - the ExUniverse is in superposition
+//   - the Universe is in superposition.
+//   - if Universe is not initialized:
+//     -- if reality is the initial reality && the initial reality is not a final reality -> initialize universe on reality.
+//     -- if reality is not the initial reality || the initial reality is a final reality -> set superposition.
 //   - not in superposition but the current reality is the target reality and not a final reality
 func (u *ExUniverse) receiveEventToReality(ctx context.Context, reality string, event instrumentation.Event) error {
+	// if not initialized
+	if !u.initialized {
+		// if reality is the initial reality && the initial reality is not a final reality -> initialize universe on reality
+		if reality == u.model.Initial && !theoretical.IsFinalState(u.model.GetReality(reality).Type) {
+			return u.initializeUniverseOn(ctx, reality, event)
+		}
+		// otherwise -> set superposition
+		u.initOnSuperposition()
+	}
+
 	// handling superposition
 	if u.inSuperposition {
 		isNewReality, err := u.accumulateEventForReality(ctx, reality, event)
@@ -297,15 +310,21 @@ func (u *ExUniverse) receiveEventToReality(ctx context.Context, reality string, 
 }
 
 // receiveEvent receives an Event only if one of the following conditions is met:
-//   - the ExUniverse is in superposition (the Event will be accumulated for each reality)
-//   - universe is not initialized, the Event initializes the universe and will be received by the initial reality
+//   - the Universe is in superposition (the Event will be accumulated for each reality)
+//   - if Universe is not initialized:
+//     -- the Universe is initialized on the initial reality.
 //   - not in superposition and the current reality not a final reality
 func (u *ExUniverse) receiveEvent(ctx context.Context, event instrumentation.Event) error {
-	var runOnEvent = true
+	// handling not initialized universe
+	if !u.initialized {
+		if err := u.initializeUniverseOn(ctx, u.model.Initial, event); err != nil {
+			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.model.ID), err)
+		}
+		return nil
+	}
 
 	// handling superposition
 	if u.inSuperposition {
-		runOnEvent = false
 		isNewReality, realityName, err := u.accumulateEventForAllRealities(ctx, event)
 		if err != nil {
 			return errors.Join(fmt.Errorf("error accumulating Event for all realities"), err)
@@ -316,20 +335,10 @@ func (u *ExUniverse) receiveEvent(ctx context.Context, event instrumentation.Eve
 		}
 
 		// establish new reality
-		if err = u.establishNewReality(ctx, realityName, event, runOnEvent); err != nil {
+		if err = u.establishNewReality(ctx, realityName, event, false); err != nil {
 			return errors.Join(fmt.Errorf("error establishing new reality '%s'", realityName), err)
 		}
-	}
 
-	// handling not initialized universe
-	if !u.initialized {
-		if err := u.initializeUniverseOn(ctx, u.model.Initial, event); err != nil {
-			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.model.ID), err)
-		}
-		return nil
-	}
-
-	if !runOnEvent {
 		return nil
 	}
 
@@ -552,6 +561,15 @@ func (u *ExUniverse) initSuperposition(ctx context.Context, targets []string, ev
 	return nil
 }
 
+func (u *ExUniverse) initOnSuperposition() {
+	u.initialized = true
+	u.realityBeforeSuperposition = nil
+	u.currentReality = nil
+	u.inSuperposition = true
+	u.externalTargets = nil
+	u.eventAccumulator = newEventAccumulator()
+}
+
 func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrumentation.Event) error {
 	realityModel := u.model.GetReality(*u.currentReality)
 
@@ -588,6 +606,10 @@ func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrument
 }
 
 func (u *ExUniverse) executeOnExitProcess(ctx context.Context, event instrumentation.Event) error {
+	if u.currentReality == nil {
+		return nil
+	}
+
 	realityModel := u.model.GetReality(*u.currentReality)
 
 	// execute on exit constants actions

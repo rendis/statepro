@@ -10,9 +10,6 @@ import (
 type QuantumMachineLaws interface {
 	// GetQuantumMachineId returns the quantum machine id.
 	GetQuantumMachineId() string
-
-	// GetQuantumMachineDescription returns the quantum machine description.
-	GetQuantumMachineDescription() string
 }
 
 // UniverseLaws is the interface that must be implemented by a universe.
@@ -21,9 +18,6 @@ type UniverseLaws interface {
 	// GetUniverseId returns the universe id.
 	// Used to link universe with the universe json definition
 	GetUniverseId() string
-
-	// GetUniverseDescription returns the universe description.
-	GetUniverseDescription() string
 }
 
 // ConstantsLawsExecutor is the interface that must be implemented by a quantum machine executor.

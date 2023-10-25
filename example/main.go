@@ -6,9 +6,11 @@ import (
 	"github.com/rendis/statepro/v3/example/domain"
 	"github.com/rendis/statepro/v3/example/machines/admission"
 	admissionUniverse "github.com/rendis/statepro/v3/example/universes/admission"
+	"github.com/rendis/statepro/v3/example/universes/completed"
 	"github.com/rendis/statepro/v3/example/universes/form"
 	"github.com/rendis/statepro/v3/example/universes/payment"
 	"github.com/rendis/statepro/v3/example/universes/sign"
+	"github.com/rendis/statepro/v3/example/universes/waiting_confirmation"
 	"github.com/rendis/statepro/v3/instrumentation"
 	"log"
 
@@ -29,7 +31,7 @@ func main() {
 	ss := qm.GetSnapshot()
 
 	// confirm
-	event := statepro.NewEventBuilder("confirm").Build()
+	event := statepro.NewEventBuilder("confirmed").Build()
 
 	if _, err = qm.SendEvent(ctx, event); err != nil {
 		log.Fatal(err)
@@ -44,7 +46,7 @@ func main() {
 	ss = qm.GetSnapshot()
 
 	//sing
-	event = statepro.NewEventBuilder("sign").Build()
+	event = statepro.NewEventBuilder("signed").Build()
 
 	if _, err = qm.SendEvent(ctx, event); err != nil {
 		log.Fatal(err)
@@ -58,11 +60,22 @@ func main() {
 	}
 
 	//fill
-	event = statepro.NewEventBuilder("fill").Build()
+	event = statepro.NewEventBuilder("filled_form").Build()
 
 	if _, err = qm2.SendEvent(ctx, event); err != nil {
 		log.Fatal(err)
 	}
+
+	ss = qm2.GetSnapshot()
+
+	//paid
+	event = statepro.NewEventBuilder("paid").Build()
+
+	if _, err = qm2.SendEvent(ctx, event); err != nil {
+		log.Fatal(err)
+	}
+
+	ss = qm2.GetSnapshot()
 
 	log.Println("done")
 
@@ -92,6 +105,8 @@ func loadDefinition() instrumentation.QuantumMachine {
 func setLaws() {
 	qm := admission.NewAdmissionQM()
 	au := admissionUniverse.NewAdmissionUniverse()
+	wc := waiting_confirmation.NewAdmissionWaitingConfirmationUniverse()
+	ac := completed.NewAdmissionCompletedUniverse()
 	fu := form.NewFormUniverse()
 	su := sign.NewSignUniverse()
 	pu := payment.NewPaymentUniverse()
@@ -101,6 +116,14 @@ func setLaws() {
 	}
 
 	if err := statepro.RegisterUniverseLaws(au); err != nil {
+		panic(err)
+	}
+
+	if err := statepro.RegisterUniverseLaws(wc); err != nil {
+		panic(err)
+	}
+
+	if err := statepro.RegisterUniverseLaws(ac); err != nil {
 		panic(err)
 	}
 
