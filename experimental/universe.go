@@ -205,7 +205,11 @@ func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUni
 	u.eventAccumulator = snapshot.Accumulator
 
 	if u.currentReality != nil {
-		realityModel := u.model.GetReality(*u.currentReality)
+		realityModel, err := u.getRealityModel(*u.currentReality)
+		if err != nil {
+			return errors.Join(fmt.Errorf("error loading snapshot for universe '%s'", u.model.ID), err)
+		}
+
 		if realityModel == nil {
 			return fmt.Errorf("reality '%s' does not exist", *u.currentReality)
 		}
@@ -369,7 +373,11 @@ func (u *ExUniverse) receiveEvent(ctx context.Context, event instrumentation.Eve
 }
 
 func (u *ExUniverse) onEvent(ctx context.Context, event instrumentation.Event) error {
-	realityModel := u.model.GetReality(*u.currentReality)
+	realityModel, err := u.getRealityModel(*u.currentReality)
+	if err != nil {
+		return errors.Join(fmt.Errorf("error getting reality '%s'", *u.currentReality), err)
+	}
+
 	transitions, ok := realityModel.On[event.GetEventName()]
 	if !ok {
 		return fmt.Errorf("reality '%s' does not have transitions for Event '%s'", realityModel.ID, event.GetEventName())
@@ -412,7 +420,11 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 	u.realityBeforeSuperposition = nil
 
 	// get if the current reality is a final reality
-	realityModel := u.model.GetReality(reality)
+	realityModel, err := u.getRealityModel(reality)
+	if err != nil {
+		return err
+	}
+
 	u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
 
 	// execute always
@@ -442,7 +454,10 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 
 func (u *ExUniverse) executeAlways(ctx context.Context, event instrumentation.Event) error {
 	// execute current reality always transitions
-	realityModel := u.model.GetReality(*u.currentReality)
+	realityModel, err := u.getRealityModel(*u.currentReality)
+	if err != nil {
+		return err
+	}
 	approvedTransition, err := u.getApprovedTransition(ctx, realityModel.Always, event)
 	if err != nil {
 		return errors.Join(fmt.Errorf("error executing always transitions for reality '%s'", realityModel.ID), err)
@@ -508,7 +523,11 @@ func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition 
 
 		// set current reality
 		u.currentReality = &approvedTransition.Targets[0]
-		realityModel := u.model.GetReality(*u.currentReality)
+		realityModel, err := u.getRealityModel(*u.currentReality)
+		if err != nil {
+			return err
+		}
+
 		u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
 
 		// execute current reality always transitions
@@ -580,7 +599,10 @@ func (u *ExUniverse) initOnSuperposition() {
 }
 
 func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrumentation.Event) error {
-	realityModel := u.model.GetReality(*u.currentReality)
+	realityModel, err := u.getRealityModel(*u.currentReality)
+	if err != nil {
+		return err
+	}
 
 	// execute on constants entry actions
 	args := &instrumentation.QuantumMachineExecutorArgs{
@@ -619,7 +641,10 @@ func (u *ExUniverse) executeOnExitProcess(ctx context.Context, event instrumenta
 		return nil
 	}
 
-	realityModel := u.model.GetReality(*u.currentReality)
+	realityModel, err := u.getRealityModel(*u.currentReality)
+	if err != nil {
+		return err
+	}
 
 	// execute on exit constants actions
 	args := &instrumentation.QuantumMachineExecutorArgs{
@@ -708,7 +733,11 @@ func (u *ExUniverse) accumulateEventForReality(ctx context.Context, realityName 
 	u.eventAccumulator.Accumulate(realityName, event)
 
 	// execute observers
-	realityModel := u.model.GetReality(realityName)
+	realityModel, err := u.getRealityModel(realityName)
+	if err != nil {
+		return false, err
+	}
+
 	isNewReality, err := u.executeObservers(ctx, realityModel, event)
 	if err != nil {
 		return false, errors.Join(fmt.Errorf("error executing observers for reality '%s'", realityModel.ID), err)
@@ -779,7 +808,11 @@ func (u *ExUniverse) executeObservers(ctx context.Context, realityModel *theoret
 }
 
 func (u *ExUniverse) canRealityHandleEvent(realityName string, evt instrumentation.Event) bool {
-	realityModel := u.model.GetReality(realityName)
+	realityModel, err := u.getRealityModel(realityName)
+	if err != nil {
+		return false
+	}
+
 	if realityModel == nil {
 		return false
 	}
@@ -791,7 +824,7 @@ func (u *ExUniverse) canRealityHandleEvent(realityName string, evt instrumentati
 //------------- executors -------------
 
 func (u *ExUniverse) runObserverExecutor(ctx context.Context, src string, args *observerExecutorArgs) (bool, error) {
-	if fn := builtin.GetBuiltinObserver(src); fn != nil {
+	if fn := builtin.GetExternalObserver(src); fn != nil {
 		return fn(ctx, args)
 	}
 
@@ -802,7 +835,7 @@ func (u *ExUniverse) runObserverExecutor(ctx context.Context, src string, args *
 }
 
 func (u *ExUniverse) runActionExecutor(ctx context.Context, src string, args *actionExecutorArgs) error {
-	if fn := builtin.GetBuiltinAction(src); fn != nil {
+	if fn := builtin.GetExternalAction(src); fn != nil {
 		return fn(ctx, args)
 	}
 	if u.actionExecutor == nil {
@@ -812,15 +845,32 @@ func (u *ExUniverse) runActionExecutor(ctx context.Context, src string, args *ac
 }
 
 func (u *ExUniverse) runInvokeExecutor(ctx context.Context, args *invokeExecutorArgs) {
-	if u.invokeExecutor == nil {
+	if fn := builtin.GetExternalInvoke(args.invoke.Src); fn != nil {
+		go fn(ctx, args)
 		return
 	}
-	go u.invokeExecutor.ExecuteInvoke(ctx, args)
+
+	if u.invokeExecutor != nil {
+		go u.invokeExecutor.ExecuteInvoke(ctx, args)
+	}
 }
 
 func (u *ExUniverse) runConditionExecutor(ctx context.Context, args *conditionExecutorArgs) (bool, error) {
-	if u.conditionExecutor == nil {
-		return false, nil
+	if fn := builtin.GetExternalCondition(args.condition.Src); fn != nil {
+		return fn(ctx, args)
 	}
-	return u.conditionExecutor.ExecuteCondition(ctx, args)
+
+	if u.conditionExecutor != nil {
+		return u.conditionExecutor.ExecuteCondition(ctx, args)
+	}
+
+	return false, nil
+}
+
+func (u *ExUniverse) getRealityModel(realityName string) (*theoretical.RealityModel, error) {
+	realityModel, ok := u.model.GetReality(realityName)
+	if !ok {
+		return nil, fmt.Errorf("reality '%s' does not exist in universe '%s'", realityName, u.model.ID)
+	}
+	return realityModel, nil
 }

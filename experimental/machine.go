@@ -214,15 +214,7 @@ func (qm *ExQuantumMachine) ExecuteEntryInvokes(ctx context.Context, args *instr
 	}
 
 	for _, invoke := range qm.model.UniversalConstants.EntryInvokes {
-		a := &invokeExecutorArgs{
-			context:               args.Context,
-			realityName:           args.RealityName,
-			universeCanonicalName: args.UniverseCanonicalName,
-			universeID:            args.UniverseID,
-			event:                 args.Event,
-			invoke:                *invoke,
-		}
-		go qm.invokeExecutor.ExecuteInvoke(ctx, a)
+		qm.executeInvoke(ctx, *invoke, args)
 	}
 }
 
@@ -236,15 +228,7 @@ func (qm *ExQuantumMachine) ExecuteExitInvokes(ctx context.Context, args *instru
 	}
 
 	for _, invoke := range qm.model.UniversalConstants.ExitInvokes {
-		a := &invokeExecutorArgs{
-			context:               args.Context,
-			realityName:           args.RealityName,
-			universeCanonicalName: args.UniverseCanonicalName,
-			universeID:            args.UniverseID,
-			event:                 args.Event,
-			invoke:                *invoke,
-		}
-		go qm.invokeExecutor.ExecuteInvoke(ctx, a)
+		qm.executeInvoke(ctx, *invoke, args)
 	}
 }
 
@@ -292,15 +276,7 @@ func (qm *ExQuantumMachine) ExecuteTransitionInvokes(ctx context.Context, args *
 	}
 
 	for _, invoke := range qm.model.UniversalConstants.InvokesOnTransition {
-		a := &invokeExecutorArgs{
-			context:               args.Context,
-			realityName:           args.RealityName,
-			universeCanonicalName: args.UniverseCanonicalName,
-			universeID:            args.UniverseID,
-			event:                 args.Event,
-			invoke:                *invoke,
-		}
-		go qm.invokeExecutor.ExecuteInvoke(ctx, a)
+		qm.executeInvoke(ctx, *invoke, args)
 	}
 }
 
@@ -323,6 +299,26 @@ func (qm *ExQuantumMachine) ExecuteTransitionAction(ctx context.Context, args *i
 
 //-----------------------------------------------------------
 
+func (qm *ExQuantumMachine) executeInvoke(ctx context.Context, invoke theoretical.InvokeModel, args *instrumentation.QuantumMachineExecutorArgs) {
+	a := &invokeExecutorArgs{
+		context:               args.Context,
+		realityName:           args.RealityName,
+		universeCanonicalName: args.UniverseCanonicalName,
+		universeID:            args.UniverseID,
+		event:                 args.Event,
+		invoke:                invoke,
+	}
+
+	if fn := builtin.GetExternalInvoke(invoke.Src); fn != nil {
+		go fn(ctx, a)
+		return
+	}
+
+	if qm.invokeExecutor == nil {
+		go qm.invokeExecutor.ExecuteInvoke(ctx, a)
+	}
+}
+
 func (qm *ExQuantumMachine) executeAction(ctx context.Context, model *theoretical.ActionModel, args *instrumentation.QuantumMachineExecutorArgs) error {
 	a := &actionExecutorArgs{
 		context:               args.Context,
@@ -335,7 +331,7 @@ func (qm *ExQuantumMachine) executeAction(ctx context.Context, model *theoretica
 		getSnapshotFn:         qm.GetSnapshot,
 	}
 
-	if fn := builtin.GetBuiltinAction(model.Src); fn != nil {
+	if fn := builtin.GetExternalAction(model.Src); fn != nil {
 		return fn(ctx, a)
 	}
 

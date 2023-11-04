@@ -60,6 +60,7 @@ type UniverseModel struct {
 }
 
 // GetReality returns the reality with the given id.
-func (u *UniverseModel) GetReality(id string) *RealityModel {
-	return u.Realities[id]
+func (u *UniverseModel) GetReality(id string) (*RealityModel, bool) {
+	r, ok := u.Realities[id]
+	return r, ok
 }

@@ -77,7 +77,7 @@ func main() {
 
 	ss = qm2.GetSnapshot()
 
-	log.Println("done")
+	log.Println("*************** DONE ***************")
 
 }
 
