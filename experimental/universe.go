@@ -293,7 +293,7 @@ func (u *ExUniverse) receiveEventToReality(ctx context.Context, realityName stri
 
 		if isNewReality {
 			// establish new realityName
-			if err = u.establishNewReality(ctx, realityName, event, false); err != nil {
+			if err = u.establishNewReality(ctx, realityName, event); err != nil {
 				return errors.Join(fmt.Errorf("error establishing new reality '%s'", realityName), err)
 			}
 		}
@@ -348,7 +348,7 @@ func (u *ExUniverse) receiveEvent(ctx context.Context, event instrumentation.Eve
 		}
 
 		// establish new reality
-		if err = u.establishNewReality(ctx, realityName, event, false); err != nil {
+		if err = u.establishNewReality(ctx, realityName, event); err != nil {
 			return errors.Join(fmt.Errorf("error establishing new reality '%s'", realityName), err)
 		}
 
@@ -400,7 +400,7 @@ func (u *ExUniverse) initializeUniverseOn(ctx context.Context, realityName strin
 	u.initialized = true
 
 	// establish initial reality
-	if err := u.establishNewReality(ctx, realityName, event, true); err != nil {
+	if err := u.establishNewReality(ctx, realityName, event); err != nil {
 		u.initialized = false
 		return errors.Join(fmt.Errorf("error establishing initial reality '%s'", realityName), err)
 	}
@@ -408,7 +408,7 @@ func (u *ExUniverse) initializeUniverseOn(ctx context.Context, realityName strin
 	return nil
 }
 
-func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, event instrumentation.Event, runOnEvent bool) error {
+func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, event instrumentation.Event) error {
 	// set current reality
 	u.currentReality = &reality
 
@@ -439,10 +439,6 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 
 	// mark current reality as initialized
 	u.realityInitialized = true
-
-	if !runOnEvent {
-		return nil
-	}
 
 	// execute on entry process
 	if err = u.executeOnEntryProcess(ctx, event); err != nil {
