@@ -608,7 +608,7 @@ func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrument
 		UniverseID:            u.model.ID,
 		Event:                 event,
 	}
-	if err := u.constantsLawsExecutor.ExecuteEntryAction(ctx, args); err != nil {
+	if err = u.constantsLawsExecutor.ExecuteEntryAction(ctx, args); err != nil {
 		return errors.Join(
 			fmt.Errorf("error executing on entry machine actions for reality '%s'", realityModel.ID),
 			err,
@@ -616,7 +616,7 @@ func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrument
 	}
 
 	// execute on entry universe actions
-	if err := u.executeActions(ctx, realityModel.EntryActions, event, instrumentation.ActionTypeEntry); err != nil {
+	if err = u.executeActions(ctx, realityModel.EntryActions, event, instrumentation.ActionTypeEntry); err != nil {
 		return errors.Join(
 			fmt.Errorf("error executing on entry actions for reality '%s'", realityModel.ID),
 			err,
@@ -651,7 +651,7 @@ func (u *ExUniverse) executeOnExitProcess(ctx context.Context, event instrumenta
 		Event:                 event,
 	}
 
-	if err := u.constantsLawsExecutor.ExecuteExitAction(ctx, args); err != nil {
+	if err = u.constantsLawsExecutor.ExecuteExitAction(ctx, args); err != nil {
 		return errors.Join(
 			fmt.Errorf("error executing on exit machine actions for reality '%s'", realityModel.ID),
 			err,
@@ -659,7 +659,7 @@ func (u *ExUniverse) executeOnExitProcess(ctx context.Context, event instrumenta
 	}
 
 	// execute on exit universe actions
-	if err := u.executeActions(ctx, realityModel.ExitActions, event, instrumentation.ActionTypeExit); err != nil {
+	if err = u.executeActions(ctx, realityModel.ExitActions, event, instrumentation.ActionTypeExit); err != nil {
 		return errors.Join(
 			fmt.Errorf("error executing on exit actions for reality '%s'", realityModel.ID),
 			err,

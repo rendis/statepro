@@ -18,7 +18,7 @@ func DeserializeQuantumMachineFromMap(source map[string]any) (*theoretical.Quant
 	}
 
 	var resp theoretical.QuantumMachineModel
-	if err := json.Unmarshal(jsonStr, &resp); err != nil {
+	if err = json.Unmarshal(jsonStr, &resp); err != nil {
 		return nil, err
 	}
 

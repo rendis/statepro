@@ -50,7 +50,7 @@ func RegisterCustomAction(src string, fn instrumentation.ActionFn) error {
 	if !pattern.MatchString(normalizedSrc) {
 		return fmt.Errorf("invalid custom action name '%s', must match pattern '%s'", src, customActionPattern)
 	}
-	customActionRegistry[src] = fn
+	customActionRegistry[normalizedSrc] = fn
 	return nil
 }
 
