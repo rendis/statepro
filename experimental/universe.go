@@ -274,35 +274,35 @@ func (u *ExUniverse) universeDecorator(operation func() error) ([]string, error)
 //     -- if reality is the initial reality -> initialize universe on reality.
 //     -- otherwise, initialize universe on superposition.
 //   - not in superposition but the current reality is the target reality and not a final reality
-func (u *ExUniverse) receiveEventToReality(ctx context.Context, reality string, event instrumentation.Event) error {
+func (u *ExUniverse) receiveEventToReality(ctx context.Context, realityName string, event instrumentation.Event) error {
 	// if not initialized
 	if !u.initialized {
-		// if reality is the initial reality -> initialize universe on reality
-		if u.model.Initial != nil && reality == *u.model.Initial {
-			return u.initializeUniverseOn(ctx, reality, event)
+		// if realityName is the initial reality -> initialize universe on realityName
+		if u.model.Initial != nil && realityName == *u.model.Initial {
+			return u.initializeUniverseOn(ctx, realityName, event)
 		}
 		u.initOnSuperposition()
 	}
 
 	// handling superposition
 	if u.inSuperposition {
-		isNewReality, err := u.accumulateEventForReality(ctx, reality, event)
+		isNewReality, err := u.accumulateEventForReality(ctx, realityName, event)
 		if err != nil {
-			return errors.Join(fmt.Errorf("error accumulating Event for reality '%s'", reality), err)
+			return errors.Join(fmt.Errorf("error accumulating Event for reality '%s'", realityName), err)
 		}
 
 		if isNewReality {
-			// establish new reality
-			if err = u.establishNewReality(ctx, reality, event, false); err != nil {
-				return errors.Join(fmt.Errorf("error establishing new reality '%s'", reality), err)
+			// establish new realityName
+			if err = u.establishNewReality(ctx, realityName, event, false); err != nil {
+				return errors.Join(fmt.Errorf("error establishing new reality '%s'", realityName), err)
 			}
 		}
 
 		return nil
 	}
 
-	// handling not final current reality
-	if !u.isFinalReality && *u.currentReality == reality {
+	// handling not final current realityName
+	if !u.isFinalReality && *u.currentReality == realityName {
 		return u.onEvent(ctx, event)
 	}
 
@@ -312,8 +312,8 @@ func (u *ExUniverse) receiveEventToReality(ctx context.Context, reality string, 
 		currentRealityName = *u.currentReality
 	}
 	return fmt.Errorf(
-		"universe '%s' can't receive Event '%s' to reality '%s'. inSuperposition: '%t', currentRealityName: '%s', IsFinalReality: '%t'",
-		u.model.ID, event.GetEventName(), reality, u.inSuperposition, currentRealityName, u.isFinalReality,
+		"universe '%s' can't receive Event '%s' to reality '%s'. inSuperposition: '%t', currentReality: '%s', IsFinalReality: '%t'",
+		u.model.ID, event.GetEventName(), realityName, u.inSuperposition, currentRealityName, u.isFinalReality,
 	)
 }
 
@@ -428,7 +428,7 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 	u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
 
 	// execute always
-	if err := u.executeAlways(ctx, event); err != nil {
+	if err = u.executeAlways(ctx, event); err != nil {
 		return errors.Join(fmt.Errorf("error executing always transitions for universe '%s'", u.model.ID), err)
 	}
 
@@ -445,7 +445,7 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 	}
 
 	// execute on entry process
-	if err := u.executeOnEntryProcess(ctx, event); err != nil {
+	if err = u.executeOnEntryProcess(ctx, event); err != nil {
 		return errors.Join(fmt.Errorf("error executing on entry process for universe '%s'", u.model.ID), err)
 	}
 
