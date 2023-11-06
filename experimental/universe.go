@@ -383,12 +383,22 @@ func (u *ExUniverse) onEvent(ctx context.Context, event instrumentation.Event) e
 		return fmt.Errorf("reality '%s' does not have transitions for Event '%s'", realityModel.ID, event.GetEventName())
 	}
 
-	approvedTransition, err := u.getApprovedTransition(ctx, transitions, event)
+	onApprovedTransition, err := u.getApprovedTransition(ctx, transitions, event)
 	if err != nil {
 		return errors.Join(fmt.Errorf("error executing on transitions for reality '%s'", realityModel.ID), err)
 	}
 
-	if err = u.doCyclicTransition(ctx, approvedTransition, event); err != nil {
+	if onApprovedTransition == nil {
+		return nil
+	}
+
+	// execute exit process
+	if err = u.executeOnExitProcess(ctx, event); err != nil {
+		return errors.Join(fmt.Errorf("error executing on exit process for universe '%s'", u.model.ID), err)
+	}
+
+	// execute cyclic transition while there are approved transitions
+	if err = u.doCyclicTransition(ctx, onApprovedTransition, event); err != nil {
 		return errors.Join(fmt.Errorf("error executing on transitions for reality '%s'", realityModel.ID), err)
 	}
 
@@ -482,6 +492,9 @@ func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition 
 			UniverseCanonicalName: u.model.CanonicalName,
 			Event:                 event,
 		}
+
+		//----- Executions -----
+		// execute constants transition actions
 		if err := u.constantsLawsExecutor.ExecuteTransitionAction(ctx, &args); err != nil {
 			return errors.Join(fmt.Errorf("error executing constants transition actions for reality '%s'", *u.currentReality), err)
 		}
@@ -491,14 +504,18 @@ func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition 
 			return errors.Join(fmt.Errorf("error executing transition actions for reality '%s'", *u.currentReality), err)
 		}
 
-		// execute constants transition invokes, invokes are executed asynchronously
+		// execute constants transition invokes
 		u.constantsLawsExecutor.ExecuteTransitionInvokes(ctx, &args)
 
 		// execute universe transition invokes
 		u.executeInvokes(ctx, approvedTransition.Invokes, event)
+		//-----------------------
 
 		// get is transition is of type notify, save external targets and return nil
 		if approvedTransition.IsNotification() {
+			if err := u.executeOnEntryProcess(ctx, event); err != nil {
+				return errors.Join(fmt.Errorf("error executing on entry process for universe '%s'", u.model.ID), err)
+			}
 			u.externalTargets = approvedTransition.Targets
 			return nil
 		}
@@ -580,6 +597,7 @@ func (u *ExUniverse) initSuperposition(ctx context.Context, targets []string, ev
 	u.realityBeforeSuperposition = u.currentReality
 	u.currentReality = nil
 	u.inSuperposition = true
+	u.realityInitialized = false
 	u.externalTargets = targets
 	u.eventAccumulator = newEventAccumulator()
 	return nil
