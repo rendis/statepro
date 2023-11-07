@@ -70,7 +70,7 @@ type ExUniverse struct {
 	// used to know when the ExUniverse has been exited and finalized
 	isFinalReality bool
 
-	// realityInitialized true when the current reality always transitions are executed
+	// realityInitialized is true when the “entry operation” of the current reality are executed
 	realityInitialized bool
 
 	// inSuperposition is true if the ExUniverse is in superposition
@@ -442,13 +442,10 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 		return errors.Join(fmt.Errorf("error executing always transitions for universe '%s'", u.model.ID), err)
 	}
 
-	// check if the always process left the system in superposition
+	// check if the 'always' process left the system in superposition
 	if u.inSuperposition {
 		return nil
 	}
-
-	// mark current reality as initialized
-	u.realityInitialized = true
 
 	// execute on entry process
 	if err = u.executeOnEntryProcess(ctx, event); err != nil {
@@ -469,19 +466,26 @@ func (u *ExUniverse) executeAlways(ctx context.Context, event instrumentation.Ev
 		return errors.Join(fmt.Errorf("error executing always transitions for reality '%s'", realityModel.ID), err)
 	}
 
-	return u.doCyclicTransition(ctx, approvedTransition, event)
+	if err = u.doCyclicTransition(ctx, approvedTransition, event); err != nil {
+		return errors.Join(fmt.Errorf("error executing always transitions for reality '%s'", realityModel.ID), err)
+	}
+
+	return nil
 }
 
 // doCyclicTransition executes transition and always transitions of the current reality and goes to the next reality if necessary
 // doCyclicTransition ends when:
-//   - there are no always transitions
-//   - there are always transitions but none of them are approved
-//   - there are always transitions but all of them point to another universe (superposition)
+//   - there are no approved transition
+//   - there are approved transition but no targets
+//   - There are approved transition but the target is another universe
+//   - There are approved transition, but it is a notification transition
 func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition *theoretical.TransitionModel, event instrumentation.Event) error {
+	var realityChanged = false
+
 	for {
-		// if no approved transition or no targets -> return nil
+		// if no approved transition or no targets -> break
 		if approvedTransition == nil || len(approvedTransition.Targets) == 0 {
-			return nil
+			break
 		}
 
 		// execute constants transition actions
@@ -511,13 +515,10 @@ func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition 
 		u.executeInvokes(ctx, approvedTransition.Invokes, event)
 		//-----------------------
 
-		// get is transition is of type notify, save external targets and return nil
+		// if approvedTransition is a notification transition -> set external targets and break
 		if approvedTransition.IsNotification() {
-			if err := u.executeOnEntryProcess(ctx, event); err != nil {
-				return errors.Join(fmt.Errorf("error executing on entry process for universe '%s'", u.model.ID), err)
-			}
 			u.externalTargets = approvedTransition.Targets
-			return nil
+			break
 		}
 
 		// len(targets) > 1 -> set superposition
@@ -535,20 +536,30 @@ func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition 
 		}
 
 		// set current reality
+		realityChanged = true
 		u.currentReality = &approvedTransition.Targets[0]
 		realityModel, err := u.getRealityModel(*u.currentReality)
 		if err != nil {
 			return err
 		}
-
 		u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
 
 		// execute current reality always transitions
-		approvedTransition, err = u.getApprovedTransition(ctx, realityModel.Always, event)
-		if err != nil {
+		if approvedTransition, err = u.getApprovedTransition(ctx, realityModel.Always, event); err != nil {
 			return errors.Join(fmt.Errorf("error executing always transitions for reality '%s'", realityModel.ID), err)
 		}
 	}
+
+	// if reality changed -> execute on entry process
+	if !realityChanged {
+		return nil
+	}
+
+	if err := u.executeOnEntryProcess(ctx, event); err != nil {
+		return errors.Join(fmt.Errorf("error executing on entry process for universe '%s'", u.model.ID), err)
+	}
+
+	return nil
 }
 
 func (u *ExUniverse) getApprovedTransition(ctx context.Context, transitionModels []*theoretical.TransitionModel, event instrumentation.Event) (*theoretical.TransitionModel, error) {
@@ -597,7 +608,6 @@ func (u *ExUniverse) initSuperposition(ctx context.Context, targets []string, ev
 	u.realityBeforeSuperposition = u.currentReality
 	u.currentReality = nil
 	u.inSuperposition = true
-	u.realityInitialized = false
 	u.externalTargets = targets
 	u.eventAccumulator = newEventAccumulator()
 	return nil
@@ -647,6 +657,7 @@ func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrument
 	// execute on entry universe invokes, invokes are executed asynchronously
 	u.executeInvokes(ctx, realityModel.EntryInvokes, event)
 
+	u.realityInitialized = true
 	return nil
 }
 
@@ -690,6 +701,7 @@ func (u *ExUniverse) executeOnExitProcess(ctx context.Context, event instrumenta
 	// execute on exit universe invokes, invokes are executed asynchronously
 	u.executeInvokes(ctx, realityModel.ExitInvokes, event)
 
+	u.realityInitialized = false
 	return nil
 }
 
