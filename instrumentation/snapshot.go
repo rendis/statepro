@@ -75,3 +75,11 @@ func (ms *MachineSnapshot) GetFinalizedUniverses() map[string]string {
 func (ms *MachineSnapshot) GetSuperpositionUniverses() map[string]string {
 	return ms.Resume.SuperpositionUniverses
 }
+
+type UniverseStateType string
+
+const (
+	UniverseStateTypeActive          UniverseStateType = "active"
+	UniverseStateTypeFinalized       UniverseStateType = "finalized"
+	UniverseStateTypeInSuperposition UniverseStateType = "in-superposition"
+)
