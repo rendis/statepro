@@ -8,7 +8,7 @@ import (
 // ContainsAllEvents builtin observer (builtin:observer:containsAllEvents)
 // Checks if the accumulated events contains all expected events received as model args.
 // Valid args:
-//   - map[string]string (key: event name, value: event value)
+//   - map[string]string (key: parameter name, value: expected value)
 //
 // Any other type will return false.
 func ContainsAllEvents(_ context.Context, args instrumentation.ObserverExecutorArgs) (bool, error) {
@@ -39,7 +39,7 @@ func ContainsAllEvents(_ context.Context, args instrumentation.ObserverExecutorA
 // ContainsAtLeastOneEvent builtin observer (builtin:observer:containsAtLeastOneEvent)
 // Checks if the accumulated events contains at least one expected event received as model args.
 // Valid args:
-//   - map[string]string (key: event name, value: event value)
+//   - map[string]string (key: parameter name, value: expected value)
 //
 // Any other type will return false.
 func ContainsAtLeastOneEvent(_ context.Context, args instrumentation.ObserverExecutorArgs) (bool, error) {
