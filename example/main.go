@@ -3,14 +3,7 @@ package main
 import (
 	"context"
 	"github.com/rendis/statepro/v3"
-	"github.com/rendis/statepro/v3/example/domain"
-	"github.com/rendis/statepro/v3/example/machines/admission"
-	admissionUniverse "github.com/rendis/statepro/v3/example/universes/admission"
-	"github.com/rendis/statepro/v3/example/universes/completed"
-	"github.com/rendis/statepro/v3/example/universes/form"
-	"github.com/rendis/statepro/v3/example/universes/payment"
-	"github.com/rendis/statepro/v3/example/universes/sign"
-	"github.com/rendis/statepro/v3/example/universes/waiting_confirmation"
+	"github.com/rendis/statepro/v3/builtin"
 	"github.com/rendis/statepro/v3/instrumentation"
 	"log"
 
@@ -21,7 +14,7 @@ func main() {
 	setLaws()
 	qm := loadDefinition()
 	ctx := context.Background()
-	machineCtx := &domain.AdmissionQMContext{}
+	machineCtx := &AdmissionQMContext{}
 
 	err := qm.Init(ctx, machineCtx)
 	if err != nil {
@@ -82,7 +75,7 @@ func main() {
 }
 
 func loadDefinition() instrumentation.QuantumMachine {
-	var path = "example/definitions/v0.1.json"
+	var path = "example/v0.1.json"
 
 	arrByte, err := os.ReadFile(path)
 	if err != nil {
@@ -103,39 +96,7 @@ func loadDefinition() instrumentation.QuantumMachine {
 }
 
 func setLaws() {
-	qm := admission.NewAdmissionQM()
-	au := admissionUniverse.NewAdmissionUniverse()
-	wc := waiting_confirmation.NewAdmissionWaitingConfirmationUniverse()
-	ac := completed.NewAdmissionCompletedUniverse()
-	fu := form.NewFormUniverse()
-	su := sign.NewSignUniverse()
-	pu := payment.NewPaymentUniverse()
+	_ = builtin.RegisterAction("logEntryToStatus", logEntryToStatusAction)
 
-	if err := statepro.RegisterQuantumMachineLaws(qm); err != nil {
-		panic(err)
-	}
-
-	if err := statepro.RegisterUniverseLaws(au); err != nil {
-		panic(err)
-	}
-
-	if err := statepro.RegisterUniverseLaws(wc); err != nil {
-		panic(err)
-	}
-
-	if err := statepro.RegisterUniverseLaws(ac); err != nil {
-		panic(err)
-	}
-
-	if err := statepro.RegisterUniverseLaws(fu); err != nil {
-		panic(err)
-	}
-
-	if err := statepro.RegisterUniverseLaws(su); err != nil {
-		panic(err)
-	}
-
-	if err := statepro.RegisterUniverseLaws(pu); err != nil {
-		panic(err)
-	}
+	_ = builtin.RegisterInvoke("notifyStatusChanged", notifyStatusChangedInvk)
 }

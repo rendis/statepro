@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/rendis/abslog/v3"
 	"github.com/rendis/devtoolkit"
 	"github.com/rendis/statepro/v3/builtin"
 	"github.com/rendis/statepro/v3/instrumentation"
@@ -27,17 +28,8 @@ type universeInfoSnapshot struct {
 	Accumulator                *eventAccumulator `json:"accumulator,omitempty"`
 }
 
-func NewExUniverse(
-	model *theoretical.UniverseModel,
-	laws instrumentation.UniverseLaws,
-) *ExUniverse {
-	return &ExUniverse{
-		model:             model,
-		observerExecutor:  getUniverseObserverExecutor(laws),
-		actionExecutor:    getUniverseActionExecutor(laws),
-		invokeExecutor:    getUniverseInvokeExecutor(laws),
-		conditionExecutor: getUniverseConditionExecutor(laws),
-	}
+func NewExUniverse(model *theoretical.UniverseModel) *ExUniverse {
+	return &ExUniverse{model: model}
 }
 
 type ExUniverse struct {
@@ -53,12 +45,6 @@ type ExUniverse struct {
 
 	// machineLawsExecutor is the machine laws executor
 	constantsLawsExecutor instrumentation.ConstantsLawsExecutor
-
-	// laws executors
-	observerExecutor  instrumentation.ObserverExecutor
-	actionExecutor    instrumentation.ActionExecutor
-	invokeExecutor    instrumentation.InvokeExecutor
-	conditionExecutor instrumentation.ConditionExecutor
 
 	// currentReality is the current reality of the ExUniverse
 	currentReality *string
@@ -87,7 +73,7 @@ type ExUniverse struct {
 }
 
 // handleEvent handles an Event where depending on the state of the universe
-func (u *ExUniverse) handleEvent(ctx context.Context, realityName *string, evt instrumentation.Event, universeContext any) ([]string, instrumentation.Event, error) {
+func (u *ExUniverse) handleEvent(ctx context.Context, realityName *string, evt instrumentation.Event, universeContext any) ([]string, error) {
 	var handleEventFn func() error
 	u.universeContext = universeContext
 
@@ -98,7 +84,7 @@ func (u *ExUniverse) handleEvent(ctx context.Context, realityName *string, evt i
 	}
 
 	targets, err := u.universeDecorator(handleEventFn)
-	return targets, evt, err
+	return targets, err
 }
 
 // start starts the universe on the default reality (initial reality)
@@ -843,46 +829,54 @@ func (u *ExUniverse) canRealityHandleEvent(realityName string, evt instrumentati
 //------------- executors -------------
 
 func (u *ExUniverse) runObserverExecutor(ctx context.Context, src string, args *observerExecutorArgs) (bool, error) {
-	if fn := builtin.GetExternalObserver(src); fn != nil {
+	if src == "" {
+		return true, nil
+	}
+
+	if fn := builtin.GetObserver(src); fn != nil {
 		return fn(ctx, args)
 	}
 
-	if u.observerExecutor == nil {
-		return false, nil
-	}
-	return u.observerExecutor.ExecuteObserver(ctx, args)
+	abslog.WarnCtxf(ctx, "observer '%s' not found (default behavior: return true)", src)
+	return true, nil
 }
 
 func (u *ExUniverse) runActionExecutor(ctx context.Context, src string, args *actionExecutorArgs) error {
-	if fn := builtin.GetExternalAction(src); fn != nil {
-		return fn(ctx, args)
-	}
-	if u.actionExecutor == nil {
+	if src == "" {
 		return nil
 	}
-	return u.actionExecutor.ExecuteAction(ctx, args)
+
+	if fn := builtin.GetAction(src); fn != nil {
+		return fn(ctx, args)
+	}
+
+	abslog.WarnCtxf(ctx, "action '%s' not found", src)
+	return nil
 }
 
 func (u *ExUniverse) runInvokeExecutor(ctx context.Context, args *invokeExecutorArgs) {
-	if fn := builtin.GetExternalInvoke(args.invoke.Src); fn != nil {
+	if args.invoke.Src == "" {
+		return
+	}
+
+	if fn := builtin.GetInvoke(args.invoke.Src); fn != nil {
 		go fn(ctx, args)
 		return
 	}
 
-	if u.invokeExecutor != nil {
-		go u.invokeExecutor.ExecuteInvoke(ctx, args)
-	}
+	abslog.WarnCtxf(ctx, "invoke '%s' not found", args.invoke.Src)
 }
 
 func (u *ExUniverse) runConditionExecutor(ctx context.Context, args *conditionExecutorArgs) (bool, error) {
-	if fn := builtin.GetExternalCondition(args.condition.Src); fn != nil {
+	if args.condition.Src == "" {
+		return true, nil
+	}
+
+	if fn := builtin.GetCondition(args.condition.Src); fn != nil {
 		return fn(ctx, args)
 	}
 
-	if u.conditionExecutor != nil {
-		return u.conditionExecutor.ExecuteCondition(ctx, args)
-	}
-
+	abslog.WarnCtxf(ctx, "condition '%s' not found (default behavior: return false)", args.condition.Src)
 	return false, nil
 }
 
