@@ -5,42 +5,6 @@ import (
 	"github.com/rendis/statepro/v3/theoretical"
 )
 
-// --------- laws executor extractors ---------//
-func getUniverseObserverExecutor(laws any) instrumentation.ObserverExecutor {
-	if executor, ok := laws.(instrumentation.ObserverExecutor); ok {
-		return executor
-	}
-	return nil
-}
-
-func getUniverseActionExecutor(laws any) instrumentation.ActionExecutor {
-	if executor, ok := laws.(instrumentation.ActionExecutor); ok {
-		return executor
-	}
-	return nil
-}
-
-func getUniverseInvokeExecutor(laws any) instrumentation.InvokeExecutor {
-	if executor, ok := laws.(instrumentation.InvokeExecutor); ok {
-		return executor
-	}
-	return nil
-}
-
-func getUniverseConditionExecutor(laws any) instrumentation.ConditionExecutor {
-	if executor, ok := laws.(instrumentation.ConditionExecutor); ok {
-		return executor
-	}
-	return nil
-}
-
-func getObservableKnowledgeExtractor(laws any) instrumentation.ObservableKnowledgeExtractorExecutor {
-	if executor, ok := laws.(instrumentation.ObservableKnowledgeExtractorExecutor); ok {
-		return executor
-	}
-	return nil
-}
-
 // --------- ObserverExecutorArgs ---------//
 type observerExecutorArgs struct {
 	context               any

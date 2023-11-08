@@ -1,4 +1,4 @@
-package domain
+package main
 
 type AdmissionQMContext struct {
 	Contract *ContractUniverseContext

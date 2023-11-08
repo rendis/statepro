@@ -27,30 +27,30 @@ var builtinInvokeRegistry = map[string]instrumentation.InvokeFn{}
 
 var builtinConditionRegistry = map[string]instrumentation.ConditionFn{}
 
-func GetExternalObserver(src string) instrumentation.ObserverFn {
+func GetObserver(src string) instrumentation.ObserverFn {
 	if fn := builtinObserverRegistry[src]; fn != nil {
 		return fn
 	}
-	return getCustomObserver(src)
+	return getObserver(src)
 }
 
-func GetExternalAction(src string) instrumentation.ActionFn {
+func GetAction(src string) instrumentation.ActionFn {
 	if fn := builtinActionRegistry[src]; fn != nil {
 		return fn
 	}
-	return getCustomAction(src)
+	return getAction(src)
 }
 
-func GetExternalInvoke(src string) instrumentation.InvokeFn {
+func GetInvoke(src string) instrumentation.InvokeFn {
 	if fn := builtinInvokeRegistry[src]; fn != nil {
 		return fn
 	}
-	return getCustomInvoke(src)
+	return getInvoke(src)
 }
 
-func GetExternalCondition(src string) instrumentation.ConditionFn {
+func GetCondition(src string) instrumentation.ConditionFn {
 	if fn := builtinConditionRegistry[src]; fn != nil {
 		return fn
 	}
-	return getCustomCondition(src)
+	return getCondition(src)
 }

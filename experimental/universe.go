@@ -27,17 +27,8 @@ type universeInfoSnapshot struct {
 	Accumulator                *eventAccumulator `json:"accumulator,omitempty"`
 }
 
-func NewExUniverse(
-	model *theoretical.UniverseModel,
-	laws instrumentation.UniverseLaws,
-) *ExUniverse {
-	return &ExUniverse{
-		model:             model,
-		observerExecutor:  getUniverseObserverExecutor(laws),
-		actionExecutor:    getUniverseActionExecutor(laws),
-		invokeExecutor:    getUniverseInvokeExecutor(laws),
-		conditionExecutor: getUniverseConditionExecutor(laws),
-	}
+func NewExUniverse(model *theoretical.UniverseModel) *ExUniverse {
+	return &ExUniverse{model: model}
 }
 
 type ExUniverse struct {
@@ -53,12 +44,6 @@ type ExUniverse struct {
 
 	// machineLawsExecutor is the machine laws executor
 	constantsLawsExecutor instrumentation.ConstantsLawsExecutor
-
-	// laws executors
-	observerExecutor  instrumentation.ObserverExecutor
-	actionExecutor    instrumentation.ActionExecutor
-	invokeExecutor    instrumentation.InvokeExecutor
-	conditionExecutor instrumentation.ConditionExecutor
 
 	// currentReality is the current reality of the ExUniverse
 	currentReality *string
@@ -843,44 +828,47 @@ func (u *ExUniverse) canRealityHandleEvent(realityName string, evt instrumentati
 //------------- executors -------------
 
 func (u *ExUniverse) runObserverExecutor(ctx context.Context, src string, args *observerExecutorArgs) (bool, error) {
-	if fn := builtin.GetExternalObserver(src); fn != nil {
+	if fn := builtin.GetObserver(src); fn != nil {
 		return fn(ctx, args)
 	}
 
-	if u.observerExecutor == nil {
-		return false, nil
+	if fn := builtin.GetObserver(src); fn != nil {
+		return fn(ctx, args)
 	}
-	return u.observerExecutor.ExecuteObserver(ctx, args)
+
+	return true, nil
 }
 
 func (u *ExUniverse) runActionExecutor(ctx context.Context, src string, args *actionExecutorArgs) error {
-	if fn := builtin.GetExternalAction(src); fn != nil {
+	if fn := builtin.GetAction(src); fn != nil {
 		return fn(ctx, args)
 	}
-	if u.actionExecutor == nil {
-		return nil
+
+	if fn := builtin.GetAction(src); fn != nil {
+		return fn(ctx, args)
 	}
-	return u.actionExecutor.ExecuteAction(ctx, args)
+
+	return nil
 }
 
 func (u *ExUniverse) runInvokeExecutor(ctx context.Context, args *invokeExecutorArgs) {
-	if fn := builtin.GetExternalInvoke(args.invoke.Src); fn != nil {
+	if fn := builtin.GetInvoke(args.invoke.Src); fn != nil {
 		go fn(ctx, args)
 		return
 	}
 
-	if u.invokeExecutor != nil {
-		go u.invokeExecutor.ExecuteInvoke(ctx, args)
+	if fn := builtin.GetInvoke(args.invoke.Src); fn != nil {
+		go fn(ctx, args)
 	}
 }
 
 func (u *ExUniverse) runConditionExecutor(ctx context.Context, args *conditionExecutorArgs) (bool, error) {
-	if fn := builtin.GetExternalCondition(args.condition.Src); fn != nil {
+	if fn := builtin.GetCondition(args.condition.Src); fn != nil {
 		return fn(ctx, args)
 	}
 
-	if u.conditionExecutor != nil {
-		return u.conditionExecutor.ExecuteCondition(ctx, args)
+	if fn := builtin.GetCondition(args.condition.Src); fn != nil {
+		return fn(ctx, args)
 	}
 
 	return false, nil
