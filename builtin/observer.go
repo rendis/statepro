@@ -2,6 +2,7 @@ package builtin
 
 import (
 	"context"
+	"github.com/rendis/devtoolkit"
 	"github.com/rendis/statepro/v3/instrumentation"
 )
 
@@ -92,7 +93,7 @@ func GreaterThanEqualCounter(_ context.Context, args instrumentation.ObserverExe
 
 	// iterate over expected events from model args
 	for expectedEventName, expectedEventCounter := range args.GetObserver().Args {
-		count, isInt := expectedEventCounter.(int)
+		count, isInt := devtoolkit.ToInt(expectedEventCounter)
 		if !isInt {
 			return false, nil
 		}
