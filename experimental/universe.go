@@ -70,7 +70,12 @@ type ExUniverse struct {
 	// eventAccumulator universe Event accumulator
 	// used to accumulate events for each reality when the ExUniverse is in superposition (inSuperposition == true)
 	eventAccumulator instrumentation.Accumulator
+
+	// tracking
+	tracking []string
 }
+
+//------------------------------- External Operations -------------------------------//
 
 // handleEvent handles an Event where depending on the state of the universe
 func (u *ExUniverse) handleEvent(ctx context.Context, realityName *string, evt instrumentation.Event, universeContext any) ([]string, error) {
@@ -144,6 +149,7 @@ func (u *ExUniverse) placeOn(realityName string) error {
 
 	u.initialized = true
 	u.currentReality = &realityName
+	u.addStateToTracking(u.currentReality)
 	u.realityInitialized = true
 	u.inSuperposition = false
 	u.realityBeforeSuperposition = nil
@@ -185,6 +191,7 @@ func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUni
 
 	u.initialized = snapshot.Initialized
 	u.currentReality = snapshot.CurrentReality
+	u.addStateToTracking(u.currentReality)
 	u.realityInitialized = snapshot.RealityInitialized
 	u.inSuperposition = snapshot.InSuperposition
 	u.realityBeforeSuperposition = snapshot.RealityBeforeSuperposition
@@ -204,8 +211,6 @@ func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUni
 
 	return nil
 }
-
-//--------------------------------------------------------//
 
 // canHandleEvent returns true if the universe can handle the given Event
 // A universe can handle an Event if all the following conditions are met:
@@ -232,13 +237,13 @@ func (u *ExUniverse) canHandleEvent(evt instrumentation.Event) bool {
 	return false
 }
 
-// isActive returns true if the universe is active
-// A universe is active if:
-// - has been initialized &&
-// - || it is in superposition state
-// - || the current reality is established and it is not final
-func (u *ExUniverse) isActive() bool {
-	return u.initialized && (u.inSuperposition || !u.isFinalReality)
+//------------------------------- Internal Operations -------------------------------//
+
+func (u *ExUniverse) addStateToTracking(state *string) {
+	if state == nil {
+		return
+	}
+	u.tracking = append(u.tracking, *state)
 }
 
 func (u *ExUniverse) universeDecorator(operation func() error) ([]string, error) {
@@ -412,6 +417,7 @@ func (u *ExUniverse) initializeUniverseOn(ctx context.Context, realityName strin
 func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, event instrumentation.Event) error {
 	// set current reality
 	u.currentReality = &reality
+	u.addStateToTracking(u.currentReality)
 	u.realityInitialized = false
 
 	// clear Event accumulator
@@ -524,6 +530,7 @@ func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition 
 
 		// set current reality
 		u.currentReality = &approvedTransition.Targets[0]
+		u.addStateToTracking(u.currentReality)
 		realityModel, err := u.getRealityModel(*u.currentReality)
 		if err != nil {
 			return err

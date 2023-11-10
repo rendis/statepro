@@ -3,8 +3,16 @@ package instrumentation
 type SerializedUniverseSnapshot map[string]any
 
 type MachineSnapshot struct {
-	Resume    UniversesResume                       `json:"resume" bson:"resume" xml:"resume"`
+	// Resume is the resume of the machine
+	Resume UniversesResume `json:"resume" bson:"resume" xml:"resume"`
+
+	// Snapshots is the map of the universe snapshots
+	// key: universe id, value: universe snapshot
 	Snapshots map[string]SerializedUniverseSnapshot `json:"snapshots,omitempty" bson:"snapshots,omitempty" xml:"snapshots,omitempty"`
+
+	// Tracking is the map of the universe status tracking
+	// key: universe id, value: list of states the universe has been through
+	Tracking map[string][]string `json:"tracking,omitempty" bson:"tracking,omitempty" xml:"tracking,omitempty"`
 }
 
 type UniversesResume struct {
@@ -60,6 +68,13 @@ func (ms *MachineSnapshot) AddUniverseSnapshot(universeId string, snapshot Seria
 	ms.Snapshots[universeId] = snapshot
 }
 
+func (ms *MachineSnapshot) AddTracking(universeId string, tracking []string) {
+	if ms.Tracking == nil {
+		ms.Tracking = make(map[string][]string)
+	}
+	ms.Tracking[universeId] = tracking
+}
+
 func (ms *MachineSnapshot) GetResume() UniversesResume {
 	return ms.Resume
 }
@@ -76,10 +91,6 @@ func (ms *MachineSnapshot) GetSuperpositionUniverses() map[string]string {
 	return ms.Resume.SuperpositionUniverses
 }
 
-type UniverseStateType string
-
-const (
-	UniverseStateTypeActive          UniverseStateType = "active"
-	UniverseStateTypeFinalized       UniverseStateType = "finalized"
-	UniverseStateTypeInSuperposition UniverseStateType = "in-superposition"
-)
+func (ms *MachineSnapshot) GetTracking() map[string][]string {
+	return ms.Tracking
+}

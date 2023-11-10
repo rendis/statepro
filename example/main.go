@@ -70,6 +70,9 @@ func main() {
 
 	ss = qm2.GetSnapshot()
 
+	tracking := ss.GetTracking()
+	log.Printf("tracking: %v", tracking)
+
 	log.Println("*************** DONE ***************")
 
 }
