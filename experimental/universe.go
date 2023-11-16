@@ -140,7 +140,7 @@ func (u *ExUniverse) startOnReality(ctx context.Context, realityName string, uni
 }
 
 // placeOn sets the given reality as the current reality
-// placeOn not execute always, initial or exit operations, only set the current reality
+// not execute always, initial or exit operations, only set the current reality
 func (u *ExUniverse) placeOn(realityName string) error {
 	realityModel, ok := u.model.Realities[realityName]
 	if !ok {
@@ -149,7 +149,6 @@ func (u *ExUniverse) placeOn(realityName string) error {
 
 	u.initialized = true
 	u.currentReality = &realityName
-	u.addStateToTracking(u.currentReality)
 	u.realityInitialized = true
 	u.inSuperposition = false
 	u.realityBeforeSuperposition = nil
@@ -191,7 +190,6 @@ func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUni
 
 	u.initialized = snapshot.Initialized
 	u.currentReality = snapshot.CurrentReality
-	u.addStateToTracking(u.currentReality)
 	u.realityInitialized = snapshot.RealityInitialized
 	u.inSuperposition = snapshot.InSuperposition
 	u.realityBeforeSuperposition = snapshot.RealityBeforeSuperposition
