@@ -381,19 +381,9 @@ func (u *ExUniverse) onEvent(ctx context.Context, event instrumentation.Event) e
 		return nil
 	}
 
-	// execute exit process
-	if err = u.executeOnExitProcess(ctx, event); err != nil {
-		return errors.Join(fmt.Errorf("error executing on exit process for universe '%s'", u.model.ID), err)
-	}
-
 	// execute cyclic transition while there are approved transitions
 	if err = u.doCyclicTransition(ctx, onApprovedTransition, event); err != nil {
 		return errors.Join(fmt.Errorf("error executing on transitions for reality '%s'", realityModel.ID), err)
-	}
-
-	// execute on entry process of the new reality
-	if err = u.executeOnEntryProcess(ctx, event); err != nil {
-		return errors.Join(fmt.Errorf("error executing on entry process for universe '%s'", u.model.ID), err)
 	}
 
 	return nil
@@ -458,11 +448,6 @@ func (u *ExUniverse) executeAlways(ctx context.Context, event instrumentation.Ev
 		return errors.Join(fmt.Errorf("error executing always transitions for reality '%s'", realityModel.ID), err)
 	}
 
-	// execute on entry process of the new reality
-	if err = u.executeOnEntryProcess(ctx, event); err != nil {
-		return errors.Join(fmt.Errorf("error executing on entry process for universe '%s'", u.model.ID), err)
-	}
-
 	return nil
 }
 
@@ -512,9 +497,14 @@ func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition 
 			return nil
 		}
 
+		// execute on exit process
+		if err := u.executeOnExitProcess(ctx, event); err != nil {
+			return errors.Join(fmt.Errorf("error executing on exit process for universe '%s' and reality '%s'", u.model.ID, *u.currentReality), err)
+		}
+
 		// len(targets) > 1 -> set superposition
 		if len(approvedTransition.Targets) > 1 {
-			return u.initSuperposition(ctx, approvedTransition.Targets, event)
+			return u.initSuperposition(approvedTransition.Targets)
 		}
 
 		// len(targets) == 1 && target points to another universe -> set superposition
@@ -523,7 +513,7 @@ func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition 
 			return errors.Join(fmt.Errorf("error processing reference '%s'", approvedTransition.Targets[0]), err)
 		}
 		if refTyp != RefTypeReality {
-			return u.initSuperposition(ctx, approvedTransition.Targets, event)
+			return u.initSuperposition(approvedTransition.Targets)
 		}
 
 		// set current reality
@@ -534,6 +524,11 @@ func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition 
 			return err
 		}
 		u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
+
+		// execute on entry process of the new reality
+		if err = u.executeOnEntryProcess(ctx, event); err != nil {
+			return errors.Join(fmt.Errorf("error executing on entry process for universe '%s' and reality '%s'", u.model.ID, *u.currentReality), err)
+		}
 
 		// execute current reality always transitions
 		if approvedTransition, err = u.getApprovedTransition(ctx, realityModel.Always, event); err != nil {
@@ -578,12 +573,7 @@ func (u *ExUniverse) executeCondition(ctx context.Context, conditionModel *theor
 	return u.runConditionExecutor(ctx, args)
 }
 
-func (u *ExUniverse) initSuperposition(ctx context.Context, targets []string, event instrumentation.Event) error {
-	// execute on exit process
-	if err := u.executeOnExitProcess(ctx, event); err != nil {
-		return err
-	}
-
+func (u *ExUniverse) initSuperposition(targets []string) error {
 	// set superposition
 	u.realityBeforeSuperposition = u.currentReality
 	u.currentReality = nil
