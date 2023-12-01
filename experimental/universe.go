@@ -543,7 +543,7 @@ func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition 
 }
 
 func (u *ExUniverse) getApprovedTransition(ctx context.Context, transitionModels []*theoretical.TransitionModel, event instrumentation.Event) (*theoretical.TransitionModel, error) {
-	if transitionModels == nil || len(transitionModels) == 0 {
+	if len(transitionModels) == 0 {
 		return nil, nil
 	}
 
