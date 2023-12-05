@@ -411,7 +411,10 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 	// set current reality
 	u.currentReality = &reality
 	u.addStateToTracking(u.currentReality)
-	u.realityInitialized = false
+	if err := u.executeOnEntry(ctx, event); err != nil {
+		return errors.Join(fmt.Errorf("error executing on entry process for universe '%s' and reality '%s'", u.model.ID, *u.currentReality), err)
+	}
+	u.realityInitialized = true
 
 	// clear Event accumulator
 	u.eventAccumulator = nil
@@ -433,6 +436,13 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 		return errors.Join(fmt.Errorf("error executing always transitions for universe '%s'", u.model.ID), err)
 	}
 
+	return nil
+}
+
+func (u *ExUniverse) executeOnEntry(ctx context.Context, event instrumentation.Event) error {
+	if err := u.executeOnEntryProcess(ctx, event); err != nil {
+		return errors.Join(fmt.Errorf("error executing on entry process for universe '%s' and reality '%s'", u.model.ID, *u.currentReality), err)
+	}
 	return nil
 }
 
@@ -531,7 +541,7 @@ func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition 
 		u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
 
 		// execute on entry process of the new reality
-		if err = u.executeOnEntryProcess(ctx, event); err != nil {
+		if err = u.executeOnEntry(ctx, event); err != nil {
 			return errors.Join(fmt.Errorf("error executing on entry process for universe '%s' and reality '%s'", u.model.ID, *u.currentReality), err)
 		}
 
