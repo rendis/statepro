@@ -57,6 +57,11 @@ type UniverseModel struct {
 	// * no white space
 	// * only letters, numbers, dot (.), underscore (_) and dash (-). Example: 1.0.0, v1.0.2, 1.0, v1 or 1.0.0-alpha.1
 	Version string `json:"version" bson:"version" xml:"version" yaml:"version"`
+
+	// Metadata is the map of metadata to be passed to the universe.
+	// Validations:
+	// * optional
+	Metadata map[string]any `json:"metadata,omitempty" bson:"metadata,omitempty" xml:"metadata,omitempty" yaml:"metadata,omitempty"`
 }
 
 // GetReality returns the reality with the given id.

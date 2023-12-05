@@ -63,6 +63,11 @@ type TransitionModel struct {
 	// Validations:
 	// * optional
 	Description *string `json:"description,omitempty" bson:"description,omitempty" xml:"description,omitempty" yaml:"description,omitempty"`
+
+	// Metadata is the map of metadata to be passed to the transition.
+	// Validations:
+	// * optional
+	Metadata map[string]any `json:"metadata,omitempty" bson:"metadata,omitempty" xml:"metadata,omitempty" yaml:"metadata,omitempty"`
 }
 
 func (t *TransitionModel) IsNotification() bool {
