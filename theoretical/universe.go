@@ -62,6 +62,11 @@ type UniverseModel struct {
 	// Validations:
 	// * optional
 	Metadata map[string]any `json:"metadata,omitempty" bson:"metadata,omitempty" xml:"metadata,omitempty" yaml:"metadata,omitempty"`
+
+	// Tags is the list of tags of the universe.
+	// Validations:
+	// * optional
+	Tags []string `json:"tags,omitempty" bson:"tags,omitempty" xml:"tags,omitempty" yaml:"tags,omitempty"`
 }
 
 // GetReality returns the reality with the given id.
