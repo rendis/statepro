@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"github.com/rendis/statepro/v3"
-	"github.com/rendis/statepro/v3/builtin"
 	"github.com/rendis/statepro/v3/instrumentation"
 	"log"
 
@@ -11,7 +10,6 @@ import (
 )
 
 func main() {
-	setLaws()
 	qm := loadDefinition()
 	ctx := context.Background()
 	machineCtx := &AdmissionQMContext{}
@@ -21,60 +19,43 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ss := qm.GetSnapshot()
-
 	// confirm
-	event := statepro.NewEventBuilder("confirmed").Build()
-
+	event := statepro.NewEventBuilder("confirm").Build()
 	if _, err = qm.SendEvent(ctx, event); err != nil {
 		log.Fatal(err)
 	}
 
-	ss = qm.GetSnapshot()
+	snapshot := qm.GetSnapshot()
+	log.Printf("Snapshot generated: %+v", snapshot.Tracking)
 
+	// fill-form
+	event = statepro.NewEventBuilder("fill-form").Build()
 	if _, err = qm.SendEvent(ctx, event); err != nil {
 		log.Fatal(err)
 	}
 
-	ss = qm.GetSnapshot()
+	snapshot = qm.GetSnapshot()
+	log.Printf("Snapshot generated: %+v", snapshot.Tracking)
 
-	//sing
-	event = statepro.NewEventBuilder("signed").Build()
-
+	// sign
+	event = statepro.NewEventBuilder("sign").Build()
 	if _, err = qm.SendEvent(ctx, event); err != nil {
 		log.Fatal(err)
 	}
 
-	ss = qm.GetSnapshot()
+	snapshot = qm.GetSnapshot()
+	log.Printf("Snapshot generated: %+v", snapshot.Tracking)
 
-	qm2 := loadDefinition()
-	if err = qm2.LoadSnapshot(ss, machineCtx); err != nil {
+	// sign
+	event = statepro.NewEventBuilder("sign").Build()
+	if _, err = qm.SendEvent(ctx, event); err != nil {
 		log.Fatal(err)
 	}
 
-	//fill
-	event = statepro.NewEventBuilder("filled-form").Build()
+	snapshot = qm.GetSnapshot()
+	log.Printf("Snapshot generated: %+v", snapshot.Tracking)
 
-	if _, err = qm2.SendEvent(ctx, event); err != nil {
-		log.Fatal(err)
-	}
-
-	ss = qm2.GetSnapshot()
-
-	//paid
-	event = statepro.NewEventBuilder("paid").Build()
-
-	if _, err = qm2.SendEvent(ctx, event); err != nil {
-		log.Fatal(err)
-	}
-
-	ss = qm2.GetSnapshot()
-
-	tracking := ss.GetTracking()
-	log.Printf("tracking: %v", tracking)
-
-	log.Println("*************** DONE ***************")
-
+	log.Println("done")
 }
 
 func loadDefinition() instrumentation.QuantumMachine {
@@ -96,10 +77,4 @@ func loadDefinition() instrumentation.QuantumMachine {
 	}
 
 	return qm
-}
-
-func setLaws() {
-	_ = builtin.RegisterAction("logEntryToStatus", logEntryToStatusAction)
-
-	_ = builtin.RegisterInvoke("notifyStatusChanged", notifyStatusChangedInvk)
 }

@@ -795,8 +795,8 @@ func (u *ExUniverse) accumulateEventForAllRealities(ctx context.Context, event i
 }
 
 func (u *ExUniverse) executeObservers(ctx context.Context, realityModel *theoretical.RealityModel, event instrumentation.Event) (bool, error) {
-	if realityModel.Observers == nil || len(realityModel.Observers) == 0 {
-		return false, nil
+	if len(realityModel.Observers) == 0 {
+		return true, nil
 	}
 
 	for _, observer := range realityModel.Observers {
