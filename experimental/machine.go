@@ -359,6 +359,10 @@ func (qm *ExQuantumMachine) executeTransitions(ctx context.Context, event instru
 		refT, parts, _ := processReference(target)
 		exUniverse := qm.universes[parts[0]]
 
+		if exUniverse == nil {
+			return nil, fmt.Errorf("universe '%s' not found", parts[0])
+		}
+
 		var realityName *string = nil
 		if refT == RefTypeUniverseReality {
 			realityName = &parts[1]
