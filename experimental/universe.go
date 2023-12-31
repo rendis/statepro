@@ -226,8 +226,8 @@ func (u *ExUniverse) canHandleEvent(evt instrumentation.Event) bool {
 		return false
 	}
 
-	// if current reality not final and can handle the event -> true
-	if u.currentReality != nil && !u.isFinalReality && u.canRealityHandleEvent(*u.currentReality, evt) {
+	// if current reality can handle the event -> true
+	if u.currentReality != nil && u.canRealityHandleEvent(*u.currentReality, evt) {
 		return true
 	}
 
@@ -295,8 +295,8 @@ func (u *ExUniverse) receiveEventToReality(ctx context.Context, realityName stri
 		return nil
 	}
 
-	// handling not final current realityName
-	if !u.isFinalReality && *u.currentReality == realityName {
+	// handling if current reality is the target reality
+	if *u.currentReality == realityName {
 		return u.onEvent(ctx, event)
 	}
 
@@ -350,20 +350,7 @@ func (u *ExUniverse) receiveEvent(ctx context.Context, event instrumentation.Eve
 	}
 
 	// handling not final current reality
-	if !u.isFinalReality {
-		return u.onEvent(ctx, event)
-	}
-
-	// return error
-	var currentRealityName string
-	if u.currentReality != nil {
-		currentRealityName = *u.currentReality
-	}
-
-	return fmt.Errorf(
-		"universe '%s' can't receive external Event. inSuperposition: '%t', currentRealityName: '%s', IsFinalReality: '%t'",
-		u.model.ID, u.inSuperposition, currentRealityName, u.isFinalReality,
-	)
+	return u.onEvent(ctx, event)
 }
 
 func (u *ExUniverse) onEvent(ctx context.Context, event instrumentation.Event) error {
