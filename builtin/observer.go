@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/rendis/devtoolkit"
 	"github.com/rendis/statepro/v3/instrumentation"
+	"math"
 )
 
 // ContainsAllEvents builtin observer (builtin:observer:containsAllEvents)
@@ -108,4 +109,37 @@ func GreaterThanEqualCounter(_ context.Context, args instrumentation.ObserverExe
 	}
 
 	return true, nil
+}
+
+// TotalEventsBetweenLimits builtin observer (builtin:observer:totalEventsBetweenLimits)
+// Checks if the total of accumulated events is between the expected "minimum" and "maximum" values.
+// Valid args:
+//   - map[string]int (key: limit name, value: limit value)
+//   - allowed keys: "minimum", "maximum"
+//   - minimum: int (optional, default: math.MinInt)
+//   - maximum: int (optional, default: math.MaxInt)
+func TotalEventsBetweenLimits(_ context.Context, args instrumentation.ObserverExecutorArgs) (bool, error) {
+	statistics := args.GetAccumulatorStatistics()
+	if statistics == nil {
+		return false, nil
+	}
+	total := statistics.CountAllEventsNames()
+
+	var minArg = math.MinInt
+	var maxArg = math.MaxInt
+
+	if v, ok := args.GetObserver().Args["minimum"]; ok {
+		if m, ok := devtoolkit.ToInt(v); ok {
+			minArg = m
+		}
+	}
+
+	if v, ok := args.GetObserver().Args["maximum"]; ok {
+		if m, ok := devtoolkit.ToInt(v); ok {
+			maxArg = m
+		}
+	}
+
+	return total >= minArg && total <= maxArg, nil
+
 }

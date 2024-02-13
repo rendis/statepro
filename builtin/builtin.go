@@ -10,10 +10,11 @@ func SetLogger(logger abslog.AbsLog) {
 }
 
 var builtinObserverRegistry = map[string]instrumentation.ObserverFn{
-	"builtin:observer:containsAllEvents":       ContainsAllEvents,
-	"builtin:observer:containsAtLeastOneEvent": ContainsAtLeastOneEvent,
-	"builtin:observer:alwaysTrue":              AlwaysTrue,
-	"builtin:observer:greaterThanEqualCounter": GreaterThanEqualCounter,
+	"builtin:observer:containsAllEvents":        ContainsAllEvents,
+	"builtin:observer:containsAtLeastOneEvent":  ContainsAtLeastOneEvent,
+	"builtin:observer:alwaysTrue":               AlwaysTrue,
+	"builtin:observer:greaterThanEqualCounter":  GreaterThanEqualCounter,
+	"builtin:observer:totalEventsBetweenLimits": TotalEventsBetweenLimits,
 }
 
 var builtinActionRegistry = map[string]instrumentation.ActionFn{
