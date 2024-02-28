@@ -123,7 +123,7 @@ func TotalEventsBetweenLimits(_ context.Context, args instrumentation.ObserverEx
 	if statistics == nil {
 		return false, nil
 	}
-	total := statistics.CountAllEventsNames()
+	total := statistics.CountAllEvents()
 
 	var minArg = math.MinInt
 	var maxArg = math.MaxInt

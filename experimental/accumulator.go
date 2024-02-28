@@ -121,3 +121,11 @@ func (ea *eventAccumulator) GetAllEventsNames() []string {
 func (ea *eventAccumulator) CountAllEventsNames() int {
 	return len(ea.GetAllEventsNames())
 }
+
+func (ea *eventAccumulator) CountAllEvents() int {
+	var count int
+	for _, events := range ea.RealitiesEvents {
+		count += len(events)
+	}
+	return count
+}

@@ -37,4 +37,7 @@ type AccumulatorStatistics interface {
 
 	// CountAllEventsNames returns the number of accumulated events names for all realities (without repetitions)
 	CountAllEventsNames() int
+
+	// CountAllEvents returns the number of accumulated events for all realities (with repetitions)
+	CountAllEvents() int
 }
