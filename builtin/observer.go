@@ -129,17 +129,16 @@ func TotalEventsBetweenLimits(_ context.Context, args instrumentation.ObserverEx
 	var maxArg = math.MaxInt
 
 	if v, ok := args.GetObserver().Args["minimum"]; ok {
-		if m, ok := devtoolkit.ToInt(v); ok {
+		if m, ok := TryToCastToInt(v); ok {
 			minArg = m
 		}
 	}
 
 	if v, ok := args.GetObserver().Args["maximum"]; ok {
-		if m, ok := devtoolkit.ToInt(v); ok {
+		if m, ok := TryToCastToInt(v); ok {
 			maxArg = m
 		}
 	}
 
 	return total >= minArg && total <= maxArg, nil
-
 }
