@@ -196,7 +196,7 @@ func (qm *ExQuantumMachine) GetSnapshot() *instrumentation.MachineSnapshot {
 	return machineSnapshot
 }
 
-//--------- constantsLawsExecutor interface implementation ---------
+//--------- ConstantsLawsExecutor interface implementation ---------
 
 func (qm *ExQuantumMachine) ExecuteEntryInvokes(ctx context.Context, args *instrumentation.QuantumMachineExecutorArgs) {
 	if qm.model.UniversalConstants == nil || len(qm.model.UniversalConstants.EntryInvokes) == 0 {
@@ -274,11 +274,14 @@ func (qm *ExQuantumMachine) executeInvoke(ctx context.Context, invoke theoretica
 		return
 	}
 
+	u := qm.universes[args.UniverseID]
+
 	a := &invokeExecutorArgs{
 		context:               args.Context,
 		realityName:           args.RealityName,
 		universeCanonicalName: args.UniverseCanonicalName,
 		universeID:            args.UniverseID,
+		universeMetadata:      u.metadata,
 		event:                 args.Event,
 		invoke:                invoke,
 	}
@@ -296,11 +299,14 @@ func (qm *ExQuantumMachine) executeAction(ctx context.Context, model *theoretica
 		return nil
 	}
 
+	u := qm.universes[args.UniverseID]
+
 	a := &actionExecutorArgs{
 		context:               args.Context,
 		realityName:           args.RealityName,
 		universeCanonicalName: args.UniverseCanonicalName,
 		universeID:            args.UniverseID,
+		universeMetadata:      u.metadata,
 		event:                 args.Event,
 		action:                *model,
 		actionType:            instrumentation.ActionTypeEntry,

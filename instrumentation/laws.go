@@ -39,6 +39,7 @@ type ObserverExecutorArgs interface {
 	GetAccumulatorStatistics() AccumulatorStatistics
 	GetEvent() Event
 	GetObserver() theoretical.ObserverModel
+	GetUniverseMetadata() map[string]any
 }
 type ObserverFn func(ctx context.Context, args ObserverExecutorArgs) (bool, error)
 
@@ -51,6 +52,7 @@ type ActionExecutorArgs interface {
 	GetAction() theoretical.ActionModel
 	GetActionType() ActionType
 	GetSnapshot() *MachineSnapshot
+	GetUniverseMetadata() map[string]any
 }
 type ActionFn func(ctx context.Context, args ActionExecutorArgs) error
 
@@ -61,6 +63,7 @@ type InvokeExecutorArgs interface {
 	GetUniverseId() string
 	GetEvent() Event
 	GetInvoke() theoretical.InvokeModel
+	GetUniverseMetadata() map[string]any
 }
 type InvokeFn func(ctx context.Context, args InvokeExecutorArgs)
 
@@ -71,5 +74,6 @@ type ConditionExecutorArgs interface {
 	GetUniverseId() string
 	GetEvent() Event
 	GetCondition() theoretical.ConditionModel
+	GetUniverseMetadata() map[string]any
 }
 type ConditionFn func(ctx context.Context, args ConditionExecutorArgs) (bool, error)

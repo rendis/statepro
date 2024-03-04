@@ -12,6 +12,9 @@
       "canonicalName": "admission-in-waiting-confirmation",
       "version": "0.1.0",
       "initial": "CREATED",
+      "metadata": {
+        "templateId": "template1"
+      },
       "realities": {
         "CREATED": {
           "id": "CREATED",
@@ -64,6 +67,9 @@
       "canonicalName": "admission-form-process",
       "version": "0.1.0",
       "initial": "FILLING_FORM",
+      "metadata": {
+        "templateId": "template2"
+      },
       "realities": {
         "FILLING_FORM": {
           "id": "FILLING_FORM",
@@ -104,6 +110,9 @@
       "canonicalName": "admission-contract-process",
       "version": "0.1.0",
       "initial": "SIGNING_DATA_CONSENT",
+      "metadata": {
+        "templateId": "template3"
+      },
       "realities": {
         "SIGNING_DATA_CONSENT": {
           "id": "SIGNING_DATA_CONSENT",
@@ -173,6 +182,9 @@
       "id": "admission-waiting-processes",
       "canonicalName": "waiting-processes",
       "version": "0.1.0",
+      "metadata": {
+        "templateId": "template4"
+      },
       "realities": {
         "WAITING_PROCESSES": {
           "id": "WAITING_PROCESSES",
@@ -206,6 +218,9 @@
       "id": "admission-rejected-default",
       "canonicalName": "admission-rejected",
       "version": "0.1.0",
+      "metadata": {
+        "templateId": "template5"
+      },
       "realities": {
         "REJECTED": {
           "id": "REJECTED",
@@ -223,6 +238,9 @@
       "id": "admission-cancelled-default",
       "canonicalName": "admission-cancelled",
       "version": "0.1.0",
+      "metadata": {
+        "templateId": "template6"
+      },
       "realities": {
         "CANCELLED": {
           "id": "CANCELLED",
@@ -240,6 +258,9 @@
       "id": "admission-completed-default",
       "canonicalName": "admission-completed",
       "version": "0.1.0",
+      "metadata": {
+        "templateId": "template7"
+      },
       "realities": {
         "COMPLETED": {
           "id": "COMPLETED",

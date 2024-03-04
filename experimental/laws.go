@@ -11,6 +11,7 @@ type observerExecutorArgs struct {
 	realityName           string
 	universeCanonicalName string
 	universeID            string
+	universeMetadata      map[string]any
 	accumulatorStatistics instrumentation.AccumulatorStatistics
 	event                 instrumentation.Event
 	observer              theoretical.ObserverModel
@@ -44,12 +45,17 @@ func (o *observerExecutorArgs) GetObserver() theoretical.ObserverModel {
 	return o.observer
 }
 
+func (o *observerExecutorArgs) GetUniverseMetadata() map[string]any {
+	return o.universeMetadata
+}
+
 // --------- ActionExecutorArgs ---------//
 type actionExecutorArgs struct {
 	context               any
 	realityName           string
 	universeCanonicalName string
 	universeID            string
+	universeMetadata      map[string]any
 	event                 instrumentation.Event
 	action                theoretical.ActionModel
 	actionType            instrumentation.ActionType
@@ -88,6 +94,10 @@ func (a *actionExecutorArgs) GetSnapshot() *instrumentation.MachineSnapshot {
 	return a.getSnapshotFn()
 }
 
+func (a *actionExecutorArgs) GetUniverseMetadata() map[string]any {
+	return a.universeMetadata
+}
+
 //--------- InvokeExecutorArgs ---------//
 
 type invokeExecutorArgs struct {
@@ -95,6 +105,7 @@ type invokeExecutorArgs struct {
 	realityName           string
 	universeCanonicalName string
 	universeID            string
+	universeMetadata      map[string]any
 	event                 instrumentation.Event
 	invoke                theoretical.InvokeModel
 }
@@ -123,6 +134,10 @@ func (i *invokeExecutorArgs) GetInvoke() theoretical.InvokeModel {
 	return i.invoke
 }
 
+func (i *invokeExecutorArgs) GetUniverseMetadata() map[string]any {
+	return i.universeMetadata
+}
+
 //--------- ConditionExecutorArgs ---------//
 
 type conditionExecutorArgs struct {
@@ -130,6 +145,7 @@ type conditionExecutorArgs struct {
 	realityName           string
 	universeCanonicalName string
 	universeID            string
+	universeMetadata      map[string]any
 	event                 instrumentation.Event
 	condition             theoretical.ConditionModel
 }
@@ -156,4 +172,8 @@ func (c *conditionExecutorArgs) GetEvent() instrumentation.Event {
 
 func (c *conditionExecutorArgs) GetCondition() theoretical.ConditionModel {
 	return c.condition
+}
+
+func (c *conditionExecutorArgs) GetUniverseMetadata() map[string]any {
+	return c.universeMetadata
 }

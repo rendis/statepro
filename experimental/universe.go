@@ -29,7 +29,17 @@ type universeInfoSnapshot struct {
 }
 
 func NewExUniverse(model *theoretical.UniverseModel) *ExUniverse {
-	return &ExUniverse{model: model}
+	u := &ExUniverse{
+		model: model,
+	}
+
+	if model.Metadata != nil {
+		u.metadata = model.Metadata
+	} else {
+		u.metadata = make(map[string]any)
+	}
+
+	return u
 }
 
 type ExUniverse struct {
@@ -73,6 +83,9 @@ type ExUniverse struct {
 
 	// tracking
 	tracking []string
+
+	// metadata
+	metadata map[string]any
 }
 
 //------------------------------- External Operations -------------------------------//
@@ -569,6 +582,7 @@ func (u *ExUniverse) executeCondition(ctx context.Context, conditionModel *theor
 		realityName:           *u.currentReality,
 		universeCanonicalName: u.model.CanonicalName,
 		universeID:            u.model.ID,
+		universeMetadata:      u.metadata,
 		event:                 event,
 		condition:             *conditionModel,
 	}
@@ -698,6 +712,7 @@ func (u *ExUniverse) executeActions(
 			realityName:           *u.currentReality,
 			universeCanonicalName: u.model.CanonicalName,
 			universeID:            u.model.ID,
+			universeMetadata:      u.metadata,
 			event:                 event,
 			action:                *action,
 			actionType:            actionType,
@@ -723,6 +738,7 @@ func (u *ExUniverse) executeInvokes(ctx context.Context, invokeModels []*theoret
 			realityName:           *u.currentReality,
 			universeCanonicalName: u.model.CanonicalName,
 			universeID:            u.model.ID,
+			universeMetadata:      u.metadata,
 			event:                 event,
 			invoke:                *invoke,
 		}
@@ -792,6 +808,7 @@ func (u *ExUniverse) executeObservers(ctx context.Context, realityModel *theoret
 			realityName:           realityModel.ID,
 			universeCanonicalName: u.model.CanonicalName,
 			universeID:            u.model.ID,
+			universeMetadata:      u.metadata,
 			accumulatorStatistics: u.eventAccumulator.GetStatistics(),
 			event:                 event,
 			observer:              *observer,
