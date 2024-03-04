@@ -26,6 +26,7 @@ type universeInfoSnapshot struct {
 	InSuperposition            bool              `json:"inSuperposition"`
 	RealityBeforeSuperposition *string           `json:"realityBeforeSuperposition,omitempty"`
 	Accumulator                *eventAccumulator `json:"accumulator,omitempty"`
+	Metadata                   map[string]any    `json:"metadata,omitempty"`
 }
 
 func NewExUniverse(model *theoretical.UniverseModel) *ExUniverse {
@@ -182,6 +183,7 @@ func (u *ExUniverse) getSnapshot() instrumentation.SerializedUniverseSnapshot {
 		RealityInitialized:         u.realityInitialized,
 		InSuperposition:            u.inSuperposition,
 		RealityBeforeSuperposition: u.realityBeforeSuperposition,
+		Metadata:                   u.metadata,
 	}
 
 	if u.eventAccumulator != nil {
@@ -207,6 +209,7 @@ func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUni
 	u.inSuperposition = snapshot.InSuperposition
 	u.realityBeforeSuperposition = snapshot.RealityBeforeSuperposition
 	u.eventAccumulator = snapshot.Accumulator
+	u.metadata = snapshot.Metadata
 
 	if u.currentReality != nil {
 		realityModel, err := u.getRealityModel(*u.currentReality)

@@ -5,7 +5,6 @@ import (
 	"github.com/rendis/statepro/v3"
 	"github.com/rendis/statepro/v3/instrumentation"
 	"log"
-
 	"os"
 )
 
