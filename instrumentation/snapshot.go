@@ -1,5 +1,7 @@
 package instrumentation
 
+import "encoding/json"
+
 type SerializedUniverseSnapshot map[string]any
 
 type MachineSnapshot struct {
@@ -93,4 +95,12 @@ func (ms *MachineSnapshot) GetSuperpositionUniverses() map[string]string {
 
 func (ms *MachineSnapshot) GetTracking() map[string][]string {
 	return ms.Tracking
+}
+
+func (ms *MachineSnapshot) ToJson() (string, error) {
+	b, err := json.Marshal(ms)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }
