@@ -16,7 +16,7 @@ const (
 	startOnEventName = "startOn"
 )
 
-type universeInfoSnapshot struct {
+type UniverseInfoSnapshot struct {
 	ID                         string            `json:"id"`
 	CanonicalName              string            `json:"canonicalName"`
 	Version                    string            `json:"version"`
@@ -174,7 +174,7 @@ func (u *ExUniverse) placeOn(realityName string) error {
 
 // getSnapshot returns a snapshot of the universe
 func (u *ExUniverse) getSnapshot() instrumentation.SerializedUniverseSnapshot {
-	var infoSnapshot = universeInfoSnapshot{
+	var infoSnapshot = UniverseInfoSnapshot{
 		ID:                         u.model.ID,
 		CanonicalName:              u.model.CanonicalName,
 		Version:                    u.model.Version,
@@ -198,7 +198,7 @@ func (u *ExUniverse) getSnapshot() instrumentation.SerializedUniverseSnapshot {
 
 // loadSnapshot loads a snapshot of the universe
 func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUniverseSnapshot) error {
-	snapshot, err := devtoolkit.MapToStruct[universeInfoSnapshot](universeSnapshot)
+	snapshot, err := devtoolkit.MapToStruct[UniverseInfoSnapshot](universeSnapshot)
 	if err != nil {
 		return errors.Join(fmt.Errorf("error loading snapshot for universe '%s'", u.model.ID), err)
 	}

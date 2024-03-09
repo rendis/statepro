@@ -1,14 +1,14 @@
 {
-  "id": "admission-default",
+  "id": "admission",
   "canonicalName": "admission-machine",
   "initials": [
-    "U:admission-in-waiting-confirmation-default"
+    "U:admission-in-waiting-confirmation"
   ],
   "description": "Define all flows of an admission",
   "version": "0.1.0",
   "universes": {
-    "admission-in-waiting-confirmation-default": {
-      "id": "admission-in-waiting-confirmation-default",
+    "admission-in-waiting-confirmation": {
+      "id": "admission-in-waiting-confirmation",
       "canonicalName": "admission-in-waiting-confirmation",
       "version": "0.1.0",
       "initial": "CREATED",
@@ -41,7 +41,7 @@
             "reject": [
               {
                 "targets": [
-                  "U:admission-rejected-default"
+                  "U:admission-rejected"
                 ]
               }
             ]
@@ -53,8 +53,8 @@
           "always": [
             {
               "targets": [
-                "U:admission-form-process-default",
-                "U:admission-contract-process-default"
+                "U:admission-form-process",
+                "U:admission-contract-process"
               ]
             }
           ]
@@ -62,13 +62,16 @@
       }
     },
 
-    "admission-form-process-default": {
-      "id": "admission-form-process-default",
+    "admission-form-process": {
+      "id": "admission-form-process",
       "canonicalName": "admission-form-process",
       "version": "0.1.0",
       "initial": "FILLING_FORM",
       "metadata": {
-        "templateId": "template2"
+        "templateId": "template2",
+        "templateType": "qualtrics",
+        "templateLabel": "Form Process",
+        "templateOrder": 1
       },
       "realities": {
         "FILLING_FORM": {
@@ -105,13 +108,16 @@
       }
     },
 
-    "admission-contract-process-default": {
-      "id": "admission-contract-process-default",
+    "admission-contract-process": {
+      "id": "admission-contract-process",
       "canonicalName": "admission-contract-process",
       "version": "0.1.0",
       "initial": "SIGNING_DATA_CONSENT",
       "metadata": {
-        "templateId": "template3"
+        "templateId": "template3",
+        "templateType": "contract",
+        "templateLabel": "Contract Process",
+        "templateOrder": 2
       },
       "realities": {
         "SIGNING_DATA_CONSENT": {
@@ -152,32 +158,33 @@
             "sign": [
               {
                 "targets": [
-                  "ENROLLMENT_CONTRACT_SIGNED"
+                  "CONTRACT_SIGNED"
                 ]
               }
             ],
             "manual-complete": [
               {
                 "targets": [
-                  "ENROLLMENT_CONTRACT_SIGNED"
+                  "CONTRACT_SIGNED"
                 ]
               }
             ]
           }
         },
-        "ENROLLMENT_CONTRACT_SIGNED": {
-          "id": "ENROLLMENT_CONTRACT_SIGNED",
+        "CONTRACT_SIGNED": {
+          "id": "CONTRACT_SIGNED",
           "type": "final",
           "always": [
             {
               "targets": [
-                "U:admission-completed-default"
+                "U:admission-completed"
               ]
             }
           ]
         }
       }
     },
+
     "admission-waiting-processes": {
       "id": "admission-waiting-processes",
       "canonicalName": "waiting-processes",
@@ -207,15 +214,16 @@
           "always": [
             {
               "targets": [
-                "U:admission-contract-process-default:SIGNING_ENROLLMENT_CONTRACT"
+                "U:admission-contract-process:SIGNING_ENROLLMENT_CONTRACT"
               ]
             }
           ]
         }
       }
     },
-    "admission-rejected-default": {
-      "id": "admission-rejected-default",
+
+    "admission-rejected": {
+      "id": "admission-rejected",
       "canonicalName": "admission-rejected",
       "version": "0.1.0",
       "metadata": {
@@ -234,8 +242,9 @@
         }
       }
     },
-    "admission-cancelled-default": {
-      "id": "admission-cancelled-default",
+
+    "admission-cancelled": {
+      "id": "admission-cancelled",
       "canonicalName": "admission-cancelled",
       "version": "0.1.0",
       "metadata": {
@@ -254,8 +263,9 @@
         }
       }
     },
-    "admission-completed-default": {
-      "id": "admission-completed-default",
+
+    "admission-completed": {
+      "id": "admission-completed",
       "canonicalName": "admission-completed",
       "version": "0.1.0",
       "metadata": {
