@@ -40,6 +40,7 @@ type ObserverExecutorArgs interface {
 	GetEvent() Event
 	GetObserver() theoretical.ObserverModel
 	GetUniverseMetadata() map[string]any
+	UpdateUniverseMetadata(key string, value any)
 }
 type ObserverFn func(ctx context.Context, args ObserverExecutorArgs) (bool, error)
 
@@ -53,6 +54,7 @@ type ActionExecutorArgs interface {
 	GetActionType() ActionType
 	GetSnapshot() *MachineSnapshot
 	GetUniverseMetadata() map[string]any
+	UpdateUniverseMetadata(key string, value any)
 }
 type ActionFn func(ctx context.Context, args ActionExecutorArgs) error
 
@@ -64,6 +66,7 @@ type InvokeExecutorArgs interface {
 	GetEvent() Event
 	GetInvoke() theoretical.InvokeModel
 	GetUniverseMetadata() map[string]any
+	UpdateUniverseMetadata(key string, value any)
 }
 type InvokeFn func(ctx context.Context, args InvokeExecutorArgs)
 
@@ -75,5 +78,6 @@ type ConditionExecutorArgs interface {
 	GetEvent() Event
 	GetCondition() theoretical.ConditionModel
 	GetUniverseMetadata() map[string]any
+	UpdateUniverseMetadata(key string, value any)
 }
 type ConditionFn func(ctx context.Context, args ConditionExecutorArgs) (bool, error)

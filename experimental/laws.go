@@ -49,6 +49,13 @@ func (o *observerExecutorArgs) GetUniverseMetadata() map[string]any {
 	return o.universeMetadata
 }
 
+func (o *observerExecutorArgs) UpdateUniverseMetadata(key string, value any) {
+	if o.universeMetadata == nil {
+		o.universeMetadata = make(map[string]any)
+	}
+	o.universeMetadata[key] = value
+}
+
 // --------- ActionExecutorArgs ---------//
 type actionExecutorArgs struct {
 	context               any
@@ -98,6 +105,13 @@ func (a *actionExecutorArgs) GetUniverseMetadata() map[string]any {
 	return a.universeMetadata
 }
 
+func (a *actionExecutorArgs) UpdateUniverseMetadata(key string, value any) {
+	if a.universeMetadata == nil {
+		a.universeMetadata = make(map[string]any)
+	}
+	a.universeMetadata[key] = value
+}
+
 //--------- InvokeExecutorArgs ---------//
 
 type invokeExecutorArgs struct {
@@ -138,6 +152,13 @@ func (i *invokeExecutorArgs) GetUniverseMetadata() map[string]any {
 	return i.universeMetadata
 }
 
+func (i *invokeExecutorArgs) UpdateUniverseMetadata(key string, value any) {
+	if i.universeMetadata == nil {
+		i.universeMetadata = make(map[string]any)
+	}
+	i.universeMetadata[key] = value
+}
+
 //--------- ConditionExecutorArgs ---------//
 
 type conditionExecutorArgs struct {
@@ -176,4 +197,11 @@ func (c *conditionExecutorArgs) GetCondition() theoretical.ConditionModel {
 
 func (c *conditionExecutorArgs) GetUniverseMetadata() map[string]any {
 	return c.universeMetadata
+}
+
+func (c *conditionExecutorArgs) UpdateUniverseMetadata(key string, value any) {
+	if c.universeMetadata == nil {
+		c.universeMetadata = make(map[string]any)
+	}
+	c.universeMetadata[key] = value
 }
