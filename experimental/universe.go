@@ -209,7 +209,12 @@ func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUni
 	u.inSuperposition = snapshot.InSuperposition
 	u.realityBeforeSuperposition = snapshot.RealityBeforeSuperposition
 	u.eventAccumulator = snapshot.Accumulator
-	u.metadata = snapshot.Metadata
+	if len(snapshot.Metadata) > 0 && u.metadata == nil {
+		u.metadata = make(map[string]any)
+	}
+	for k, v := range snapshot.Metadata {
+		u.metadata[k] = v
+	}
 
 	if u.currentReality != nil {
 		realityModel, err := u.getRealityModel(*u.currentReality)
