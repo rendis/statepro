@@ -196,6 +196,27 @@ func (qm *ExQuantumMachine) GetSnapshot() *instrumentation.MachineSnapshot {
 	return machineSnapshot
 }
 
+func (qm *ExQuantumMachine) ReplayOnEntry(ctx context.Context) error {
+	qm.quantumMachineMtx.Lock()
+	defer qm.quantumMachineMtx.Unlock()
+
+	var evt = NewEventBuilder("replayOnEntry").
+		SetEvtType(instrumentation.EventTypeOnEntry).
+		SetFlags(instrumentation.EventFlags{
+			ReplyOnEntry: true,
+		}).
+		Build()
+
+	for _, u := range qm.getActiveUniverses() {
+		err := u.executeOnEntry(ctx, evt)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 //--------- ConstantsLawsExecutor interface implementation ---------
 
 func (qm *ExQuantumMachine) ExecuteEntryInvokes(ctx context.Context, args *instrumentation.QuantumMachineExecutorArgs) {
@@ -325,6 +346,16 @@ func (qm *ExQuantumMachine) getLazyActiveUniverses(event instrumentation.Event) 
 	var activeUniverses []*ExUniverse
 	for _, u := range qm.universes {
 		if u.canHandleEvent(event) {
+			activeUniverses = append(activeUniverses, u)
+		}
+	}
+	return activeUniverses
+}
+
+func (qm *ExQuantumMachine) getActiveUniverses() []*ExUniverse {
+	var activeUniverses []*ExUniverse
+	for _, u := range qm.universes {
+		if u.isActive() {
 			activeUniverses = append(activeUniverses, u)
 		}
 	}

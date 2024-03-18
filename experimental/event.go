@@ -6,19 +6,11 @@ import (
 )
 
 // --------- Event --------- //
-
-func NewEvent(name string, data map[string]any, evtType instrumentation.EventType) instrumentation.Event {
-	return &event{
-		Name:    name,
-		Data:    data,
-		EvtType: evtType,
-	}
-}
-
 type event struct {
 	Name    string                    `json:"name" bson:"name" xml:"name"`
 	Data    map[string]any            `json:"data,omitempty" bson:"data,omitempty" xml:"data,omitempty"`
 	EvtType instrumentation.EventType `json:"type" bson:"type" xml:"type"`
+	Flags   instrumentation.EventFlags
 }
 
 func (e *event) GetEventName() string {
@@ -41,6 +33,10 @@ func (e *event) GetEvtType() instrumentation.EventType {
 	return e.EvtType
 }
 
+func (e *event) GetFlags() instrumentation.EventFlags {
+	return e.Flags
+}
+
 func (e *event) String() string {
 	return fmt.Sprintf("%s", e.Name)
 }
@@ -59,6 +55,7 @@ type EventBuilder struct {
 	name    string
 	data    map[string]any
 	evtType instrumentation.EventType
+	flags   instrumentation.EventFlags
 }
 
 func (eb *EventBuilder) SetEventName(name string) instrumentation.EventBuilder {
@@ -76,6 +73,16 @@ func (eb *EventBuilder) SetEvtType(evtType instrumentation.EventType) instrument
 	return eb
 }
 
+func (eb *EventBuilder) SetFlags(flags instrumentation.EventFlags) instrumentation.EventBuilder {
+	eb.flags = flags
+	return eb
+}
+
 func (eb *EventBuilder) Build() instrumentation.Event {
-	return NewEvent(eb.name, eb.data, eb.evtType)
+	return &event{
+		Name:    eb.name,
+		Data:    eb.data,
+		EvtType: eb.evtType,
+		Flags:   eb.flags,
+	}
 }

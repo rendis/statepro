@@ -237,13 +237,9 @@ func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUni
 // - not in superposition
 // - the current reality is not a final reality
 func (u *ExUniverse) canHandleEvent(evt instrumentation.Event) bool {
-	// if not initialized -> false
-	if !u.initialized {
-		return false
-	}
-
-	// if in superposition -> false
-	if u.inSuperposition {
+	// not initialized -> false
+	// in superposition -> false
+	if !u.initialized || u.inSuperposition {
 		return false
 	}
 
@@ -254,6 +250,11 @@ func (u *ExUniverse) canHandleEvent(evt instrumentation.Event) bool {
 
 	// otherwise -> false
 	return false
+}
+
+// isActive returns true if the universe is active
+func (u *ExUniverse) isActive() bool {
+	return u.initialized && !u.inSuperposition
 }
 
 //------------------------------- Internal Operations -------------------------------//
@@ -617,7 +618,13 @@ func (u *ExUniverse) initOnSuperposition() {
 }
 
 func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrumentation.Event) error {
-	if u.currentReality == nil || u.realityInitialized {
+	// if current reality is nil -> return
+	if u.currentReality == nil {
+		return nil
+	}
+
+	// if reality is already initialized and the event is not a replay on entry -> return
+	if u.realityInitialized && !event.GetFlags().ReplyOnEntry {
 		return nil
 	}
 

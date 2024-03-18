@@ -22,6 +22,9 @@ type Event interface {
 
 	// GetEvtType returns the Event type
 	GetEvtType() EventType
+
+	// GetFlags returns the Event flags
+	GetFlags() EventFlags
 }
 
 type EventBuilder interface {
@@ -34,6 +37,13 @@ type EventBuilder interface {
 	// SetEvtType sets the Event type
 	SetEvtType(evtType EventType) EventBuilder
 
+	// SetFlags sets the Event flags
+	SetFlags(flags EventFlags) EventBuilder
+
 	// Build returns the Event
 	Build() Event
+}
+
+type EventFlags struct {
+	ReplyOnEntry bool
 }

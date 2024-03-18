@@ -18,4 +18,7 @@ type QuantumMachine interface {
 
 	// GetSnapshot returns the current snapshot of the quantum machine.
 	GetSnapshot() *MachineSnapshot
+
+	// ReplayEntryActions replays the entry actions for the current realities.
+	ReplayOnEntry(ctx context.Context) error
 }

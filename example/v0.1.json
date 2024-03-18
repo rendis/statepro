@@ -274,6 +274,15 @@
       "realities": {
         "COMPLETED": {
           "id": "COMPLETED",
+          "on": {
+            "cancel": [
+              {
+                "targets": [
+                  "U:admission-cancelled"
+                ]
+              }
+            ]
+          },
           "type": "final"
         }
       }

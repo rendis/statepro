@@ -14,10 +14,6 @@ func NewQuantumMachine(qmModel *theoretical.QuantumMachineModel) (instrumentatio
 	return experimental.NewExQuantumMachine(qmModel, universes)
 }
 
-func NewEvent(eventName string, data map[string]any, evtType instrumentation.EventType) instrumentation.Event {
-	return experimental.NewEvent(eventName, data, evtType)
-}
-
 func NewEventBuilder(eventName string) instrumentation.EventBuilder {
 	return experimental.NewEventBuilder(eventName)
 }
