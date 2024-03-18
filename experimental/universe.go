@@ -624,7 +624,7 @@ func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrument
 	}
 
 	// if reality is already initialized and the event is not a replay on entry -> return
-	if u.realityInitialized && !event.GetFlags().ReplyOnEntry {
+	if u.realityInitialized && !event.GetFlags().ReplayOnEntry {
 		return nil
 	}
 

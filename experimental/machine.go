@@ -203,7 +203,7 @@ func (qm *ExQuantumMachine) ReplayOnEntry(ctx context.Context) error {
 	var evt = NewEventBuilder("replayOnEntry").
 		SetEvtType(instrumentation.EventTypeOnEntry).
 		SetFlags(instrumentation.EventFlags{
-			ReplyOnEntry: true,
+			ReplayOnEntry: true,
 		}).
 		Build()
 

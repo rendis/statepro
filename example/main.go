@@ -69,7 +69,7 @@ func main() {
 	snapshot = qm.GetSnapshot()
 	log.Printf("Snapshot generated: %+v", snapshot.Tracking)
 
-	// reply cancel entry actions
+	// replay cancel entry actions
 	if err = qm.ReplayOnEntry(ctx); err != nil {
 		log.Fatal(err)
 	}

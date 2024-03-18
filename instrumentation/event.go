@@ -45,5 +45,5 @@ type EventBuilder interface {
 }
 
 type EventFlags struct {
-	ReplyOnEntry bool
+	ReplayOnEntry bool
 }
