@@ -208,7 +208,7 @@ func (qm *ExQuantumMachine) ReplayOnEntry(ctx context.Context) error {
 		Build()
 
 	for _, u := range qm.getActiveUniverses() {
-		err := u.executeOnEntry(ctx, evt)
+		err := u.replayOnEntry(ctx, evt, qm.machineContext)
 		if err != nil {
 			return err
 		}

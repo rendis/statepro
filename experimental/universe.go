@@ -94,7 +94,7 @@ type ExUniverse struct {
 // handleEvent handles an Event where depending on the state of the universe
 func (u *ExUniverse) handleEvent(ctx context.Context, realityName *string, evt instrumentation.Event, universeContext any) ([]string, error) {
 	var handleEventFn func() error
-	u.universeContext = universeContext
+	u.setUniverseContext(universeContext)
 
 	if realityName != nil {
 		handleEventFn = func() error { return u.receiveEventToReality(ctx, *realityName, evt) }
@@ -111,7 +111,7 @@ func (u *ExUniverse) handleEvent(ctx context.Context, realityName *string, evt i
 // - always operations
 // - initial operations
 func (u *ExUniverse) start(ctx context.Context, universeContext any) ([]string, instrumentation.Event, error) {
-	u.universeContext = universeContext
+	u.setUniverseContext(universeContext)
 	evt := NewEventBuilder(startEventName).
 		SetEvtType(instrumentation.EventTypeStart).
 		Build()
@@ -137,7 +137,7 @@ func (u *ExUniverse) start(ctx context.Context, universeContext any) ([]string, 
 // - always operations
 // - initial operations
 func (u *ExUniverse) startOnReality(ctx context.Context, realityName string, universeContext any) ([]string, instrumentation.Event, error) {
-	u.universeContext = universeContext
+	u.setUniverseContext(universeContext)
 	evt := NewEventBuilder(startOnEventName).
 		SetEvtType(instrumentation.EventTypeStartOn).
 		Build()
@@ -252,12 +252,22 @@ func (u *ExUniverse) canHandleEvent(evt instrumentation.Event) bool {
 	return false
 }
 
+// replayOnEntry replays the on entry process for the current reality
+func (u *ExUniverse) replayOnEntry(ctx context.Context, evt instrumentation.Event, universeContext any) error {
+	u.setUniverseContext(universeContext)
+	return u.executeOnEntry(ctx, evt)
+}
+
 // isActive returns true if the universe is active
 func (u *ExUniverse) isActive() bool {
 	return u.initialized && !u.inSuperposition
 }
 
 //------------------------------- Internal Operations -------------------------------//
+
+func (u *ExUniverse) setUniverseContext(universeContext any) {
+	u.universeContext = universeContext
+}
 
 func (u *ExUniverse) addStateToTracking(state *string) {
 	if state == nil {
@@ -481,7 +491,9 @@ func (u *ExUniverse) executeAlways(ctx context.Context, event instrumentation.Ev
 //   - there are approved transition but no targets
 //   - There are approved transition but the target is another universe
 //   - There are approved transition, but it is a notification transition
-func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition *theoretical.TransitionModel, event instrumentation.Event) error {
+func (u *ExUniverse) doCyclicTransition(
+	ctx context.Context, approvedTransition *theoretical.TransitionModel, event instrumentation.Event,
+) error {
 	for {
 		// if no approved transition or no targets -> break
 		if approvedTransition == nil || len(approvedTransition.Targets) == 0 {
@@ -561,7 +573,9 @@ func (u *ExUniverse) doCyclicTransition(ctx context.Context, approvedTransition 
 	}
 }
 
-func (u *ExUniverse) getApprovedTransition(ctx context.Context, transitionModels []*theoretical.TransitionModel, event instrumentation.Event) (*theoretical.TransitionModel, error) {
+func (u *ExUniverse) getApprovedTransition(
+	ctx context.Context, transitionModels []*theoretical.TransitionModel, event instrumentation.Event,
+) (*theoretical.TransitionModel, error) {
 	if len(transitionModels) == 0 {
 		return nil, nil
 	}
@@ -580,7 +594,9 @@ func (u *ExUniverse) getApprovedTransition(ctx context.Context, transitionModels
 	return nil, nil
 }
 
-func (u *ExUniverse) executeCondition(ctx context.Context, conditionModel *theoretical.ConditionModel, event instrumentation.Event) (bool, error) {
+func (u *ExUniverse) executeCondition(
+	ctx context.Context, conditionModel *theoretical.ConditionModel, event instrumentation.Event,
+) (bool, error) {
 	// if conditionModel is nil then return true, the transition is always executed
 	if conditionModel == nil {
 		return true, nil
@@ -741,7 +757,9 @@ func (u *ExUniverse) executeActions(
 	return nil
 }
 
-func (u *ExUniverse) executeInvokes(ctx context.Context, invokeModels []*theoretical.InvokeModel, event instrumentation.Event) {
+func (u *ExUniverse) executeInvokes(
+	ctx context.Context, invokeModels []*theoretical.InvokeModel, event instrumentation.Event,
+) {
 	if invokeModels == nil || len(invokeModels) == 0 {
 		return
 	}
@@ -812,7 +830,9 @@ func (u *ExUniverse) accumulateEventForAllRealities(ctx context.Context, event i
 	return false, "", nil
 }
 
-func (u *ExUniverse) executeObservers(ctx context.Context, realityModel *theoretical.RealityModel, event instrumentation.Event) (bool, error) {
+func (u *ExUniverse) executeObservers(
+	ctx context.Context, realityModel *theoretical.RealityModel, event instrumentation.Event,
+) (bool, error) {
 	if len(realityModel.Observers) == 0 {
 		return true, nil
 	}
