@@ -6,7 +6,7 @@ import (
 
 type QuantumMachine interface {
 	// Init initializes the quantum machine.
-	// Initialize the machine based on the values in 'initials'
+	// Initialize the machine with the given machine context.
 	Init(ctx context.Context, machineContext any) error
 
 	// SendEvent sends an event to all universes that can handle it.

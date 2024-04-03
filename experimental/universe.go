@@ -34,10 +34,9 @@ func NewExUniverse(model *theoretical.UniverseModel) *ExUniverse {
 		model: model,
 	}
 
-	if model.Metadata != nil {
-		u.metadata = model.Metadata
-	} else {
-		u.metadata = make(map[string]any)
+	u.metadata = make(map[string]any)
+	for k, v := range model.Metadata {
+		u.metadata[k] = v
 	}
 
 	return u
