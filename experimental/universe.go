@@ -779,15 +779,15 @@ func (u *ExUniverse) executeInvokes(
 }
 
 func (u *ExUniverse) accumulateEventForReality(ctx context.Context, realityName string, event instrumentation.Event) (bool, error) {
-	// accumulate Event
-	u.eventAccumulator.Accumulate(realityName, event)
-
-	// execute observers
 	realityModel, err := u.getRealityModel(realityName)
 	if err != nil {
 		return false, err
 	}
 
+	// accumulate Event
+	u.eventAccumulator.Accumulate(realityName, event)
+
+	// execute observers
 	isNewReality, err := u.executeObservers(ctx, realityModel, event)
 	if err != nil {
 		return false, errors.Join(fmt.Errorf("error executing observers for reality '%s'", realityModel.ID), err)
