@@ -784,6 +784,11 @@ func (u *ExUniverse) accumulateEventForReality(ctx context.Context, realityName 
 		return false, err
 	}
 
+	// if reality has no observers -> return false
+	if len(realityModel.Observers) == 0 {
+		return false, nil
+	}
+
 	// accumulate Event
 	u.eventAccumulator.Accumulate(realityName, event)
 
@@ -792,16 +797,12 @@ func (u *ExUniverse) accumulateEventForReality(ctx context.Context, realityName 
 	if err != nil {
 		return false, errors.Join(fmt.Errorf("error executing observers for reality '%s'", realityModel.ID), err)
 	}
+
 	return isNewReality, nil
 }
 
 func (u *ExUniverse) accumulateEventForAllRealities(ctx context.Context, event instrumentation.Event) (bool, string, error) {
-	priorityRealities := u.eventAccumulator.GetActiveRealities()
-	var priorityRealitiesMap = make(map[string]bool)
-
-	// accumulate Event for priority realities
-	for _, reality := range priorityRealities {
-		priorityRealitiesMap[reality] = true
+	for reality := range u.model.Realities {
 		isNewReality, err := u.accumulateEventForReality(ctx, reality, event)
 		if err != nil {
 			return false, "", errors.Join(fmt.Errorf("error accumulating Event for reality '%s'", reality), err)
@@ -812,30 +813,12 @@ func (u *ExUniverse) accumulateEventForAllRealities(ctx context.Context, event i
 		}
 	}
 
-	// accumulate Event for other realities
-	for reality := range u.model.Realities {
-		if _, ok := priorityRealitiesMap[reality]; !ok {
-			isNewReality, err := u.accumulateEventForReality(ctx, reality, event)
-			if err != nil {
-				return false, "", errors.Join(fmt.Errorf("error accumulating Event for reality '%s'", reality), err)
-			}
-
-			if isNewReality {
-				return true, reality, nil
-			}
-		}
-	}
-
 	return false, "", nil
 }
 
 func (u *ExUniverse) executeObservers(
 	ctx context.Context, realityModel *theoretical.RealityModel, event instrumentation.Event,
 ) (bool, error) {
-	if len(realityModel.Observers) == 0 {
-		return true, nil
-	}
-
 	for _, observer := range realityModel.Observers {
 		args := &observerExecutorArgs{
 			context:               u.universeContext,
