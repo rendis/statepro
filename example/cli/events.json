@@ -1,0 +1,16 @@
+[
+  {
+    "title": "rejects the enrollment with the given reason",
+    "name": "reject",
+    "params": {
+      "templateId": 1
+    }
+  },
+  {
+    "title": "confirms the enrollment",
+    "name": "confirm",
+    "params": {
+      "templateId": 1
+    }
+  }
+]

@@ -226,6 +226,7 @@
       "id": "admission-rejected",
       "canonicalName": "admission-rejected",
       "version": "0.1.0",
+      "initial": "REJECTED",
       "metadata": {
         "templateId": "template5"
       },
