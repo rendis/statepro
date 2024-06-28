@@ -1,16 +1,98 @@
 [
   {
-    "title": "rejects the enrollment with the given reason",
-    "name": "reject",
+    "title": "cancel admission",
+    "name": "cancel"
+  },
+  {
+    "title": "confirms admission",
+    "name": "confirm"
+  },
+  {
+    "title": "rejects admission",
+    "name": "reject"
+  },
+  {
+    "title": "complete data consent survey",
+    "name": "fill-form",
     "params": {
-      "templateId": 1
+      "templateId": "data-consent-admission-survey"
     }
   },
   {
-    "title": "confirms the enrollment",
-    "name": "confirm",
+    "title": "complete uploader full survey",
+    "name": "fill-form",
     "params": {
-      "templateId": 1
+      "templateId": "documents-uploader-full"
+    }
+  },
+  {
+    "title": "create enrollment contract",
+    "name": "create-contract",
+    "params": {
+      "templateId": "enrollment_contract_id"
+    }
+  },
+  {
+    "title": "sign enrollment contract",
+    "name": "sign",
+    "params": {
+      "templateId": "enrollment_contract_id"
+    }
+  },
+  {
+    "title": "create religion contract",
+    "name": "create-contract",
+    "params": {
+      "templateId": "religion_contract_id"
+    }
+  },
+  {
+    "title": "sign religion contract",
+    "name": "sign",
+    "params": {
+      "templateId": "religion_contract_id"
+    }
+  },
+  {
+    "title": "complete substitute guardian survey",
+    "name": "fill-form",
+    "params": {
+      "templateId": "substitute-guardian-admission-info-survey"
+    }
+  },
+  {
+    "title": "complete religion consent survey",
+    "name": "fill-form",
+    "params": {
+      "templateId": "religion-consent-admission-survey"
+    }
+  },
+  {
+    "title": "create consent contract",
+    "name": "create-contract",
+    "params": {
+      "templateId": "consent_contract_id"
+    }
+  },
+  {
+    "title": "sign consent contract",
+    "name": "sign",
+    "params": {
+      "templateId": "consent_contract_id"
+    }
+  },
+  {
+    "title": "complete applicant info survey",
+    "name": "fill-form",
+    "params": {
+      "templateId": "applicant-light-info-admission-survey"
+    }
+  },
+  {
+    "title": "complete guardian info survey",
+    "name": "fill-form",
+    "params": {
+      "templateId": "guardian-info-admission-survey"
     }
   }
 ]

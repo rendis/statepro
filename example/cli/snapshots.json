@@ -1,0 +1,884 @@
+[
+  {
+    "snapshot": {
+      "resume": {
+        "activeUniverses": {
+          "admission-in-waiting-confirmation": "WAITING_CONFIRMATION"
+        }
+      },
+      "snapshots": {
+        "documents-uploader-form-process": {
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "documents-uploader-full"
+          },
+          "id": "documents-uploader-form-process",
+          "canonicalName": "documents-uploader-form-process",
+          "version": "0.1.0",
+          "initialized": false
+        },
+        "religion-consent-form-process": {
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "religion-consent-admission-survey"
+          },
+          "id": "religion-consent-form-process",
+          "canonicalName": "religion-consent-form-process",
+          "version": "0.1.0"
+        },
+        "admission-completed": {
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "id": "admission-completed",
+          "canonicalName": "admission-completed",
+          "version": "0.1.0"
+        },
+        "admission-cancelled": {
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "id": "admission-cancelled",
+          "canonicalName": "admission-cancelled",
+          "version": "0.1.0",
+          "initialized": false
+        },
+        "applicant-light-info-form-process": {
+          "version": "0.1.0",
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "applicant-light-info-admission-survey"
+          },
+          "id": "applicant-light-info-form-process",
+          "canonicalName": "applicant-light-info-form-process"
+        },
+        "enrollment-contract-contract-process": {
+          "version": "0.1.0",
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "enrollment_contract_id"
+          },
+          "id": "enrollment-contract-contract-process",
+          "canonicalName": "enrollment-contract-contract-process"
+        },
+        "guardian-info-form-process": {
+          "id": "guardian-info-form-process",
+          "canonicalName": "guardian-info-form-process",
+          "version": "0.1.0",
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "guardian-info-admission-survey"
+          }
+        },
+        "consent-contract-contract-process": {
+          "canonicalName": "consent-contract-contract-process",
+          "version": "0.1.0",
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "consent_contract_id"
+          },
+          "id": "consent-contract-contract-process"
+        },
+        "data-consent-form-process": {
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "data-consent-admission-survey"
+          },
+          "id": "data-consent-form-process",
+          "canonicalName": "data-consent-form-process",
+          "version": "0.1.0",
+          "initialized": false
+        },
+        "admission-rejected": {
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "id": "admission-rejected",
+          "canonicalName": "admission-rejected",
+          "version": "0.1.0"
+        },
+        "admission-in-waiting-confirmation": {
+          "inSuperposition": false,
+          "id": "admission-in-waiting-confirmation",
+          "canonicalName": "admission-in-waiting-confirmation",
+          "version": "0.1.0",
+          "initialized": true,
+          "currentReality": "WAITING_CONFIRMATION",
+          "realityInitialized": true
+        },
+        "substitute-guardian-info-form-process": {
+          "version": "0.1.0",
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "substitute-guardian-admission-info-survey"
+          },
+          "id": "substitute-guardian-info-form-process",
+          "canonicalName": "substitute-guardian-info-form-process"
+        }
+      },
+      "tracking": {
+        "admission-in-waiting-confirmation": [
+          "CREATED",
+          "WAITING_CONFIRMATION"
+        ]
+      }
+    }
+  },
+  {
+    "snapshot": {
+      "resume": {
+        "activeUniverses": {
+          "applicant-light-info-form-process": "FILLING_FORM",
+          "data-consent-form-process": "FILLING_FORM",
+          "documents-uploader-form-process": "FILLING_FORM",
+          "religion-consent-form-process": "FILLING_FORM",
+          "substitute-guardian-info-form-process": "FILLING_FORM",
+          "guardian-info-form-process": "FILLING_FORM"
+        },
+        "superpositionUniverses": {
+          "admission-in-waiting-confirmation": "CONFIRMED"
+        }
+      },
+      "snapshots": {
+        "admission-completed": {
+          "id": "admission-completed",
+          "canonicalName": "admission-completed",
+          "version": "0.1.0",
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false
+        },
+        "guardian-info-form-process": {
+          "realityInitialized": true,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "guardian-info-admission-survey"
+          },
+          "id": "guardian-info-form-process",
+          "canonicalName": "guardian-info-form-process",
+          "version": "0.1.0",
+          "initialized": true,
+          "currentReality": "FILLING_FORM"
+        },
+        "admission-cancelled": {
+          "id": "admission-cancelled",
+          "canonicalName": "admission-cancelled",
+          "version": "0.1.0",
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false
+        },
+        "data-consent-form-process": {
+          "id": "data-consent-form-process",
+          "canonicalName": "data-consent-form-process",
+          "version": "0.1.0",
+          "initialized": true,
+          "currentReality": "FILLING_FORM",
+          "realityInitialized": true,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "data-consent-admission-survey"
+          }
+        },
+        "enrollment-contract-contract-process": {
+          "id": "enrollment-contract-contract-process",
+          "canonicalName": "enrollment-contract-contract-process",
+          "version": "0.1.0",
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "enrollment_contract_id"
+          }
+        },
+        "applicant-light-info-form-process": {
+          "version": "0.1.0",
+          "initialized": true,
+          "currentReality": "FILLING_FORM",
+          "realityInitialized": true,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "applicant-light-info-admission-survey"
+          },
+          "id": "applicant-light-info-form-process",
+          "canonicalName": "applicant-light-info-form-process"
+        },
+        "documents-uploader-form-process": {
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "documents-uploader-full"
+          },
+          "id": "documents-uploader-form-process",
+          "canonicalName": "documents-uploader-form-process",
+          "version": "0.1.0",
+          "initialized": true,
+          "currentReality": "FILLING_FORM",
+          "realityInitialized": true
+        },
+        "religion-consent-form-process": {
+          "realityInitialized": true,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "religion-consent-admission-survey"
+          },
+          "id": "religion-consent-form-process",
+          "canonicalName": "religion-consent-form-process",
+          "version": "0.1.0",
+          "initialized": true,
+          "currentReality": "FILLING_FORM"
+        },
+        "substitute-guardian-info-form-process": {
+          "canonicalName": "substitute-guardian-info-form-process",
+          "version": "0.1.0",
+          "initialized": true,
+          "currentReality": "FILLING_FORM",
+          "realityInitialized": true,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "substitute-guardian-admission-info-survey"
+          },
+          "id": "substitute-guardian-info-form-process"
+        },
+        "admission-rejected": {
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "id": "admission-rejected",
+          "canonicalName": "admission-rejected",
+          "version": "0.1.0"
+        },
+        "admission-in-waiting-confirmation": {
+          "inSuperposition": true,
+          "realityBeforeSuperposition": "CONFIRMED",
+          "accumulator": {
+          },
+          "id": "admission-in-waiting-confirmation",
+          "canonicalName": "admission-in-waiting-confirmation",
+          "version": "0.1.0",
+          "initialized": true,
+          "realityInitialized": false
+        },
+        "consent-contract-contract-process": {
+          "id": "consent-contract-contract-process",
+          "canonicalName": "consent-contract-contract-process",
+          "version": "0.1.0",
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "consent_contract_id"
+          }
+        }
+      },
+      "tracking": {
+        "admission-in-waiting-confirmation": [
+          "CONFIRMED"
+        ],
+        "applicant-light-info-form-process": [
+          "CREATING_FORM",
+          "FILLING_FORM"
+        ],
+        "data-consent-form-process": [
+          "CREATING_FORM",
+          "FILLING_FORM"
+        ],
+        "documents-uploader-form-process": [
+          "CREATING_FORM",
+          "FILLING_FORM"
+        ],
+        "religion-consent-form-process": [
+          "CREATING_FORM",
+          "FILLING_FORM"
+        ],
+        "substitute-guardian-info-form-process": [
+          "CREATING_FORM",
+          "FILLING_FORM"
+        ],
+        "guardian-info-form-process": [
+          "CREATING_FORM",
+          "FILLING_FORM"
+        ]
+      }
+    }
+  },
+  {
+    "snapshot": {
+      "resume": {
+        "activeUniverses": {
+          "substitute-guardian-info-form-process": "FILLING_FORM",
+          "documents-uploader-form-process": "FILLING_FORM",
+          "guardian-info-form-process": "FILLING_FORM",
+          "religion-consent-form-process": "FILLING_FORM",
+          "data-consent-form-process": "FILLING_FORM"
+        },
+        "superpositionUniverses": {
+          "applicant-light-info-form-process": "FILLED",
+          "enrollment-contract-contract-process": "*",
+          "admission-in-waiting-confirmation": "CONFIRMED"
+        }
+      },
+      "snapshots": {
+        "admission-completed": {
+          "id": "admission-completed",
+          "canonicalName": "admission-completed",
+          "version": "0.1.0",
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false
+        },
+        "enrollment-contract-contract-process": {
+          "metadata": {
+            "templateId": "enrollment_contract_id"
+          },
+          "id": "enrollment-contract-contract-process",
+          "canonicalName": "enrollment-contract-contract-process",
+          "version": "0.1.0",
+          "initialized": true,
+          "realityInitialized": false,
+          "inSuperposition": true,
+          "accumulator": {
+            "realitiesEvents": {
+              "CREATING_CONTRACT": [
+                {
+                  "name": "fill-form",
+                  "data": {
+                    "templateId": "applicant-light-info-admission-survey"
+                  },
+                  "type": "On",
+                  "Flags": {
+                    "ReplayOnEntry": false
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "admission-cancelled": {
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "id": "admission-cancelled",
+          "canonicalName": "admission-cancelled",
+          "version": "0.1.0"
+        },
+        "guardian-info-form-process": {
+          "id": "guardian-info-form-process",
+          "canonicalName": "guardian-info-form-process",
+          "version": "0.1.0",
+          "initialized": true,
+          "currentReality": "FILLING_FORM",
+          "realityInitialized": true,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "guardian-info-admission-survey"
+          }
+        },
+        "religion-consent-form-process": {
+          "initialized": true,
+          "currentReality": "FILLING_FORM",
+          "realityInitialized": true,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "religion-consent-admission-survey"
+          },
+          "id": "religion-consent-form-process",
+          "canonicalName": "religion-consent-form-process",
+          "version": "0.1.0"
+        },
+        "admission-in-waiting-confirmation": {
+          "inSuperposition": true,
+          "realityBeforeSuperposition": "CONFIRMED",
+          "accumulator": {
+          },
+          "id": "admission-in-waiting-confirmation",
+          "canonicalName": "admission-in-waiting-confirmation",
+          "version": "0.1.0",
+          "initialized": true,
+          "realityInitialized": false
+        },
+        "consent-contract-contract-process": {
+          "version": "0.1.0",
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "consent_contract_id"
+          },
+          "id": "consent-contract-contract-process",
+          "canonicalName": "consent-contract-contract-process"
+        },
+        "applicant-light-info-form-process": {
+          "initialized": true,
+          "metadata": {
+            "templateId": "applicant-light-info-admission-survey"
+          },
+          "id": "applicant-light-info-form-process",
+          "canonicalName": "applicant-light-info-form-process",
+          "version": "0.1.0",
+          "realityInitialized": false,
+          "inSuperposition": true,
+          "realityBeforeSuperposition": "FILLED",
+          "accumulator": {
+          }
+        },
+        "data-consent-form-process": {
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "data-consent-admission-survey"
+          },
+          "id": "data-consent-form-process",
+          "canonicalName": "data-consent-form-process",
+          "version": "0.1.0",
+          "initialized": true,
+          "currentReality": "FILLING_FORM",
+          "realityInitialized": true
+        },
+        "substitute-guardian-info-form-process": {
+          "canonicalName": "substitute-guardian-info-form-process",
+          "version": "0.1.0",
+          "initialized": true,
+          "currentReality": "FILLING_FORM",
+          "realityInitialized": true,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "substitute-guardian-admission-info-survey"
+          },
+          "id": "substitute-guardian-info-form-process"
+        },
+        "documents-uploader-form-process": {
+          "realityInitialized": true,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "documents-uploader-full"
+          },
+          "id": "documents-uploader-form-process",
+          "canonicalName": "documents-uploader-form-process",
+          "version": "0.1.0",
+          "initialized": true,
+          "currentReality": "FILLING_FORM"
+        },
+        "admission-rejected": {
+          "id": "admission-rejected",
+          "canonicalName": "admission-rejected",
+          "version": "0.1.0",
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false
+        }
+      },
+      "tracking": {
+        "guardian-info-form-process": null,
+        "religion-consent-form-process": null,
+        "enrollment-contract-contract-process": null,
+        "admission-in-waiting-confirmation": null,
+        "applicant-light-info-form-process": [
+          "FILLED"
+        ],
+        "data-consent-form-process": null,
+        "substitute-guardian-info-form-process": null,
+        "documents-uploader-form-process": null
+      }
+    }
+  },
+  {
+    "snapshot": {
+      "resume": {
+        "activeUniverses": {
+          "substitute-guardian-info-form-process": "FILLING_FORM",
+          "documents-uploader-form-process": "FILLING_FORM",
+          "religion-consent-form-process": "FILLING_FORM",
+          "data-consent-form-process": "FILLING_FORM"
+        },
+        "superpositionUniverses": {
+          "guardian-info-form-process": "FILLED",
+          "admission-completed": "*",
+          "applicant-light-info-form-process": "FILLED",
+          "admission-in-waiting-confirmation": "CONFIRMED",
+          "enrollment-contract-contract-process": "CONTRACT_SIGNED"
+        }
+      },
+      "snapshots": {
+        "consent-contract-contract-process": {
+          "canonicalName": "consent-contract-contract-process",
+          "version": "0.1.0",
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "consent_contract_id"
+          },
+          "id": "consent-contract-contract-process"
+        },
+        "data-consent-form-process": {
+          "canonicalName": "data-consent-form-process",
+          "version": "0.1.0",
+          "initialized": true,
+          "currentReality": "FILLING_FORM",
+          "realityInitialized": true,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "data-consent-admission-survey"
+          },
+          "id": "data-consent-form-process"
+        },
+        "admission-in-waiting-confirmation": {
+          "inSuperposition": true,
+          "realityBeforeSuperposition": "CONFIRMED",
+          "accumulator": {
+          },
+          "id": "admission-in-waiting-confirmation",
+          "canonicalName": "admission-in-waiting-confirmation",
+          "version": "0.1.0",
+          "initialized": true,
+          "realityInitialized": false
+        },
+        "enrollment-contract-contract-process": {
+          "id": "enrollment-contract-contract-process",
+          "canonicalName": "enrollment-contract-contract-process",
+          "initialized": true,
+          "inSuperposition": true,
+          "accumulator": {
+          },
+          "version": "0.1.0",
+          "realityInitialized": false,
+          "realityBeforeSuperposition": "CONTRACT_SIGNED",
+          "metadata": {
+            "templateId": "enrollment_contract_id"
+          }
+        },
+        "admission-cancelled": {
+          "id": "admission-cancelled",
+          "canonicalName": "admission-cancelled",
+          "version": "0.1.0",
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false
+        },
+        "religion-consent-form-process": {
+          "canonicalName": "religion-consent-form-process",
+          "version": "0.1.0",
+          "initialized": true,
+          "currentReality": "FILLING_FORM",
+          "realityInitialized": true,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "religion-consent-admission-survey"
+          },
+          "id": "religion-consent-form-process"
+        },
+        "documents-uploader-form-process": {
+          "initialized": true,
+          "currentReality": "FILLING_FORM",
+          "realityInitialized": true,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "documents-uploader-full"
+          },
+          "id": "documents-uploader-form-process",
+          "canonicalName": "documents-uploader-form-process",
+          "version": "0.1.0"
+        },
+        "applicant-light-info-form-process": {
+          "id": "applicant-light-info-form-process",
+          "version": "0.1.0",
+          "realityBeforeSuperposition": "FILLED",
+          "canonicalName": "applicant-light-info-form-process",
+          "initialized": true,
+          "realityInitialized": false,
+          "inSuperposition": true,
+          "accumulator": {
+          },
+          "metadata": {
+            "templateId": "applicant-light-info-admission-survey"
+          }
+        },
+        "guardian-info-form-process": {
+          "realityBeforeSuperposition": "FILLED",
+          "accumulator": {
+          },
+          "canonicalName": "guardian-info-form-process",
+          "realityInitialized": false,
+          "inSuperposition": true,
+          "metadata": {
+            "templateId": "guardian-info-admission-survey"
+          },
+          "id": "guardian-info-form-process",
+          "version": "0.1.0",
+          "initialized": true
+        },
+        "admission-completed": {
+          "version": "0.1.0",
+          "initialized": true,
+          "realityInitialized": false,
+          "inSuperposition": true,
+          "accumulator": {
+            "realitiesEvents": {
+              "COMPLETED": [
+                {
+                  "name": "fill-form",
+                  "data": {
+                    "templateId": "guardian-info-admission-survey"
+                  },
+                  "type": "On",
+                  "Flags": {
+                    "ReplayOnEntry": false
+                  }
+                }
+              ]
+            }
+          },
+          "id": "admission-completed",
+          "canonicalName": "admission-completed"
+        },
+        "admission-rejected": {
+          "id": "admission-rejected",
+          "canonicalName": "admission-rejected",
+          "version": "0.1.0",
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false
+        },
+        "substitute-guardian-info-form-process": {
+          "canonicalName": "substitute-guardian-info-form-process",
+          "version": "0.1.0",
+          "initialized": true,
+          "currentReality": "FILLING_FORM",
+          "realityInitialized": true,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "substitute-guardian-admission-info-survey"
+          },
+          "id": "substitute-guardian-info-form-process"
+        }
+      },
+      "tracking": {
+        "applicant-light-info-form-process": null,
+        "admission-in-waiting-confirmation": null,
+        "guardian-info-form-process": [
+          "FILLED"
+        ],
+        "substitute-guardian-info-form-process": null,
+        "documents-uploader-form-process": null,
+        "enrollment-contract-contract-process": [
+          "CONTRACT_SIGNED"
+        ],
+        "admission-completed": null,
+        "religion-consent-form-process": null,
+        "data-consent-form-process": null
+      }
+    }
+  },
+  {
+    "snapshot": {
+      "resume": {
+        "activeUniverses": {
+          "data-consent-form-process": "FILLING_FORM",
+          "religion-consent-form-process": "FILLING_FORM",
+          "documents-uploader-form-process": "FILLING_FORM"
+        },
+        "superpositionUniverses": {
+          "substitute-guardian-info-form-process": "FILLED",
+          "guardian-info-form-process": "FILLED",
+          "admission-completed": "*",
+          "applicant-light-info-form-process": "FILLED",
+          "enrollment-contract-contract-process": "CONTRACT_SIGNED",
+          "admission-in-waiting-confirmation": "CONFIRMED"
+        }
+      },
+      "snapshots": {
+        "enrollment-contract-contract-process": {
+          "version": "0.1.0",
+          "initialized": true,
+          "realityInitialized": false,
+          "realityBeforeSuperposition": "CONTRACT_SIGNED",
+          "metadata": {
+            "templateId": "enrollment_contract_id"
+          },
+          "id": "enrollment-contract-contract-process",
+          "canonicalName": "enrollment-contract-contract-process",
+          "inSuperposition": true,
+          "accumulator": {
+          }
+        },
+        "religion-consent-form-process": {
+          "initialized": true,
+          "currentReality": "FILLING_FORM",
+          "realityInitialized": true,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "religion-consent-admission-survey"
+          },
+          "id": "religion-consent-form-process",
+          "canonicalName": "religion-consent-form-process",
+          "version": "0.1.0"
+        },
+        "admission-completed": {
+          "realityInitialized": false,
+          "inSuperposition": true,
+          "accumulator": {
+            "realitiesEvents": {
+              "COMPLETED": [
+                {
+                  "type": "On",
+                  "Flags": {
+                    "ReplayOnEntry": false
+                  },
+                  "name": "fill-form",
+                  "data": {
+                    "templateId": "guardian-info-admission-survey"
+                  }
+                },
+                {
+                  "name": "fill-form",
+                  "data": {
+                    "templateId": "substitute-guardian-admission-info-survey"
+                  },
+                  "type": "On",
+                  "Flags": {
+                    "ReplayOnEntry": false
+                  }
+                }
+              ]
+            }
+          },
+          "id": "admission-completed",
+          "canonicalName": "admission-completed",
+          "version": "0.1.0",
+          "initialized": true
+        },
+        "applicant-light-info-form-process": {
+          "realityBeforeSuperposition": "FILLED",
+          "accumulator": {
+          },
+          "id": "applicant-light-info-form-process",
+          "canonicalName": "applicant-light-info-form-process",
+          "realityInitialized": false,
+          "inSuperposition": true,
+          "metadata": {
+            "templateId": "applicant-light-info-admission-survey"
+          },
+          "version": "0.1.0",
+          "initialized": true
+        },
+        "data-consent-form-process": {
+          "canonicalName": "data-consent-form-process",
+          "version": "0.1.0",
+          "initialized": true,
+          "currentReality": "FILLING_FORM",
+          "realityInitialized": true,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "data-consent-admission-survey"
+          },
+          "id": "data-consent-form-process"
+        },
+        "admission-in-waiting-confirmation": {
+          "inSuperposition": true,
+          "realityBeforeSuperposition": "CONFIRMED",
+          "accumulator": {
+          },
+          "id": "admission-in-waiting-confirmation",
+          "canonicalName": "admission-in-waiting-confirmation",
+          "version": "0.1.0",
+          "initialized": true,
+          "realityInitialized": false
+        },
+        "admission-rejected": {
+          "canonicalName": "admission-rejected",
+          "version": "0.1.0",
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "id": "admission-rejected"
+        },
+        "consent-contract-contract-process": {
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "consent_contract_id"
+          },
+          "id": "consent-contract-contract-process",
+          "canonicalName": "consent-contract-contract-process",
+          "version": "0.1.0",
+          "initialized": false
+        },
+        "substitute-guardian-info-form-process": {
+          "accumulator": {
+          },
+          "metadata": {
+            "templateId": "substitute-guardian-admission-info-survey"
+          },
+          "version": "0.1.0",
+          "inSuperposition": true,
+          "initialized": true,
+          "realityInitialized": false,
+          "realityBeforeSuperposition": "FILLED",
+          "id": "substitute-guardian-info-form-process",
+          "canonicalName": "substitute-guardian-info-form-process"
+        },
+        "guardian-info-form-process": {
+          "accumulator": {
+          },
+          "id": "guardian-info-form-process",
+          "version": "0.1.0",
+          "initialized": true,
+          "realityBeforeSuperposition": "FILLED",
+          "metadata": {
+            "templateId": "guardian-info-admission-survey"
+          },
+          "canonicalName": "guardian-info-form-process",
+          "realityInitialized": false,
+          "inSuperposition": true
+        },
+        "admission-cancelled": {
+          "version": "0.1.0",
+          "initialized": false,
+          "realityInitialized": false,
+          "inSuperposition": false,
+          "id": "admission-cancelled",
+          "canonicalName": "admission-cancelled"
+        },
+        "documents-uploader-form-process": {
+          "inSuperposition": false,
+          "metadata": {
+            "templateId": "documents-uploader-full"
+          },
+          "id": "documents-uploader-form-process",
+          "canonicalName": "documents-uploader-form-process",
+          "version": "0.1.0",
+          "initialized": true,
+          "currentReality": "FILLING_FORM",
+          "realityInitialized": true
+        }
+      },
+      "tracking": {
+        "enrollment-contract-contract-process": [
+          "CONTRACT_SIGNED"
+        ],
+        "admission-completed": null,
+        "applicant-light-info-form-process": null,
+        "data-consent-form-process": null,
+        "admission-in-waiting-confirmation": null,
+        "religion-consent-form-process": null,
+        "substitute-guardian-info-form-process": [
+          "FILLED"
+        ],
+        "guardian-info-form-process": null,
+        "documents-uploader-form-process": null
+      }
+    }
+  }
+]
