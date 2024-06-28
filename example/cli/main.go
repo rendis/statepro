@@ -11,8 +11,11 @@ func main() {
 	registerLaws()
 	debugger := cli.NewStateMachineDebugger()
 	debugger.SetStateMachinePath("./state_machine.json")
+	//debugger.SetStateMachinePath("example/cli/state_machine.json")
 	debugger.SetEventsPath("./events.json")
+	//debugger.SetEventsPath("example/cli/events.json")
 	debugger.SetSnapshotsPath("./snapshots.json")
+	//debugger.SetSnapshotsPath("example/cli/snapshots.json")
 	debugger.Run(nil)
 }
 

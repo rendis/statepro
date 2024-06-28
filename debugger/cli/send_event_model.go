@@ -101,8 +101,14 @@ func sendEventModelView(m *model) string {
 
 		return !e1.Sent && e2.Sent
 	})
+	v1 := appStyle.Render(hm.View())
 
-	return appStyle.Render(hm.View())
+	h := m.container.history[len(m.container.history)-1]
+	part := buildSnapshotPartFromHistory(h, "m")
+	splitView := buildJsonSplitViewerModel(part.title, part.content)
+	v2 := appStyle.Render(splitView)
+
+	return lipgloss.JoinHorizontal(lipgloss.Top, v1, v2)
 }
 
 func sendEventModelUpdate(m *model, teaMsg tea.Msg) (tea.Model, tea.Cmd) {

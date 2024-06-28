@@ -60,7 +60,15 @@ func buildLoadSnapshotModel(prevModel *model, container *smContainer) (tea.Model
 
 func loadSnapshotModelView(m *model) string {
 	hm := m.helperModel.(*list.Model)
-	return lipgloss.NewStyle().Margin(1, 2).Render(hm.View())
+	v1 := appStyle.Render(hm.View())
+
+	item, _ := hm.SelectedItem().(*choice)
+	h := item.obj.(*debuggerSnapshot)
+	part := buildSnapshotPart(h, "m")
+	splitView := buildJsonSplitViewerModel(part.title, part.content)
+	v2 := appStyle.Render(splitView)
+
+	return lipgloss.JoinHorizontal(lipgloss.Top, v1, v2)
 }
 
 func loadSnapshotModelUpdate(m *model, teaMsg tea.Msg) (tea.Model, tea.Cmd) {

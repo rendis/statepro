@@ -47,7 +47,7 @@ func buildInitialModel(container *smContainer) *model {
 func initialModelView(m *model) string {
 	hm := m.helperModel.(*list.Model)
 	updateInitialModelChoiceTitles(m.container)
-	return lipgloss.NewStyle().Margin(1, 2).Render(hm.View())
+	return appStyle.Render(hm.View())
 }
 
 func initialModelUpdate(m *model, teaMsg tea.Msg) (tea.Model, tea.Cmd) {
