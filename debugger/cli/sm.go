@@ -25,6 +25,7 @@ type debuggerSnapshot struct {
 type containerHistory struct {
 	event    *debuggerEvent
 	snapshot *instrumentation.MachineSnapshot
+	context  any
 	pos      int
 }
 
@@ -54,6 +55,7 @@ func buildContainer(opt *debuggerOptions) (*smContainer, error) {
 		container.history = []*containerHistory{
 			{
 				snapshot: container.qm.GetSnapshot(),
+				context:  copyStructPointer(container.smContext),
 				event:    getSnapshotEvent(),
 				pos:      0,
 			},

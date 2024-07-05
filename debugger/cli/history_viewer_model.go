@@ -82,10 +82,14 @@ func historyViewerModelView(m *model) string {
 
 	h := item.obj.(*containerHistory)
 	part := buildSnapshotPartFromHistory(h, "m")
-	splitView := buildJsonSplitViewerModel(part.title, part.content)
-	v2 := appStyle.Render(splitView)
 
-	return lipgloss.JoinHorizontal(lipgloss.Top, v1, v2)
+	splitView2 := buildJsonSplitViewerModel(part.title, part.content, 3)
+	v2 := appStyle.Render(splitView2)
+
+	splitView3 := buildJsonSplitViewerModel(part.title, h.context, 3)
+	v3 := appStyle.Render(splitView3)
+
+	return lipgloss.JoinHorizontal(lipgloss.Top, v1, v2, v3)
 }
 
 func historyViewerModelUpdate(m *model, teaMsg tea.Msg) (tea.Model, tea.Cmd) {

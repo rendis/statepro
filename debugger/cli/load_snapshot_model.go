@@ -65,8 +65,9 @@ func loadSnapshotModelView(m *model) string {
 	item, _ := hm.SelectedItem().(*choice)
 	h := item.obj.(*debuggerSnapshot)
 	part := buildSnapshotPart(h, "m")
-	splitView := buildJsonSplitViewerModel(part.title, part.content)
-	v2 := appStyle.Render(splitView)
+
+	splitView2 := buildJsonSplitViewerModel(part.title, part.content, 3)
+	v2 := appStyle.Render(splitView2)
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, v1, v2)
 }
@@ -97,6 +98,7 @@ func loadSnapshotModelUpdate(m *model, teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 			m.container.history = []*containerHistory{
 				{
 					snapshot: m.container.qm.GetSnapshot(),
+					context:  copyStructPointer(m.container.smContext),
 					event:    getSnapshotEvent(),
 					pos:      0,
 				},

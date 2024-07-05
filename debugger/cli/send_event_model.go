@@ -105,10 +105,14 @@ func sendEventModelView(m *model) string {
 
 	h := m.container.history[len(m.container.history)-1]
 	part := buildSnapshotPartFromHistory(h, "m")
-	splitView := buildJsonSplitViewerModel(part.title, part.content)
-	v2 := appStyle.Render(splitView)
 
-	return lipgloss.JoinHorizontal(lipgloss.Top, v1, v2)
+	splitView2 := buildJsonSplitViewerModel(part.title, part.content, 3)
+	v2 := appStyle.Render(splitView2)
+
+	splitView3 := buildJsonSplitViewerModel(part.title, h.context, 3)
+	v3 := appStyle.Render(splitView3)
+
+	return lipgloss.JoinHorizontal(lipgloss.Top, v1, v2, v3)
 }
 
 func sendEventModelUpdate(m *model, teaMsg tea.Msg) (tea.Model, tea.Cmd) {
@@ -146,6 +150,7 @@ func sendEventModelUpdate(m *model, teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 			m.container.history = append(m.container.history, &containerHistory{
 				event:    event,
 				snapshot: m.container.qm.GetSnapshot(),
+				context:  copyStructPointer(m.container.smContext),
 				pos:      len(m.container.history),
 			})
 

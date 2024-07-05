@@ -5,13 +5,13 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func buildJsonSplitViewerModel(title string, obj any) string {
+func buildJsonSplitViewerModel(title string, obj any, views int) string {
 	coloredJson, _ := formatToJson(obj, true)
 	content := string(coloredJson)
 
 	x, y := appStyle.GetFrameSize()
 	w, h := getTerminalSize()
-	vp := viewport.New(w-x, h-y)
+	vp := viewport.New((w-x)/views, h-y)
 	headerHeight := lipgloss.Height(jsonViewerHeaderView(title, &vp))
 	vp.YPosition = headerHeight
 	vp.HighPerformanceRendering = false

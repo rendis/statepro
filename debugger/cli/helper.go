@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/google/uuid"
 	"os"
+	"reflect"
 	"syscall"
 	"unsafe"
 )
@@ -132,7 +133,31 @@ func getSnapshotEvent() *debuggerEvent {
 }
 
 func isPointerOrNil(v any) bool {
-	return v == nil || v == (*any)(nil)
+	val := reflect.ValueOf(v)
+	if val.Kind() != reflect.Ptr || !val.IsValid() {
+		return false
+	}
+	if val.IsNil() {
+		return true
+	}
+
+	return val.Elem().Kind() == reflect.Struct
+}
+
+func copyStructPointer(v any) any {
+	val := reflect.ValueOf(v)
+
+	if val.IsNil() {
+		return nil
+	}
+
+	structValue := val.Elem()
+	structCopy := reflect.New(structValue.Type()).Elem()
+	for i := 0; i < structValue.NumField(); i++ {
+		structCopy.Field(i).Set(structValue.Field(i))
+	}
+
+	return structCopy.Addr().Interface()
 }
 
 func formatToJson(source any, enableFormater bool) ([]byte, error) {
