@@ -91,16 +91,16 @@ func (qm *ExQuantumMachine) Init(ctx context.Context, machineContext any) error 
 		}
 
 		// execute init function
-		transitions, evt, err := initFn(ctx, machineContext, universe, parts)
+		externalTargets, evt, err := initFn(ctx, machineContext, universe, parts)
 		if err != nil {
 			return err
 		}
 
-		pair := devtoolkit.NewPair[instrumentation.Event, []string](evt, transitions)
+		pair := devtoolkit.NewPair[instrumentation.Event, []string](evt, externalTargets)
 		pairs = append(pairs, pair)
 	}
 
-	return qm.executeTargetPairs(ctx, pairs)
+	return qm.executeExternalTargetPairs(ctx, pairs)
 }
 
 func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation.Event) (bool, error) {
@@ -128,7 +128,7 @@ func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation
 		pairs = append(pairs, pair)
 	}
 
-	return true, qm.executeTargetPairs(ctx, pairs)
+	return true, qm.executeExternalTargetPairs(ctx, pairs)
 }
 
 func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapshot, machineContext any) error {
@@ -362,8 +362,7 @@ func (qm *ExQuantumMachine) getActiveUniverses() []*ExUniverse {
 	return activeUniverses
 }
 
-func (qm *ExQuantumMachine) executeTargetPairs(ctx context.Context, pairs []devtoolkit.Pair[instrumentation.Event, []string]) error {
-
+func (qm *ExQuantumMachine) executeExternalTargetPairs(ctx context.Context, pairs []devtoolkit.Pair[instrumentation.Event, []string]) error {
 	// while there are pairs to execute
 	for len(pairs) > 0 {
 		pair := pairs[0]

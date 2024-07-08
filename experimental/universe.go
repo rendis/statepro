@@ -101,8 +101,8 @@ func (u *ExUniverse) handleEvent(ctx context.Context, realityName *string, evt i
 		handleEventFn = func() error { return u.receiveEvent(ctx, evt) }
 	}
 
-	targets, err := u.universeDecorator(handleEventFn)
-	return targets, err
+	externalTargets, err := u.universeDecorator(handleEventFn)
+	return externalTargets, err
 }
 
 // start starts the universe on the default reality (initial reality)
@@ -127,8 +127,8 @@ func (u *ExUniverse) start(ctx context.Context, universeContext any) ([]string, 
 		return nil
 	}
 
-	targets, err := u.universeDecorator(initFn)
-	return targets, evt, err
+	externalTargets, err := u.universeDecorator(initFn)
+	return externalTargets, evt, err
 }
 
 // startOnReality starts the universe on the given reality
@@ -148,8 +148,8 @@ func (u *ExUniverse) startOnReality(ctx context.Context, realityName string, uni
 		return nil
 	}
 
-	targets, err := u.universeDecorator(initFn)
-	return targets, evt, err
+	externalTargets, err := u.universeDecorator(initFn)
+	return externalTargets, evt, err
 }
 
 // placeOn sets the given reality as the current reality
@@ -311,7 +311,7 @@ func (u *ExUniverse) receiveEventToReality(ctx context.Context, realityName stri
 
 	// handling superposition
 	if u.inSuperposition {
-		isNewReality, err := u.accumulateEventForReality(ctx, realityName, event)
+		isNewReality, err := u.accumulateEventForReality(ctx, realityName, event, true)
 		if err != nil {
 			return errors.Join(fmt.Errorf("error accumulating Event for reality '%s'", realityName), err)
 		}
@@ -778,7 +778,9 @@ func (u *ExUniverse) executeInvokes(
 	}
 }
 
-func (u *ExUniverse) accumulateEventForReality(ctx context.Context, realityName string, event instrumentation.Event) (bool, error) {
+func (u *ExUniverse) accumulateEventForReality(
+	ctx context.Context, realityName string, event instrumentation.Event, directEvent bool,
+) (bool, error) {
 	realityModel, err := u.getRealityModel(realityName)
 	if err != nil {
 		return false, err
@@ -786,6 +788,9 @@ func (u *ExUniverse) accumulateEventForReality(ctx context.Context, realityName 
 
 	// if reality has no observers -> return false
 	if len(realityModel.Observers) == 0 {
+		if directEvent {
+			return true, nil
+		}
 		return false, nil
 	}
 
@@ -803,7 +808,7 @@ func (u *ExUniverse) accumulateEventForReality(ctx context.Context, realityName 
 
 func (u *ExUniverse) accumulateEventForAllRealities(ctx context.Context, event instrumentation.Event) (bool, string, error) {
 	for reality := range u.model.Realities {
-		isNewReality, err := u.accumulateEventForReality(ctx, reality, event)
+		isNewReality, err := u.accumulateEventForReality(ctx, reality, event, false)
 		if err != nil {
 			return false, "", errors.Join(fmt.Errorf("error accumulating Event for reality '%s'", reality), err)
 		}

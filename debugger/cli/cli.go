@@ -84,8 +84,4 @@ func (d *StateMachineDebugger) loadDefaultOptions() {
 	if d.opt.smContextPath == "" {
 		d.opt.smContextPath = defaultSMContextPath
 	}
-
-	if d.opt.smContext == nil {
-		d.opt.smContext = make(map[string]any)
-	}
 }

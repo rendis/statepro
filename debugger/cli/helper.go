@@ -133,24 +133,24 @@ func getSnapshotEvent() *debuggerEvent {
 }
 
 func isPointerOrNil(v any) bool {
+	if v == nil {
+		return true
+	}
+
 	val := reflect.ValueOf(v)
 	if val.Kind() != reflect.Ptr || !val.IsValid() {
 		return false
-	}
-	if val.IsNil() {
-		return true
 	}
 
 	return val.Elem().Kind() == reflect.Struct
 }
 
 func copyStructPointer(v any) any {
-	val := reflect.ValueOf(v)
-
-	if val.IsNil() {
+	if v == nil {
 		return nil
 	}
 
+	val := reflect.ValueOf(v)
 	structValue := val.Elem()
 	structCopy := reflect.New(structValue.Type()).Elem()
 	for i := 0; i < structValue.NumField(); i++ {
