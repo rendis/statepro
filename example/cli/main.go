@@ -24,6 +24,7 @@ func registerLaws() {
 	_ = builtin.RegisterAction("action:createForm", createForm)
 	_ = builtin.RegisterAction("action:sendContract", sendContract)
 	_ = builtin.RegisterCondition("condition:ifItIsTheTemplate", ifItIsTheTemplate)
+	_ = builtin.RegisterAction("action:createPayment", createPayment)
 }
 
 func disableAdmission(_ context.Context, _ instrumentation.ActionExecutorArgs) error {
@@ -71,5 +72,11 @@ func createForm(_ context.Context, _ instrumentation.ActionExecutorArgs) error {
 }
 
 func sendContract(_ context.Context, _ instrumentation.ActionExecutorArgs) error {
+	return nil
+}
+
+func createPayment(_ context.Context, args instrumentation.ActionExecutorArgs) error {
+	const templateId = "payment_generated_id"
+	args.UpdateUniverseMetadata("templateId", templateId)
 	return nil
 }

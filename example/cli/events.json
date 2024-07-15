@@ -19,6 +19,13 @@
     }
   },
   {
+    "title": "pay enrollment",
+    "name": "paid",
+    "params": {
+      "templateId": "payment_generated_id"
+    }
+  },
+  {
     "title": "complete uploader full survey",
     "name": "fill-form",
     "params": {

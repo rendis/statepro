@@ -1,6 +1,11 @@
 {
   "id": "admission-process",
   "canonicalName": "admission-process",
+  "initials": [
+    "U:admission-in-waiting-confirmation"
+  ],
+  "description": "This process is responsible for the admission process of a student",
+  "version": "1.0.0",
   "universes": {
     "substitute-guardian-info-form-process": {
       "id": "substitute-guardian-info-form-process",
@@ -255,7 +260,8 @@
                 "U:substitute-guardian-info-form-process",
                 "U:data-consent-form-process",
                 "U:religion-consent-form-process",
-                "U:documents-uploader-form-process"
+                "U:documents-uploader-form-process",
+                "U:enrollment-payment-process"
               ]
             }
           ],
@@ -483,7 +489,7 @@
             {
               "src": "builtin:observer:totalEventsBetweenLimits",
               "args": {
-                "minimum": 3
+                "minimum": 4
               }
             }
           ],
@@ -949,11 +955,72 @@
       "metadata": {
         "templateId": "religion_contract_id"
       }
+    },
+    "enrollment-payment-process": {
+      "id": "enrollment-payment-process",
+      "canonicalName": "enrollment-payment-process",
+      "version": "0.1.0",
+      "initial": "CREATING_PAYMENT",
+      "metadata": {},
+      "realities": {
+        "CREATING_PAYMENT": {
+          "id": "CREATING_PAYMENT",
+          "type": "transition",
+          "observers": [],
+          "entryActions": [
+            {
+              "src": "action:createPayment",
+              "args": {
+                "enabled": true
+              }
+            }
+          ],
+          "always": [
+            {
+              "targets": [
+                "PAYING"
+              ]
+            }
+          ]
+        },
+        "PAYING": {
+          "id": "PAYING",
+          "type": "transition",
+          "on": {
+            "paid": [
+              {
+                "condition": {
+                  "src": "condition:ifItIsTheTemplate",
+                  "args": {
+                    "templateId": "payment_generated_id"
+                  }
+                },
+                "targets": [
+                  "PAID"
+                ]
+              }
+            ],
+            "cancel": [
+              {
+                "targets": [
+                  "U:admission-cancelled:CANCELLED"
+                ]
+              }
+            ]
+          }
+        },
+        "PAID": {
+          "id": "PAID",
+          "type": "final",
+          "always": [
+            {
+              "targets": [
+                "U:enrollment-contract-contract-process"
+              ]
+            }
+          ]
+        }
+      }
     }
-  },
-  "initials": [
-    "U:admission-in-waiting-confirmation"
-  ],
-  "description": "This process is responsible for the admission process of a student",
-  "version": "1.0.0"
+  }
 }
