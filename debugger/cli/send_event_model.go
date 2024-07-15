@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -139,10 +140,12 @@ func sendEventModelUpdate(m *model, teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 
 			success, err := m.container.qm.SendEvent(context.Background(), evt)
 			if err != nil {
+				fmt.Printf("error sending event: %v\n", err)
 				return m, nil
 			}
 
 			if !success {
+				fmt.Println("event not handled")
 				return m, nil
 			}
 
