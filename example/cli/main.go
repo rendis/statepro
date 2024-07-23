@@ -77,6 +77,6 @@ func sendContract(_ context.Context, _ instrumentation.ActionExecutorArgs) error
 
 func createPayment(_ context.Context, args instrumentation.ActionExecutorArgs) error {
 	const templateId = "payment_generated_id"
-	args.UpdateUniverseMetadata("templateId", templateId)
+	args.AddToUniverseMetadata("templateId", templateId)
 	return nil
 }

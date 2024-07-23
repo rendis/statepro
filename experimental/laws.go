@@ -6,6 +6,7 @@ import (
 )
 
 // --------- ObserverExecutorArgs ---------//
+
 type observerExecutorArgs struct {
 	context               any
 	realityName           string
@@ -49,14 +50,27 @@ func (o *observerExecutorArgs) GetUniverseMetadata() map[string]any {
 	return o.universeMetadata
 }
 
-func (o *observerExecutorArgs) UpdateUniverseMetadata(key string, value any) {
+func (o *observerExecutorArgs) AddToUniverseMetadata(key string, value any) {
 	if o.universeMetadata == nil {
 		o.universeMetadata = make(map[string]any)
 	}
 	o.universeMetadata[key] = value
 }
 
+func (o *observerExecutorArgs) DeleteFromUniverseMetadata(key string) (any, bool) {
+	value, ok := o.universeMetadata[key]
+	if ok {
+		delete(o.universeMetadata, key)
+	}
+	return value, ok
+}
+
+func (o *observerExecutorArgs) UpdateUniverseMetadata(md map[string]any) {
+	o.universeMetadata = md
+}
+
 // --------- ActionExecutorArgs ---------//
+
 type actionExecutorArgs struct {
 	context               any
 	realityName           string
@@ -105,11 +119,23 @@ func (a *actionExecutorArgs) GetUniverseMetadata() map[string]any {
 	return a.universeMetadata
 }
 
-func (a *actionExecutorArgs) UpdateUniverseMetadata(key string, value any) {
+func (a *actionExecutorArgs) AddToUniverseMetadata(key string, value any) {
 	if a.universeMetadata == nil {
 		a.universeMetadata = make(map[string]any)
 	}
 	a.universeMetadata[key] = value
+}
+
+func (a *actionExecutorArgs) DeleteFromUniverseMetadata(key string) (any, bool) {
+	value, ok := a.universeMetadata[key]
+	if ok {
+		delete(a.universeMetadata, key)
+	}
+	return value, ok
+}
+
+func (a *actionExecutorArgs) UpdateUniverseMetadata(md map[string]any) {
+	a.universeMetadata = md
 }
 
 //--------- InvokeExecutorArgs ---------//
@@ -152,11 +178,23 @@ func (i *invokeExecutorArgs) GetUniverseMetadata() map[string]any {
 	return i.universeMetadata
 }
 
-func (i *invokeExecutorArgs) UpdateUniverseMetadata(key string, value any) {
+func (i *invokeExecutorArgs) AddToUniverseMetadata(key string, value any) {
 	if i.universeMetadata == nil {
 		i.universeMetadata = make(map[string]any)
 	}
 	i.universeMetadata[key] = value
+}
+
+func (i *invokeExecutorArgs) DeleteFromUniverseMetadata(key string) (any, bool) {
+	value, ok := i.universeMetadata[key]
+	if ok {
+		delete(i.universeMetadata, key)
+	}
+	return value, ok
+}
+
+func (i *invokeExecutorArgs) UpdateUniverseMetadata(md map[string]any) {
+	i.universeMetadata = md
 }
 
 //--------- ConditionExecutorArgs ---------//
@@ -199,9 +237,21 @@ func (c *conditionExecutorArgs) GetUniverseMetadata() map[string]any {
 	return c.universeMetadata
 }
 
-func (c *conditionExecutorArgs) UpdateUniverseMetadata(key string, value any) {
+func (c *conditionExecutorArgs) AddToUniverseMetadata(key string, value any) {
 	if c.universeMetadata == nil {
 		c.universeMetadata = make(map[string]any)
 	}
 	c.universeMetadata[key] = value
+}
+
+func (c *conditionExecutorArgs) DeleteFromUniverseMetadata(key string) (any, bool) {
+	value, ok := c.universeMetadata[key]
+	if ok {
+		delete(c.universeMetadata, key)
+	}
+	return value, ok
+}
+
+func (c *conditionExecutorArgs) UpdateUniverseMetadata(md map[string]any) {
+	c.universeMetadata = md
 }
