@@ -28,9 +28,6 @@ type Event interface {
 }
 
 type EventBuilder interface {
-	// SetEventName sets the Event name
-	SetEventName(name string) EventBuilder
-
 	// SetData sets the Event data
 	SetData(data map[string]any) EventBuilder
 

@@ -58,11 +58,6 @@ type EventBuilder struct {
 	flags   instrumentation.EventFlags
 }
 
-func (eb *EventBuilder) SetEventName(name string) instrumentation.EventBuilder {
-	eb.name = name
-	return eb
-}
-
 func (eb *EventBuilder) SetData(data map[string]any) instrumentation.EventBuilder {
 	eb.data = data
 	return eb

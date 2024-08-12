@@ -78,7 +78,7 @@ func main() {
 }
 
 func loadDefinition() instrumentation.QuantumMachine {
-	var path = "example/v0.1.json"
+	var path = "example/sm/state_machine.json"
 
 	arrByte, err := os.ReadFile(path)
 	if err != nil {
