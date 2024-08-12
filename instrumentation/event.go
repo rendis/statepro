@@ -2,10 +2,13 @@ package instrumentation
 
 type EventType string
 
+type EventFlags struct {
+	ReplayOnEntry bool `json:"replayOnEntry" bson:"replayOnEntry" xml:"replayOnEntry"`
+}
+
 const (
 	EventTypeStart   EventType = "Start"   // Event triggered when the universe starts
 	EventTypeStartOn EventType = "StartOn" // Event triggered when the universe starts on a reality
-	EventTypeAlways  EventType = "Always"  // Event triggered from reality from its "always transitions"
 	EventTypeOn      EventType = "On"      // Event triggered from reality from its "on transitions"
 	EventTypeOnEntry EventType = "OnEntry" // Event used to force the current reality to execute logic on entry
 )
@@ -39,8 +42,4 @@ type EventBuilder interface {
 
 	// Build returns the Event
 	Build() Event
-}
-
-type EventFlags struct {
-	ReplayOnEntry bool
 }

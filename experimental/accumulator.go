@@ -8,14 +8,14 @@ import (
 // newEventAccumulator returns a new Event accumulator
 func newEventAccumulator() instrumentation.Accumulator {
 	return &eventAccumulator{
-		RealitiesEvents: map[string][]*event{},
+		RealitiesEvents: map[string][]*Event{},
 	}
 }
 
 type eventAccumulator struct {
 	// RealitiesEvents is the map of realities and their accumulated events
 	// The map key is the reality name and the value is the accumulated events
-	RealitiesEvents map[string][]*event `json:"realitiesEvents,omitempty"`
+	RealitiesEvents map[string][]*Event `json:"realitiesEvents,omitempty"`
 }
 
 func (ea *eventAccumulator) String() string {
@@ -30,14 +30,14 @@ func (ea *eventAccumulator) String() string {
 
 func (ea *eventAccumulator) Accumulate(realityName string, evt instrumentation.Event) {
 	if ea.RealitiesEvents == nil {
-		ea.RealitiesEvents = map[string][]*event{}
+		ea.RealitiesEvents = map[string][]*Event{}
 	}
 
 	if _, ok := ea.RealitiesEvents[realityName]; !ok {
-		ea.RealitiesEvents[realityName] = []*event{}
+		ea.RealitiesEvents[realityName] = []*Event{}
 	}
 
-	ea.RealitiesEvents[realityName] = append(ea.RealitiesEvents[realityName], evt.(*event))
+	ea.RealitiesEvents[realityName] = append(ea.RealitiesEvents[realityName], evt.(*Event))
 }
 
 func (ea *eventAccumulator) GetStatistics() instrumentation.AccumulatorStatistics {
@@ -74,7 +74,7 @@ func (ea *eventAccumulator) GetAllRealityEvents(realityName string) map[string][
 		return resp
 	}
 
-	// map events by event name
+	// map events by Event name
 	for _, e := range realityEvents {
 		if _, ok = resp[e.GetEventName()]; !ok {
 			resp[e.GetEventName()] = []instrumentation.Event{}
@@ -93,7 +93,7 @@ func (ea *eventAccumulator) GetRealityEvents(realityName string) map[string]inst
 		return resp
 	}
 
-	// map events by event name
+	// map events by Event name
 	for _, e := range realityEvents {
 		if _, ok = resp[e.GetEventName()]; !ok {
 			resp[e.GetEventName()] = e

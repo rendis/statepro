@@ -242,7 +242,7 @@ func (u *ExUniverse) canHandleEvent(evt instrumentation.Event) bool {
 		return false
 	}
 
-	// if current reality can handle the event -> true
+	// if current reality can handle the Event -> true
 	if u.currentReality != nil && u.canRealityHandleEvent(*u.currentReality, evt) {
 		return true
 	}
@@ -638,7 +638,7 @@ func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrument
 		return nil
 	}
 
-	// if reality is already initialized and the event is not a replay on entry -> return
+	// if reality is already initialized and the Event is not a replay on entry -> return
 	if u.realityInitialized && !event.GetFlags().ReplayOnEntry {
 		return nil
 	}

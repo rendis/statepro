@@ -5,23 +5,22 @@ import (
 	"github.com/rendis/statepro/v3/instrumentation"
 )
 
-// --------- Event --------- //
-type event struct {
-	Name    string                    `json:"name" bson:"name" xml:"name"`
-	Data    map[string]any            `json:"data,omitempty" bson:"data,omitempty" xml:"data,omitempty"`
-	EvtType instrumentation.EventType `json:"type" bson:"type" xml:"type"`
-	Flags   instrumentation.EventFlags
+type Event struct {
+	Name    string                     `json:"name" bson:"name" xml:"name"`
+	Data    map[string]any             `json:"data,omitempty" bson:"data,omitempty" xml:"data,omitempty"`
+	EvtType instrumentation.EventType  `json:"type" bson:"type" xml:"type"`
+	Flags   instrumentation.EventFlags `json:"flags,omitempty" bson:"flags,omitempty" xml:"flags,omitempty"`
 }
 
-func (e *event) GetEventName() string {
+func (e *Event) GetEventName() string {
 	return e.Name
 }
 
-func (e *event) GetData() map[string]any {
+func (e *Event) GetData() map[string]any {
 	return e.Data
 }
 
-func (e *event) DataContainsKey(key string) bool {
+func (e *Event) DataContainsKey(key string) bool {
 	if e.Data == nil {
 		return false
 	}
@@ -29,15 +28,15 @@ func (e *event) DataContainsKey(key string) bool {
 	return ok
 }
 
-func (e *event) GetEvtType() instrumentation.EventType {
+func (e *Event) GetEvtType() instrumentation.EventType {
 	return e.EvtType
 }
 
-func (e *event) GetFlags() instrumentation.EventFlags {
+func (e *Event) GetFlags() instrumentation.EventFlags {
 	return e.Flags
 }
 
-func (e *event) String() string {
+func (e *Event) String() string {
 	return fmt.Sprintf("%s", e.Name)
 }
 
@@ -74,7 +73,7 @@ func (eb *EventBuilder) SetFlags(flags instrumentation.EventFlags) instrumentati
 }
 
 func (eb *EventBuilder) Build() instrumentation.Event {
-	return &event{
+	return &Event{
 		Name:    eb.name,
 		Data:    eb.data,
 		EvtType: eb.evtType,
