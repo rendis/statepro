@@ -19,6 +19,9 @@ type SMBot interface {
 
 	// GetHistory retrieves all the events sent and the snapshots produced by them.
 	GetHistory() []*EventHistory
+
+	// GetQuantumMachine retrieves the quantum machine used by the bot.
+	GetQuantumMachine() instrumentation.QuantumMachine
 }
 
 type EventHistory struct {
@@ -92,4 +95,8 @@ func (b *bot) Run(ctx context.Context, machineContext any) error {
 
 func (b *bot) GetHistory() []*EventHistory {
 	return b.history
+}
+
+func (b *bot) GetQuantumMachine() instrumentation.QuantumMachine {
+	return b.qm
 }
