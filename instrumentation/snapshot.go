@@ -40,6 +40,14 @@ type UniversesResume struct {
 	// - has been initialized
 	// - in superposition
 	SuperpositionUniverses map[string]string `json:"superpositionUniverses,omitempty" bson:"superpositionUniverses,omitempty" xml:"superpositionUniverses,omitempty"`
+
+	// SuperpositionUniversesFinalized is the map of the superposition universes that have been finalized
+	// key: universe id, value: universe final reality
+	// a universe is in superposition if:
+	// - has been initialized
+	// - in superposition
+	// - finalized
+	SuperpositionUniversesFinalized map[string]string `json:"superpositionUniversesFinalized,omitempty" bson:"superpositionUniversesFinalized,omitempty" xml:"superpositionUniversesFinalized,omitempty"`
 }
 
 func (ms *MachineSnapshot) AddActiveUniverse(universeCanonicalName string, reality string) {
@@ -61,6 +69,13 @@ func (ms *MachineSnapshot) AddSuperpositionUniverse(universeCanonicalName string
 		ms.Resume.SuperpositionUniverses = make(map[string]string)
 	}
 	ms.Resume.SuperpositionUniverses[universeCanonicalName] = reality
+}
+
+func (ms *MachineSnapshot) AddSuperpositionUniverseFinalized(universeCanonicalName string, reality string) {
+	if ms.Resume.SuperpositionUniversesFinalized == nil {
+		ms.Resume.SuperpositionUniversesFinalized = make(map[string]string)
+	}
+	ms.Resume.SuperpositionUniversesFinalized[universeCanonicalName] = reality
 }
 
 func (ms *MachineSnapshot) AddUniverseSnapshot(universeId string, snapshot SerializedUniverseSnapshot) {

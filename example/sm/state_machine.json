@@ -158,21 +158,21 @@
             "sign": [
               {
                 "targets": [
-                  "CONTRACT_SIGNED"
+                  "ENROLLMENT_CONTRACT_SIGNED"
                 ]
               }
             ],
             "manual-complete": [
               {
                 "targets": [
-                  "CONTRACT_SIGNED"
+                  "ENROLLMENT_CONTRACT_SIGNED"
                 ]
               }
             ]
           }
         },
-        "CONTRACT_SIGNED": {
-          "id": "CONTRACT_SIGNED",
+        "ENROLLMENT_CONTRACT_SIGNED": {
+          "id": "ENROLLMENT_CONTRACT_SIGNED",
           "type": "final",
           "always": [
             {
@@ -195,7 +195,7 @@
       "realities": {
         "WAITING_PROCESSES": {
           "id": "WAITING_PROCESSES",
-          "type": "transition",
+          "type": "final",
           "observers": [
             {
               "src": "builtin:observer:containsAllEvents",
@@ -272,6 +272,7 @@
       "metadata": {
         "templateId": "template7"
       },
+      "initial": "COMPLETED",
       "realities": {
         "COMPLETED": {
           "id": "COMPLETED",
