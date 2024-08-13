@@ -186,7 +186,12 @@ func (qm *ExQuantumMachine) GetSnapshot() *instrumentation.MachineSnapshot {
 			if u.realityBeforeSuperposition != nil {
 				realityBeforeSuperposition = *u.realityBeforeSuperposition
 			}
-			machineSnapshot.AddSuperpositionUniverse(u.model.CanonicalName, realityBeforeSuperposition)
+
+			if !u.isFinalReality {
+				machineSnapshot.AddSuperpositionUniverse(u.model.CanonicalName, realityBeforeSuperposition)
+			} else {
+				machineSnapshot.AddSuperpositionUniverseFinalized(u.model.CanonicalName, realityBeforeSuperposition)
+			}
 		}
 
 		// add tracking
