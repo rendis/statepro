@@ -7,6 +7,71 @@
   "description": "This process is responsible for the admission process of a student",
   "version": "1.0.0",
   "universes": {
+    "admission-in-waiting-confirmation": {
+      "id": "admission-in-waiting-confirmation",
+      "canonicalName": "admission-in-waiting-confirmation",
+      "initial": "CREATED",
+      "realities": {
+        "CREATED": {
+          "id": "CREATED",
+          "always": [
+            {
+              "targets": [
+                "WAITING_CONFIRMATION"
+              ]
+            }
+          ],
+          "type": "transition",
+          "on": null
+        },
+        "WAITING_CONFIRMATION": {
+          "id": "WAITING_CONFIRMATION",
+          "type": "transition",
+          "on": {
+            "confirm": [
+              {
+                "targets": [
+                  "CONFIRMED"
+                ]
+              }
+            ],
+            "reject": [
+              {
+                "targets": [
+                  "U:admission-rejected"
+                ]
+              }
+            ],
+            "cancel": [
+              {
+                "targets": [
+                  "U:admission-cancelled:CANCELLED"
+                ]
+              }
+            ]
+          }
+        },
+        "CONFIRMED": {
+          "id": "CONFIRMED",
+          "always": [
+            {
+              "targets": [
+                "U:applicant-light-info-form-process",
+                "U:guardian-info-form-process",
+                "U:substitute-guardian-info-form-process",
+                "U:data-consent-form-process",
+                "U:religion-consent-form-process",
+                "U:documents-uploader-form-process",
+                "U:enrollment-payment-process"
+              ]
+            }
+          ],
+          "type": "final",
+          "on": null
+        }
+      },
+      "version": "0.1.0"
+    },
     "substitute-guardian-info-form-process": {
       "id": "substitute-guardian-info-form-process",
       "canonicalName": "substitute-guardian-info-form-process",
@@ -202,71 +267,6 @@
               }
             ]
           }
-        }
-      },
-      "version": "0.1.0"
-    },
-    "admission-in-waiting-confirmation": {
-      "id": "admission-in-waiting-confirmation",
-      "canonicalName": "admission-in-waiting-confirmation",
-      "initial": "CREATED",
-      "realities": {
-        "CREATED": {
-          "id": "CREATED",
-          "always": [
-            {
-              "targets": [
-                "WAITING_CONFIRMATION"
-              ]
-            }
-          ],
-          "type": "transition",
-          "on": null
-        },
-        "WAITING_CONFIRMATION": {
-          "id": "WAITING_CONFIRMATION",
-          "type": "transition",
-          "on": {
-            "confirm": [
-              {
-                "targets": [
-                  "CONFIRMED"
-                ]
-              }
-            ],
-            "reject": [
-              {
-                "targets": [
-                  "U:admission-rejected"
-                ]
-              }
-            ],
-            "cancel": [
-              {
-                "targets": [
-                  "U:admission-cancelled:CANCELLED"
-                ]
-              }
-            ]
-          }
-        },
-        "CONFIRMED": {
-          "id": "CONFIRMED",
-          "always": [
-            {
-              "targets": [
-                "U:applicant-light-info-form-process",
-                "U:guardian-info-form-process",
-                "U:substitute-guardian-info-form-process",
-                "U:data-consent-form-process",
-                "U:religion-consent-form-process",
-                "U:documents-uploader-form-process",
-                "U:enrollment-payment-process"
-              ]
-            }
-          ],
-          "type": "final",
-          "on": null
         }
       },
       "version": "0.1.0"

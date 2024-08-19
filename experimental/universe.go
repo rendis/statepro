@@ -109,11 +109,13 @@ func (u *ExUniverse) handleEvent(ctx context.Context, realityName *string, evt i
 // start set initial reality as the current reality and execute:
 // - always operations
 // - initial operations
-func (u *ExUniverse) start(ctx context.Context, universeContext any) ([]string, instrumentation.Event, error) {
+func (u *ExUniverse) start(ctx context.Context, universeContext any, event instrumentation.Event) ([]string, instrumentation.Event, error) {
 	u.setUniverseContext(universeContext)
-	evt := NewEventBuilder(startEventName).
-		SetEvtType(instrumentation.EventTypeStart).
-		Build()
+	if event == nil {
+		event = NewEventBuilder(startEventName).
+			SetEvtType(instrumentation.EventTypeStart).
+			Build()
+	}
 
 	var initFn = func() error {
 		if u.model.Initial == nil {
@@ -121,35 +123,37 @@ func (u *ExUniverse) start(ctx context.Context, universeContext any) ([]string, 
 			return nil
 		}
 
-		if err := u.initializeUniverseOn(ctx, *u.model.Initial, evt); err != nil {
+		if err := u.initializeUniverseOn(ctx, *u.model.Initial, event); err != nil {
 			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.model.ID), err)
 		}
 		return nil
 	}
 
 	externalTargets, err := u.universeDecorator(initFn)
-	return externalTargets, evt, err
+	return externalTargets, event, err
 }
 
 // startOnReality starts the universe on the given reality
 // startOnReality set the given reality as the current reality and execute:
 // - always operations
 // - initial operations
-func (u *ExUniverse) startOnReality(ctx context.Context, realityName string, universeContext any) ([]string, instrumentation.Event, error) {
+func (u *ExUniverse) startOnReality(ctx context.Context, realityName string, universeContext any, event instrumentation.Event) ([]string, instrumentation.Event, error) {
 	u.setUniverseContext(universeContext)
-	evt := NewEventBuilder(startOnEventName).
-		SetEvtType(instrumentation.EventTypeStartOn).
-		Build()
+	if event == nil {
+		event = NewEventBuilder(startOnEventName).
+			SetEvtType(instrumentation.EventTypeStartOn).
+			Build()
+	}
 
 	var initFn = func() error {
-		if err := u.initializeUniverseOn(ctx, realityName, evt); err != nil {
+		if err := u.initializeUniverseOn(ctx, realityName, event); err != nil {
 			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.model.ID), err)
 		}
 		return nil
 	}
 
 	externalTargets, err := u.universeDecorator(initFn)
-	return externalTargets, evt, err
+	return externalTargets, event, err
 }
 
 // placeOn sets the given reality as the current reality

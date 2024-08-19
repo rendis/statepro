@@ -11,14 +11,14 @@ import (
 	"sync"
 )
 
-type initFunc func(context.Context, any, *ExUniverse, []string) ([]string, instrumentation.Event, error)
+type initFunc func(context.Context, any, *ExUniverse, []string, instrumentation.Event) ([]string, instrumentation.Event, error)
 
 var qmInitFunctions = map[refType]initFunc{
-	RefTypeUniverse: func(ctx context.Context, uCtx any, u *ExUniverse, _ []string) ([]string, instrumentation.Event, error) {
-		return u.start(ctx, uCtx)
+	RefTypeUniverse: func(ctx context.Context, uCtx any, u *ExUniverse, _ []string, event instrumentation.Event) ([]string, instrumentation.Event, error) {
+		return u.start(ctx, uCtx, event)
 	},
-	RefTypeUniverseReality: func(ctx context.Context, uCtx any, u *ExUniverse, p []string) ([]string, instrumentation.Event, error) {
-		return u.startOnReality(ctx, p[1], uCtx)
+	RefTypeUniverseReality: func(ctx context.Context, uCtx any, u *ExUniverse, realities []string, event instrumentation.Event) ([]string, instrumentation.Event, error) {
+		return u.startOnReality(ctx, realities[1], uCtx, event)
 	},
 }
 
@@ -64,43 +64,11 @@ type ExQuantumMachine struct {
 //--------- QuantumMachine interface implementation ---------
 
 func (qm *ExQuantumMachine) Init(ctx context.Context, machineContext any) error {
-	qm.quantumMachineMtx.Lock()
-	defer qm.quantumMachineMtx.Unlock()
+	return qm.init(ctx, machineContext, nil)
+}
 
-	qm.machineContext = machineContext
-
-	var pairs []devtoolkit.Pair[instrumentation.Event, []string]
-
-	for _, ref := range qm.model.Initials {
-		// get reference type and parts
-		refT, parts, err := processReference(ref)
-		if err != nil {
-			return err
-		}
-
-		// check if universe exists
-		universe, ok := qm.universes[parts[0]]
-		if !ok {
-			return fmt.Errorf("universe '%s' not found on ref universes", parts[0])
-		}
-
-		// get init function
-		initFn, ok := qmInitFunctions[refT]
-		if !ok {
-			return fmt.Errorf("invalid ref type '%d'", refT)
-		}
-
-		// execute init function
-		externalTargets, evt, err := initFn(ctx, machineContext, universe, parts)
-		if err != nil {
-			return err
-		}
-
-		pair := devtoolkit.NewPair[instrumentation.Event, []string](evt, externalTargets)
-		pairs = append(pairs, pair)
-	}
-
-	return qm.executeExternalTargetPairs(ctx, pairs)
+func (qm *ExQuantumMachine) InitWithEvent(ctx context.Context, machineContext any, event instrumentation.Event) error {
+	return qm.init(ctx, machineContext, event)
 }
 
 func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation.Event) (bool, error) {
@@ -294,6 +262,46 @@ func (qm *ExQuantumMachine) ExecuteTransitionAction(ctx context.Context, args *i
 }
 
 //-----------------------------------------------------------
+
+func (qm *ExQuantumMachine) init(ctx context.Context, machineContext any, event instrumentation.Event) error {
+	qm.quantumMachineMtx.Lock()
+	defer qm.quantumMachineMtx.Unlock()
+
+	qm.machineContext = machineContext
+
+	var pairs []devtoolkit.Pair[instrumentation.Event, []string]
+
+	for _, ref := range qm.model.Initials {
+		// get reference type and parts
+		refT, parts, err := processReference(ref)
+		if err != nil {
+			return err
+		}
+
+		// check if universe exists
+		universe, ok := qm.universes[parts[0]]
+		if !ok {
+			return fmt.Errorf("universe '%s' not found on ref universes", parts[0])
+		}
+
+		// get init function
+		initFn, ok := qmInitFunctions[refT]
+		if !ok {
+			return fmt.Errorf("invalid ref type '%d'", refT)
+		}
+
+		// execute init function
+		externalTargets, evt, err := initFn(ctx, machineContext, universe, parts, event)
+		if err != nil {
+			return err
+		}
+
+		pair := devtoolkit.NewPair[instrumentation.Event, []string](evt, externalTargets)
+		pairs = append(pairs, pair)
+	}
+
+	return qm.executeExternalTargetPairs(ctx, pairs)
+}
 
 func (qm *ExQuantumMachine) executeInvoke(ctx context.Context, invoke theoretical.InvokeModel, args *instrumentation.QuantumMachineExecutorArgs) {
 	if invoke.Src == "" {

@@ -9,6 +9,10 @@ type QuantumMachine interface {
 	// Initialize the machine with the given machine context.
 	Init(ctx context.Context, machineContext any) error
 
+	// InitWithEvent initializes the quantum machine with an event.
+	// Initialize the machine with the given machine context and event.
+	InitWithEvent(ctx context.Context, machineContext any, event Event) error
+
 	// SendEvent sends an event to all universes that can handle it.
 	// Returns true if the event was handled by at least one universe.
 	SendEvent(ctx context.Context, event Event) (bool, error)
