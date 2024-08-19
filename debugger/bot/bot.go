@@ -58,7 +58,7 @@ type bot struct {
 
 func (b *bot) Run(ctx context.Context, machineContext any) error {
 	b.history = nil
-	if err := b.qm.LoadSnapshot(b.initialSnapshot, nil); err != nil {
+	if err := b.qm.LoadSnapshot(b.initialSnapshot, machineContext); err != nil {
 		return fmt.Errorf("error loading initial snapshot: %w", err)
 	}
 
