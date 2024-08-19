@@ -33,7 +33,7 @@ type EventHistory struct {
 // Parameters:
 // - qm: the quantum machine to be used by the bot.
 // - eventProvider: the function that provides the next event to be processed. If nil, the default sequential event provider is used.
-func NewBot(qm instrumentation.QuantumMachine, eventProvider EventProvider) (SMBot, error) {
+func NewBot(qm instrumentation.QuantumMachine, eventProvider EventProvider, initQuantumMachine bool) (SMBot, error) {
 	if qm == nil {
 		return nil, fmt.Errorf("quantum machine cannot be nil")
 	}
@@ -43,17 +43,19 @@ func NewBot(qm instrumentation.QuantumMachine, eventProvider EventProvider) (SMB
 	}
 
 	return &bot{
-		qm:              qm,
-		initialSnapshot: qm.GetSnapshot(),
-		eventProvider:   eventProvider,
+		qm:                 qm,
+		initialSnapshot:    qm.GetSnapshot(),
+		eventProvider:      eventProvider,
+		initQuantumMachine: initQuantumMachine,
 	}, nil
 }
 
 type bot struct {
-	qm              instrumentation.QuantumMachine
-	initialSnapshot *instrumentation.MachineSnapshot
-	history         []*EventHistory
-	eventProvider   EventProvider
+	qm                 instrumentation.QuantumMachine
+	initialSnapshot    *instrumentation.MachineSnapshot
+	eventProvider      EventProvider
+	initQuantumMachine bool
+	history            []*EventHistory
 }
 
 func (b *bot) Run(ctx context.Context, machineContext any) error {
@@ -62,8 +64,10 @@ func (b *bot) Run(ctx context.Context, machineContext any) error {
 		return fmt.Errorf("error loading initial snapshot: %w", err)
 	}
 
-	if err := b.qm.Init(ctx, machineContext); err != nil {
-		return fmt.Errorf("error initializing quantum machine: %w", err)
+	if b.initQuantumMachine {
+		if err := b.qm.Init(ctx, machineContext); err != nil {
+			return fmt.Errorf("error initializing quantum machine: %w", err)
+		}
 	}
 
 	for {
