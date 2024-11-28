@@ -102,6 +102,9 @@ func (u *ExUniverse) handleEvent(ctx context.Context, realityName *string, evt i
 	}
 
 	externalTargets, err := u.universeDecorator(handleEventFn)
+	if err != nil {
+		err = errors.Join(fmt.Errorf("universe '%s'. error handling event '%s'", u.model.ID, evt.GetEventName()), err)
+	}
 	return externalTargets, err
 }
 
