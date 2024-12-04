@@ -23,6 +23,13 @@ type TransitionModel struct {
 	// * if not nil, must be valid.
 	Condition *ConditionModel `json:"condition,omitempty" bson:"condition,omitempty" xml:"condition,omitempty" yaml:"condition,omitempty"`
 
+	// Conditions is the list of conditions that allow the transition to be executed.
+	// If nil, the transition is always executed.
+	// Validations:
+	// * optional
+	// * if not nil, each ConditionModel must be valid.
+	Conditions []*ConditionModel `json:"conditions,omitempty" bson:"conditions,omitempty" xml:"conditions,omitempty" yaml:"conditions,omitempty"`
+
 	// Type is the type of the transition.
 	// Validations:
 	// * optional

@@ -587,7 +587,17 @@ func (u *ExUniverse) getApprovedTransition(
 	}
 
 	for _, transition := range transitionModels {
-		doTransition, err := u.executeCondition(ctx, transition.Condition, event)
+		var conditions []*theoretical.ConditionModel
+
+		if transition.Condition != nil {
+			conditions = append(conditions, transition.Condition)
+		}
+
+		if transition.Conditions != nil {
+			conditions = append(conditions, transition.Conditions...)
+		}
+
+		doTransition, err := u.executeConditions(ctx, event, conditions)
 		if err != nil {
 			return nil, errors.Join(fmt.Errorf("error executing always transition condition '%s'", transition.Condition.Src), err)
 		}
@@ -600,11 +610,11 @@ func (u *ExUniverse) getApprovedTransition(
 	return nil, nil
 }
 
-func (u *ExUniverse) executeCondition(
-	ctx context.Context, conditionModel *theoretical.ConditionModel, event instrumentation.Event,
+func (u *ExUniverse) executeConditions(
+	ctx context.Context, event instrumentation.Event, conditionsModel []*theoretical.ConditionModel,
 ) (bool, error) {
-	// if conditionModel is nil then return true, the transition is always executed
-	if conditionModel == nil {
+	// if conditionsModel is nil or empty then return true, the transition is always executed
+	if conditionsModel == nil || len(conditionsModel) == 0 {
 		return true, nil
 	}
 
@@ -615,9 +625,21 @@ func (u *ExUniverse) executeCondition(
 		universeID:            u.model.ID,
 		universeMetadata:      u.metadata,
 		event:                 event,
-		condition:             *conditionModel,
 	}
-	return u.runConditionExecutor(ctx, args)
+
+	for _, conditionModel := range conditionsModel {
+		args.condition = *conditionModel
+		doTransition, err := u.runConditionExecutor(ctx, args)
+		if err != nil {
+			return false, errors.Join(fmt.Errorf("error executing condition '%s'", conditionModel.Src), err)
+		}
+
+		if !doTransition {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
 
 func (u *ExUniverse) initSuperposition(targets []string) error {
