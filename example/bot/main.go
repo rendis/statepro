@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
+	"os"
+
 	"github.com/rendis/statepro/v3"
 	"github.com/rendis/statepro/v3/builtin"
 	"github.com/rendis/statepro/v3/debugger/bot"
 	"github.com/rendis/statepro/v3/instrumentation"
-	"os"
 )
 
 func main() {
@@ -30,7 +31,7 @@ func main() {
 		return event, nil
 	}
 
-	b, err := bot.NewBot(qm, provider)
+	b, err := bot.NewBot(qm, provider, true)
 	if err != nil {
 		panic(err)
 	}
