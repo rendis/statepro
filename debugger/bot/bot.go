@@ -3,6 +3,7 @@ package bot
 import (
 	"context"
 	"fmt"
+
 	"github.com/rendis/statepro/v3/instrumentation"
 )
 
@@ -33,6 +34,7 @@ type EventHistory struct {
 // Parameters:
 // - qm: the quantum machine to be used by the bot.
 // - eventProvider: the function that provides the next event to be processed. If nil, the default sequential event provider is used.
+// - initQuantumMachine: if true, the quantum machine will be initialized before processing events.
 func NewBot(qm instrumentation.QuantumMachine, eventProvider EventProvider, initQuantumMachine bool) (SMBot, error) {
 	if qm == nil {
 		return nil, fmt.Errorf("quantum machine cannot be nil")
