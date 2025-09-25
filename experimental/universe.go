@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/rendis/abslog/v3"
 	"github.com/rendis/devtoolkit"
 	"github.com/rendis/statepro/v3/builtin"
@@ -12,8 +13,12 @@ import (
 )
 
 const (
-	startEventName   = "start"
-	startOnEventName = "startOn"
+	startEventName                             = "start"
+	startOnEventName                           = "startOn"
+	initializingUniverseErrMsgTemplate         = "error initializing universe '%s'"
+	realitiesNotExistErrMsgTemplate            = "universe '%s' does not have reality '%s' defined"
+	errorExecutingOnEntryProcessMsgTemplate    = "error executing on entry process for universe '%s' and reality '%s'"
+	errorExecutingAlwaysTransitionsMsgTemplate = "error executing always transitions for reality '%s'"
 )
 
 type UniverseInfoSnapshot struct {
@@ -66,7 +71,7 @@ type ExUniverse struct {
 	// used to know when the ExUniverse has been exited and finalized
 	isFinalReality bool
 
-	// realityInitialized is true when the “entry operation” of the current reality are executed
+	// realityInitialized is true when the "entry operation" of the current reality are executed
 	realityInitialized bool
 
 	// inSuperposition is true if the ExUniverse is in superposition
@@ -127,7 +132,7 @@ func (u *ExUniverse) start(ctx context.Context, universeContext any, event instr
 		}
 
 		if err := u.initializeUniverseOn(ctx, *u.model.Initial, event); err != nil {
-			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.model.ID), err)
+			return errors.Join(fmt.Errorf(initializingUniverseErrMsgTemplate, u.model.ID), err)
 		}
 		return nil
 	}
@@ -150,32 +155,13 @@ func (u *ExUniverse) startOnReality(ctx context.Context, realityName string, uni
 
 	var initFn = func() error {
 		if err := u.initializeUniverseOn(ctx, realityName, event); err != nil {
-			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.model.ID), err)
+			return errors.Join(fmt.Errorf(initializingUniverseErrMsgTemplate, u.model.ID), err)
 		}
 		return nil
 	}
 
 	externalTargets, err := u.universeDecorator(initFn)
 	return externalTargets, event, err
-}
-
-// placeOn sets the given reality as the current reality
-// not execute always, initial or exit operations, only set the current reality
-func (u *ExUniverse) placeOn(realityName string) error {
-	realityModel, ok := u.model.Realities[realityName]
-	if !ok {
-		return fmt.Errorf("reality '%s' does not exist", realityName)
-	}
-
-	u.initialized = true
-	u.currentReality = &realityName
-	u.realityInitialized = true
-	u.inSuperposition = false
-	u.realityBeforeSuperposition = nil
-	u.externalTargets = nil
-	u.eventAccumulator = newEventAccumulator()
-	u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
-	return nil
 }
 
 // getSnapshot returns a snapshot of the universe
@@ -229,7 +215,7 @@ func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUni
 		}
 
 		if realityModel == nil {
-			return fmt.Errorf("reality '%s' does not exist", *u.currentReality)
+			return fmt.Errorf(realitiesNotExistErrMsgTemplate, u.model.ID, *u.currentReality)
 		}
 		u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
 	}
@@ -304,7 +290,7 @@ func (u *ExUniverse) universeDecorator(operation func() error) ([]string, error)
 func (u *ExUniverse) receiveEventToReality(ctx context.Context, realityName string, event instrumentation.Event) error {
 	reality, ok := u.model.Realities[realityName]
 	if !ok {
-		return fmt.Errorf("reality '%s' does not exist", realityName)
+		return fmt.Errorf(realitiesNotExistErrMsgTemplate, u.model.ID, realityName)
 	}
 
 	// if not initialized
@@ -358,7 +344,7 @@ func (u *ExUniverse) receiveEvent(ctx context.Context, event instrumentation.Eve
 	// handling not initialized universe and initial reality
 	if !u.initialized && u.model.Initial != nil {
 		if err := u.receiveEventToReality(ctx, *u.model.Initial, event); err != nil {
-			return errors.Join(fmt.Errorf("error initializing universe '%s'", u.model.ID), err)
+			return errors.Join(fmt.Errorf(initializingUniverseErrMsgTemplate, u.model.ID), err)
 		}
 		return nil
 	}
@@ -437,7 +423,7 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 	u.currentReality = &reality
 	u.addStateToTracking(u.currentReality)
 	if err := u.executeOnEntry(ctx, event); err != nil {
-		return errors.Join(fmt.Errorf("error executing on entry process for universe '%s' and reality '%s'", u.model.ID, *u.currentReality), err)
+		return errors.Join(fmt.Errorf(errorExecutingOnEntryProcessMsgTemplate, u.model.ID, *u.currentReality), err)
 	}
 	u.realityInitialized = true
 
@@ -466,7 +452,7 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 
 func (u *ExUniverse) executeOnEntry(ctx context.Context, event instrumentation.Event) error {
 	if err := u.executeOnEntryProcess(ctx, event); err != nil {
-		return errors.Join(fmt.Errorf("error executing on entry process for universe '%s' and reality '%s'", u.model.ID, *u.currentReality), err)
+		return errors.Join(fmt.Errorf(errorExecutingOnEntryProcessMsgTemplate, u.model.ID, *u.currentReality), err)
 	}
 	return nil
 }
@@ -480,12 +466,12 @@ func (u *ExUniverse) executeAlways(ctx context.Context, event instrumentation.Ev
 
 	approvedTransition, err := u.getApprovedTransition(ctx, realityModel.Always, event)
 	if err != nil {
-		return errors.Join(fmt.Errorf("error executing always transitions for reality '%s'", realityModel.ID), err)
+		return errors.Join(fmt.Errorf(errorExecutingAlwaysTransitionsMsgTemplate, realityModel.ID), err)
 	}
 
 	// execute cyclic transition while there are approved transitions
 	if err = u.doCyclicTransition(ctx, approvedTransition, event); err != nil {
-		return errors.Join(fmt.Errorf("error executing always transitions for reality '%s'", realityModel.ID), err)
+		return errors.Join(fmt.Errorf(errorExecutingAlwaysTransitionsMsgTemplate, realityModel.ID), err)
 	}
 
 	return nil
@@ -569,12 +555,12 @@ func (u *ExUniverse) doCyclicTransition(
 
 		// execute on entry process of the new reality
 		if err = u.executeOnEntry(ctx, event); err != nil {
-			return errors.Join(fmt.Errorf("error executing on entry process for universe '%s' and reality '%s'", u.model.ID, *u.currentReality), err)
+			return errors.Join(fmt.Errorf(errorExecutingOnEntryProcessMsgTemplate, u.model.ID, *u.currentReality), err)
 		}
 
 		// execute current reality always transitions
 		if approvedTransition, err = u.getApprovedTransition(ctx, realityModel.Always, event); err != nil {
-			return errors.Join(fmt.Errorf("error executing always transitions for reality '%s'", realityModel.ID), err)
+			return errors.Join(fmt.Errorf(errorExecutingAlwaysTransitionsMsgTemplate, realityModel.ID), err)
 		}
 	}
 }
@@ -613,8 +599,8 @@ func (u *ExUniverse) getApprovedTransition(
 func (u *ExUniverse) executeConditions(
 	ctx context.Context, event instrumentation.Event, conditionsModel []*theoretical.ConditionModel,
 ) (bool, error) {
-	// if conditionsModel is nil or empty then return true, the transition is always executed
-	if conditionsModel == nil || len(conditionsModel) == 0 {
+	// if conditionsModel is empty then return true, the transition is always executed
+	if len(conditionsModel) == 0 {
 		return true, nil
 	}
 
@@ -760,7 +746,7 @@ func (u *ExUniverse) executeActions(
 	event instrumentation.Event,
 	actionType instrumentation.ActionType,
 ) error {
-	if actionModels == nil || len(actionModels) == 0 {
+	if len(actionModels) == 0 {
 		return nil
 	}
 
@@ -788,7 +774,7 @@ func (u *ExUniverse) executeActions(
 func (u *ExUniverse) executeInvokes(
 	ctx context.Context, invokeModels []*theoretical.InvokeModel, event instrumentation.Event,
 ) {
-	if invokeModels == nil || len(invokeModels) == 0 {
+	if len(invokeModels) == 0 {
 		return
 	}
 
