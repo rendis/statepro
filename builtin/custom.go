@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/rendis/statepro/instrumentation"
+	"github.com/rendis/statepro/v3/instrumentation"
 )
 
 const customPattern = `^[a-zA-Z][a-zA-Z0-9_:.-]*[a-zA-Z0-9]$`

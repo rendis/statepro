@@ -3,7 +3,7 @@ package experimental
 import (
 	"testing"
 
-	"github.com/rendis/statepro/instrumentation"
+	"github.com/rendis/statepro/v3/instrumentation"
 )
 
 func TestNewEventBuilder(t *testing.T) {

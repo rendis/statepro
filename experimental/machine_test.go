@@ -3,7 +3,7 @@ package experimental
 import (
 	"testing"
 
-	"github.com/rendis/statepro/theoretical"
+	"github.com/rendis/statepro/v3/theoretical"
 )
 
 func TestNewExQuantumMachine_Valid(t *testing.T) {

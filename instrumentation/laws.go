@@ -2,7 +2,7 @@ package instrumentation
 
 import (
 	"context"
-	"github.com/rendis/statepro/theoretical"
+	"github.com/rendis/statepro/v3/theoretical"
 )
 
 type ActionType string

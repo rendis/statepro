@@ -4,10 +4,10 @@ import (
 	"context"
 	"os"
 
-	"github.com/rendis/statepro"
-	"github.com/rendis/statepro/builtin"
-	"github.com/rendis/statepro/debugger/bot"
-	"github.com/rendis/statepro/instrumentation"
+	"github.com/rendis/statepro/v3"
+	"github.com/rendis/statepro/v3/builtin"
+	"github.com/rendis/statepro/v3/debugger/bot"
+	"github.com/rendis/statepro/v3/instrumentation"
 )
 
 func main() {

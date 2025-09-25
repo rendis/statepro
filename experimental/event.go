@@ -1,7 +1,7 @@
 package experimental
 
 import (
-	"github.com/rendis/statepro/instrumentation"
+	"github.com/rendis/statepro/v3/instrumentation"
 )
 
 type Event struct {

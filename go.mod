@@ -1,4 +1,4 @@
-module github.com/rendis/statepro
+module github.com/rendis/statepro/v3
 
 go 1.22
 

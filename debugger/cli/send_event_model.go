@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/rendis/statepro"
+	"github.com/rendis/statepro/v3"
 	"sort"
 )
 

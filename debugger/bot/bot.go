@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rendis/statepro/instrumentation"
+	"github.com/rendis/statepro/v3/instrumentation"
 )
 
 // EventProvider is a function type that provides the next event to be processed based on the current snapshot.

@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/rendis/abslog/v3"
-	"github.com/rendis/statepro"
-	"github.com/rendis/statepro/builtin"
-	"github.com/rendis/statepro/instrumentation"
+	"github.com/rendis/statepro/v3"
+	"github.com/rendis/statepro/v3/builtin"
+	"github.com/rendis/statepro/v3/instrumentation"
 	"log"
 	"os"
 )

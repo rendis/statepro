@@ -3,7 +3,7 @@ package statepro
 import (
 	"testing"
 
-	"github.com/rendis/statepro/theoretical"
+	"github.com/rendis/statepro/v3/theoretical"
 )
 
 func TestNewQuantumMachine_ValidInput(t *testing.T) {

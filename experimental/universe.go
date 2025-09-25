@@ -7,9 +7,9 @@ import (
 
 	"github.com/rendis/abslog/v3"
 	"github.com/rendis/devtoolkit"
-	"github.com/rendis/statepro/builtin"
-	"github.com/rendis/statepro/instrumentation"
-	"github.com/rendis/statepro/theoretical"
+	"github.com/rendis/statepro/v3/builtin"
+	"github.com/rendis/statepro/v3/instrumentation"
+	"github.com/rendis/statepro/v3/theoretical"
 )
 
 const (

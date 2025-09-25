@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/rendis/statepro/instrumentation"
+	"github.com/rendis/statepro/v3/instrumentation"
 )
 
 func TestGetObserver_Builtin(t *testing.T) {
