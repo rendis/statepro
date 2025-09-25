@@ -31,6 +31,8 @@ graph TD
 [![Go Reference](https://pkg.go.dev/badge/github.com/rendis/statepro/v3.svg)](https://pkg.go.dev/github.com/rendis/statepro/v3)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![CodeQL](https://github.com/rendis/statepro/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/rendis/statepro/actions/workflows/github-code-scanning/codeql)
+[![Dependabot](https://img.shields.io/badge/Dependabot-enabled-brightgreen)](https://github.com/rendis/statepro/security/dependabot)
 
 ## ✨ Key Features
 
