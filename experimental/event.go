@@ -1,7 +1,6 @@
 package experimental
 
 import (
-	"fmt"
 	"github.com/rendis/statepro/v3/instrumentation"
 )
 
@@ -37,7 +36,7 @@ func (e *Event) GetFlags() instrumentation.EventFlags {
 }
 
 func (e *Event) String() string {
-	return fmt.Sprintf("%s", e.Name)
+	return e.Name
 }
 
 // ---------  Event Builder --------- //
