@@ -4,6 +4,17 @@
 
 StatePro is a powerful Go library for building **multi-universe state machines** that react to "quantum" events. It decouples declarative JSON models from a sophisticated execution engine that understands superposition, event observation, and universal constants.
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/rendis/statepro/v3.svg)](https://pkg.go.dev/github.com/rendis/statepro/v3)
+[![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)](https://go.dev/)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![CodeQL](https://github.com/rendis/statepro/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/rendis/statepro/actions/workflows/github-code-scanning/codeql)
+[![Dependabot](https://img.shields.io/badge/Dependabot-enabled-brightgreen)](https://github.com/rendis/statepro/security/dependabot)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/rendis/statepro)
+
+### 🤖 AI-Powered Code Exploration
+
+For an interactive way to explore and understand the StatePro codebase, check out our **[DeepWiki](https://deepwiki.com/rendis/statepro)** - an AI-powered documentation tool that allows you to ask questions about the code, architecture, and implementation details.
+
 ## What is StatePro?
 
 StatePro takes traditional state machines to the next level by introducing **quantum superposition** - the ability to have multiple parallel "universes" (workflows) active simultaneously. Unlike traditional state machines that are limited to a single active state, StatePro can handle complex scenarios where:
@@ -27,12 +38,6 @@ graph TD
     J -->|Yes| K[Establish Concrete Reality]
     J -->|No| L[Remain in Superposition]
 ```
-
-[![Go Reference](https://pkg.go.dev/badge/github.com/rendis/statepro/v3.svg)](https://pkg.go.dev/github.com/rendis/statepro/v3)
-[![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)](https://go.dev/)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![CodeQL](https://github.com/rendis/statepro/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/rendis/statepro/actions/workflows/github-code-scanning/codeql)
-[![Dependabot](https://img.shields.io/badge/Dependabot-enabled-brightgreen)](https://github.com/rendis/statepro/security/dependabot)
 
 ## ✨ Key Features
 
