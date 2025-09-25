@@ -2,15 +2,16 @@ package builtin
 
 import (
 	"errors"
-	"github.com/rendis/statepro/v3/instrumentation"
 	"regexp"
 	"strings"
+
+	"github.com/rendis/statepro/v3/instrumentation"
 )
 
 const customPattern = `^[a-zA-Z][a-zA-Z0-9_:.-]*[a-zA-Z0-9]$`
 
 var compiledPattern = regexp.MustCompile(customPattern)
-var InvalidSrcError = errors.New("invalid src")
+var errorInvalidSrc = errors.New("invalid src")
 
 var observerRegistry = map[string]instrumentation.ObserverFn{}
 var actionRegistry = map[string]instrumentation.ActionFn{}
@@ -73,7 +74,7 @@ func normalizeSrc(src string) (string, error) {
 	src = strings.TrimSpace(src)
 
 	if !compiledPattern.MatchString(src) {
-		return "", InvalidSrcError
+		return "", errorInvalidSrc
 	}
 
 	return src, nil
