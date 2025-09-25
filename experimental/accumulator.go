@@ -2,7 +2,7 @@ package experimental
 
 import (
 	"fmt"
-	"github.com/rendis/statepro/v3/instrumentation"
+	"github.com/rendis/statepro/instrumentation"
 )
 
 // newEventAccumulator returns a new Event accumulator

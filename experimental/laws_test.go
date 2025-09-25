@@ -3,8 +3,8 @@ package experimental
 import (
 	"testing"
 
-	"github.com/rendis/statepro/v3/instrumentation"
-	"github.com/rendis/statepro/v3/theoretical"
+	"github.com/rendis/statepro/instrumentation"
+	"github.com/rendis/statepro/theoretical"
 )
 
 // mockAccumulatorStatistics implements instrumentation.AccumulatorStatistics for testing

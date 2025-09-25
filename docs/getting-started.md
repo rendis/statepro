@@ -11,7 +11,7 @@ This guide will help you build your first quantum state machine with StatePro in
 ## Installation
 
 ```bash
-go get github.com/rendis/statepro/v3
+go get github.com/rendis/statepro
 ```
 
 ## Your First Quantum Machine
@@ -83,9 +83,9 @@ import (
     "os"
     "time"
 
-    "github.com/rendis/statepro/v3"
-    "github.com/rendis/statepro/v3/builtin"
-    "github.com/rendis/statepro/v3/instrumentation"
+    "github.com/rendis/statepro"
+    "github.com/rendis/statepro/builtin"
+    "github.com/rendis/statepro/instrumentation"
 )
 
 func main() {

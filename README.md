@@ -28,7 +28,7 @@ graph TD
     J -->|No| L[Remain in Superposition]
 ```
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/rendis/statepro/v3.svg)](https://pkg.go.dev/github.com/rendis/statepro/v3)
+[![Go Reference](https://pkg.go.dev/badge/github.com/rendis/statepro.svg)](https://pkg.go.dev/github.com/rendis/statepro)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
@@ -106,7 +106,7 @@ import (
     "log"
     "os"
 
-    "github.com/rendis/statepro/v3"
+    "github.com/rendis/statepro"
 )
 
 func main() {
@@ -162,7 +162,7 @@ func main() {
 
 ```bash
 go mod init quickstart
-go mod edit -require github.com/rendis/statepro/v3@v3.0.0
+go mod edit -require github.com/rendis/statepro@v3.0.0
 go mod tidy
 go run main.go
 ```
@@ -211,7 +211,7 @@ Each example includes well-documented JSON state machine definitions and Go code
 ## Installation
 
 ```bash
-go get github.com/rendis/statepro/v3
+go get github.com/rendis/statepro
 ```
 
 Go 1.22 or newer is required.

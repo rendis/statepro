@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/rendis/statepro/v3"
-	"github.com/rendis/statepro/v3/instrumentation"
+	"github.com/rendis/statepro"
+	"github.com/rendis/statepro/instrumentation"
 	"os"
 )
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/rendis/statepro/v3/instrumentation"
+	"github.com/rendis/statepro/instrumentation"
 )
 
 func TestRegisterObserver_Valid(t *testing.T) {

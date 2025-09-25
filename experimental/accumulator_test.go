@@ -3,7 +3,7 @@ package experimental
 import (
 	"testing"
 
-	"github.com/rendis/statepro/v3/instrumentation"
+	"github.com/rendis/statepro/instrumentation"
 )
 
 // mockEvent implements instrumentation.Event for testing

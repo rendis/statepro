@@ -2,7 +2,7 @@ package builtin
 
 import (
 	"github.com/rendis/abslog/v3"
-	"github.com/rendis/statepro/v3/instrumentation"
+	"github.com/rendis/statepro/instrumentation"
 )
 
 func SetLogger(logger abslog.AbsLog) {

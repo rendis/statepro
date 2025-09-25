@@ -1,6 +1,6 @@
 # API Reference
 
-This document provides a comprehensive reference for StatePro's public API. All types and methods are defined under the `github.com/rendis/statepro/v3` module.
+This document provides a comprehensive reference for StatePro's public API. All types and methods are defined under the `github.com/rendis/statepro` module.
 
 ## Table of Contents
 

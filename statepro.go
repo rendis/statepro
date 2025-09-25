@@ -1,9 +1,9 @@
 package statepro
 
 import (
-	"github.com/rendis/statepro/v3/experimental"
-	"github.com/rendis/statepro/v3/instrumentation"
-	"github.com/rendis/statepro/v3/theoretical"
+	"github.com/rendis/statepro/experimental"
+	"github.com/rendis/statepro/instrumentation"
+	"github.com/rendis/statepro/theoretical"
 )
 
 func NewQuantumMachine(qmModel *theoretical.QuantumMachineModel) (instrumentation.QuantumMachine, error) {

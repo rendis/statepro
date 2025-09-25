@@ -2,7 +2,7 @@ package statepro
 
 import (
 	"encoding/json"
-	"github.com/rendis/statepro/v3/theoretical"
+	"github.com/rendis/statepro/theoretical"
 )
 
 // ----- theoretical.QuantumMachineModel Serializers/Deserializers -----

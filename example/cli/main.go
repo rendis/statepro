@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"github.com/rendis/statepro/v3/builtin"
-	"github.com/rendis/statepro/v3/debugger/cli"
-	"github.com/rendis/statepro/v3/instrumentation"
+	"github.com/rendis/statepro/builtin"
+	"github.com/rendis/statepro/debugger/cli"
+	"github.com/rendis/statepro/instrumentation"
 )
 
 func main() {

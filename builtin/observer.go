@@ -3,7 +3,7 @@ package builtin
 import (
 	"context"
 	"github.com/rendis/devtoolkit"
-	"github.com/rendis/statepro/v3/instrumentation"
+	"github.com/rendis/statepro/instrumentation"
 	"math"
 )
 
