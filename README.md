@@ -479,7 +479,7 @@ Comprehensive guides and references are available in the [`docs/`](docs/README.m
 StatePro uses standard Go tooling for development:
 
 ```bash
-# Run tests (when available)
+# Run tests
 go test ./...
 
 # Build examples
@@ -488,8 +488,6 @@ go build ./example/...
 # Check module dependencies
 go mod tidy
 ```
-
-> ⚠️ **Note**: Test suite is currently under development. Contributions welcome!
 
 ## 📄 License
 
