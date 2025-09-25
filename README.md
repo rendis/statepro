@@ -463,6 +463,7 @@ Comprehensive guides and references are available in the [`docs/`](docs/README.m
 
 - ⚙️ [**Instrumentation Reference**](docs/instrumentation.md) - Public interfaces and executor contracts for custom extensions
 - 🔧 [**Debugging & Tooling**](docs/debugging.md) - Interactive CLI viewer, automation bot, and logging utilities
+- 🤝 [**Contributing Guide**](CONTRIBUTING.md) - How to contribute code, report issues, and help improve StatePro
 
 ### Quick Navigation
 
