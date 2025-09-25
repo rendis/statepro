@@ -2,8 +2,9 @@ package builtin
 
 import (
 	"fmt"
-	"github.com/rendis/devtoolkit"
 	"strconv"
+
+	"github.com/rendis/devtoolkit"
 )
 
 // TryToCastToInt tries to cast the given value to an int.
@@ -15,9 +16,9 @@ func TryToCastToInt(v any) (int, bool) {
 		return m, true
 	}
 
-	switch v.(type) {
+	switch vt := v.(type) {
 	case string:
-		if s, err := strconv.Atoi(v.(string)); err == nil {
+		if s, err := strconv.Atoi(vt); err == nil {
 			return s, true
 		}
 	}
