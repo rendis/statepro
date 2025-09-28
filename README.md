@@ -10,6 +10,7 @@ StatePro is a powerful Go library for building **multi-universe state machines**
 [![CodeQL](https://github.com/rendis/statepro/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/rendis/statepro/actions/workflows/github-code-scanning/codeql)
 [![Dependabot](https://img.shields.io/badge/Dependabot-enabled-brightgreen)](https://github.com/rendis/statepro/security/dependabot)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/rendis/statepro)
+[![Contributing](https://img.shields.io/badge/contributing-guide-blue.svg)](CONTRIBUTING.md)
 
 ### 🤖 AI-Powered Code Exploration
 
