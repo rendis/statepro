@@ -150,18 +150,7 @@ func (qm *ExQuantumMachine) GetSnapshot() *instrumentation.MachineSnapshot {
 		}
 
 		// superposition universe resume
-		if u.inSuperposition {
-			var realityBeforeSuperposition = "*"
-			if u.realityBeforeSuperposition != nil {
-				realityBeforeSuperposition = *u.realityBeforeSuperposition
-			}
-
-			if !u.isFinalReality {
-				machineSnapshot.AddSuperpositionUniverse(u.model.CanonicalName, realityBeforeSuperposition)
-			} else {
-				machineSnapshot.AddSuperpositionUniverseFinalized(u.model.CanonicalName, realityBeforeSuperposition)
-			}
-		}
+		qm.setSnapshotFromUniverseInSuperposition(u, machineSnapshot)
 
 		// add tracking
 		machineSnapshot.AddTracking(u.model.ID, u.tracking)
@@ -480,4 +469,20 @@ func (qm *ExQuantumMachine) executeTransitions(ctx context.Context, event instru
 	}
 
 	return newTargets, nil
+}
+
+func (qm *ExQuantumMachine) setSnapshotFromUniverseInSuperposition(u *ExUniverse, machineSnapshot *instrumentation.MachineSnapshot) {
+	if u.inSuperposition {
+		// superposition universe resume
+		var realityBeforeSuperposition = "*"
+		if u.realityBeforeSuperposition != nil {
+			realityBeforeSuperposition = *u.realityBeforeSuperposition
+		}
+
+		if !u.isFinalReality {
+			machineSnapshot.AddSuperpositionUniverse(u.model.CanonicalName, realityBeforeSuperposition)
+		} else {
+			machineSnapshot.AddSuperpositionUniverseFinalized(u.model.CanonicalName, realityBeforeSuperposition)
+		}
+	}
 }
