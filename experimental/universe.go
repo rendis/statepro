@@ -250,6 +250,38 @@ func (u *ExUniverse) replayOnEntry(ctx context.Context, evt instrumentation.Even
 	return u.executeOnEntry(ctx, evt)
 }
 
+// positionStatic positions the universe on the specified reality without executing any actions.
+// This method only sets the universe state flags and does not trigger entry actions, always transitions,
+// or any other execution flows. It's designed for testing, debugging, and scenarios where you want
+// to place the machine in a specific state without side effects.
+func (u *ExUniverse) positionStatic(realityID string, universeContext any) error {
+	u.setUniverseContext(universeContext)
+
+	// Validate reality exists
+	realityModel, err := u.getRealityModel(realityID)
+	if err != nil {
+		return err
+	}
+
+	// Set universe as initialized
+	u.initialized = true
+
+	// Set current reality directly
+	u.currentReality = &realityID
+	u.addStateToTracking(u.currentReality)
+
+	// Set reality flags
+	u.realityInitialized = true
+	u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
+
+	// Clear superposition state
+	u.inSuperposition = false
+	u.realityBeforeSuperposition = nil
+	u.eventAccumulator = nil
+
+	return nil
+}
+
 // isActive returns true if the universe is active
 func (u *ExUniverse) isActive() bool {
 	return u.initialized && !u.inSuperposition

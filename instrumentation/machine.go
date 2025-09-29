@@ -4,6 +4,7 @@ import (
 	"context"
 )
 
+
 type QuantumMachine interface {
 	// Init initializes the quantum machine.
 	// Initialize the machine with the given machine context.
@@ -25,4 +26,15 @@ type QuantumMachine interface {
 
 	// ReplayOnEntry replays the entry actions for the current realities.
 	ReplayOnEntry(ctx context.Context) error
+
+	// PositionMachine positions the quantum machine in a specific universe and reality.
+	// Parameters:
+	//   - ctx: Context for execution
+	//   - machineContext: Machine context to use
+	//   - universeID: Target universe identifier
+	//   - realityID: Target reality (state) identifier
+	//   - executeFlow: If true, executes full entry flow (entry actions, always transitions).
+	//                  If false, only positions the machine without executing any actions.
+	// Returns error if universe/reality doesn't exist or positioning fails
+	PositionMachine(ctx context.Context, machineContext any, universeID string, realityID string, executeFlow bool) error
 }

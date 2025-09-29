@@ -3,12 +3,13 @@ package experimental
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	"github.com/rendis/abslog/v3"
 	"github.com/rendis/devtoolkit"
 	"github.com/rendis/statepro/v3/builtin"
 	"github.com/rendis/statepro/v3/instrumentation"
 	"github.com/rendis/statepro/v3/theoretical"
-	"sync"
 )
 
 type initFunc func(context.Context, any, *ExUniverse, []string, instrumentation.Event) ([]string, instrumentation.Event, error)
@@ -92,7 +93,7 @@ func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation
 			continue
 		}
 
-		pair := devtoolkit.NewPair[instrumentation.Event, []string](event, externalTargets)
+		pair := devtoolkit.NewPair(event, externalTargets)
 		pairs = append(pairs, pair)
 	}
 
@@ -185,6 +186,59 @@ func (qm *ExQuantumMachine) ReplayOnEntry(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (qm *ExQuantumMachine) PositionMachine(ctx context.Context, machineContext any, universeID string, realityID string, executeFlow bool) error {
+	qm.quantumMachineMtx.Lock()
+	defer qm.quantumMachineMtx.Unlock()
+
+	// Validate parameters
+	if universeID == "" {
+		return fmt.Errorf("universeID cannot be empty")
+	}
+	if realityID == "" {
+		return fmt.Errorf("realityID cannot be empty")
+	}
+
+	// Get target universe
+	universe, ok := qm.universes[universeID]
+	if !ok {
+		return fmt.Errorf("universe '%s' not found", universeID)
+	}
+
+	// Validate reality exists in universe model
+	_, ok = universe.model.Realities[realityID]
+	if !ok {
+		return fmt.Errorf("reality '%s' does not exist in universe '%s'", realityID, universeID)
+	}
+
+	// Set machine context
+	qm.machineContext = machineContext
+
+	if !executeFlow {
+		// Path 1: Static positioning - only set flags, no execution
+		return universe.positionStatic(realityID, machineContext)
+	}
+
+	// Path 2: Execute full flow - reuse existing startOnReality with proper external target handling
+	externalTargets, originalEvent, err := universe.startOnReality(ctx, realityID, machineContext, nil)
+	if err != nil {
+		return err
+	}
+
+	// Process any external targets generated (cross-universe transitions)
+	if len(externalTargets) > 0 {
+		// Use the original event from startOnReality to preserve metadata, type, and flags
+		// This ensures downstream universes receive the correct StartOn event context
+		var pairs []devtoolkit.Pair[instrumentation.Event, []string]
+		pair := devtoolkit.NewPair(originalEvent, externalTargets)
+		pairs = append(pairs, pair)
+
+		// Process external targets using existing machinery
+		return qm.executeExternalTargetPairs(ctx, pairs)
 	}
 
 	return nil
@@ -296,7 +350,7 @@ func (qm *ExQuantumMachine) init(ctx context.Context, machineContext any, event 
 			return err
 		}
 
-		pair := devtoolkit.NewPair[instrumentation.Event, []string](evt, externalTargets)
+		pair := devtoolkit.NewPair(evt, externalTargets)
 		pairs = append(pairs, pair)
 	}
 
@@ -393,7 +447,7 @@ func (qm *ExQuantumMachine) executeExternalTargetPairs(ctx context.Context, pair
 		}
 
 		// add new targets to the queue
-		newPair := devtoolkit.NewPair[instrumentation.Event, []string](pair.GetFirst(), newTargets)
+		newPair := devtoolkit.NewPair(pair.GetFirst(), newTargets)
 		pairs = append(pairs, newPair)
 	}
 
