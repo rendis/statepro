@@ -344,3 +344,204 @@ func TestExQuantumMachine_PositionMachine_CompareStaticVsFlow(t *testing.T) {
 		t.Error("Both universes should have tracking history")
 	}
 }
+
+func TestExQuantumMachine_PositionMachineOnInitial_Success(t *testing.T) {
+	// Create test model with initial state
+	initialRealityModel := &theoretical.RealityModel{
+		ID:   "initial-state",
+		Type: theoretical.RealityTypeTransition,
+	}
+
+	initialState := "initial-state"
+	universeModel := &theoretical.UniverseModel{
+		ID:            "u1",
+		CanonicalName: "Universe1",
+		Initial:       &initialState,
+		Realities: map[string]*theoretical.RealityModel{
+			"initial-state": initialRealityModel,
+		},
+	}
+
+	qmModel := &theoretical.QuantumMachineModel{
+		ID:            "qm1",
+		CanonicalName: "QuantumMachine1",
+		Version:       "1.0.0",
+		Universes: map[string]*theoretical.UniverseModel{
+			"u1": universeModel,
+		},
+		Initials: []string{"u1"},
+	}
+
+	universes := []*ExUniverse{
+		NewExUniverse(universeModel),
+	}
+
+	qm, err := NewExQuantumMachine(qmModel, universes)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	ctx := context.Background()
+	machineContext := "test-context"
+
+	// Test positioning on initial state
+	err = qm.PositionMachineOnInitial(ctx, machineContext, "u1", false)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// Verify universe is positioned on initial state
+	exQm := qm.(*ExQuantumMachine)
+	universe := exQm.universes["u1"]
+	if universe.currentReality == nil || *universe.currentReality != "initial-state" {
+		t.Errorf("Expected current reality 'initial-state', got %v", universe.currentReality)
+	}
+	if !universe.initialized {
+		t.Error("Universe should be initialized")
+	}
+}
+
+func TestExQuantumMachine_PositionMachineOnInitial_NoInitialState(t *testing.T) {
+	// Create test model WITHOUT initial state
+	universeModel := &theoretical.UniverseModel{
+		ID:            "u1",
+		CanonicalName: "Universe1",
+		Initial:       nil, // No initial state
+		Realities:     map[string]*theoretical.RealityModel{},
+	}
+
+	qmModel := &theoretical.QuantumMachineModel{
+		ID:            "qm1",
+		CanonicalName: "QuantumMachine1",
+		Version:       "1.0.0",
+		Universes: map[string]*theoretical.UniverseModel{
+			"u1": universeModel,
+		},
+		Initials: []string{"u1"},
+	}
+
+	universes := []*ExUniverse{
+		NewExUniverse(universeModel),
+	}
+
+	qm, err := NewExQuantumMachine(qmModel, universes)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	ctx := context.Background()
+	machineContext := "test-context"
+
+	// Should fail because universe has no initial state
+	err = qm.PositionMachineOnInitial(ctx, machineContext, "u1", false)
+	if err == nil {
+		t.Fatal("Expected error for universe without initial state")
+	}
+}
+
+func TestExQuantumMachine_PositionMachineOnInitial_InvalidUniverse(t *testing.T) {
+	qmModel := &theoretical.QuantumMachineModel{
+		ID:            "qm1",
+		CanonicalName: "QuantumMachine1",
+		Version:       "1.0.0",
+		Universes:     map[string]*theoretical.UniverseModel{},
+		Initials:      []string{},
+	}
+
+	qm, err := NewExQuantumMachine(qmModel, nil)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	ctx := context.Background()
+	machineContext := "test-context"
+
+	// Should fail for nonexistent universe
+	err = qm.PositionMachineOnInitial(ctx, machineContext, "nonexistent", false)
+	if err == nil {
+		t.Fatal("Expected error for nonexistent universe")
+	}
+}
+
+func TestExQuantumMachine_PositionMachineOnInitial_EmptyUniverseID(t *testing.T) {
+	qmModel := &theoretical.QuantumMachineModel{
+		ID:            "qm1",
+		CanonicalName: "QuantumMachine1",
+		Version:       "1.0.0",
+		Universes:     map[string]*theoretical.UniverseModel{},
+		Initials:      []string{},
+	}
+
+	qm, err := NewExQuantumMachine(qmModel, nil)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	ctx := context.Background()
+	machineContext := "test-context"
+
+	// Should fail for empty universeID
+	err = qm.PositionMachineOnInitial(ctx, machineContext, "", false)
+	if err == nil {
+		t.Fatal("Expected error for empty universeID")
+	}
+}
+
+func TestExQuantumMachine_PositionMachineOnInitial_WithFlowExecution(t *testing.T) {
+	// Create test model with initial state and entry actions
+	initialRealityModel := &theoretical.RealityModel{
+		ID:   "initial-state",
+		Type: theoretical.RealityTypeTransition,
+		EntryActions: []*theoretical.ActionModel{
+			{Src: "test-action"},
+		},
+	}
+
+	initialState := "initial-state"
+	universeModel := &theoretical.UniverseModel{
+		ID:            "u1",
+		CanonicalName: "Universe1",
+		Initial:       &initialState,
+		Realities: map[string]*theoretical.RealityModel{
+			"initial-state": initialRealityModel,
+		},
+	}
+
+	qmModel := &theoretical.QuantumMachineModel{
+		ID:            "qm1",
+		CanonicalName: "QuantumMachine1",
+		Version:       "1.0.0",
+		Universes: map[string]*theoretical.UniverseModel{
+			"u1": universeModel,
+		},
+		Initials: []string{"u1"},
+	}
+
+	universes := []*ExUniverse{
+		NewExUniverse(universeModel),
+	}
+
+	qm, err := NewExQuantumMachine(qmModel, universes)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	ctx := context.Background()
+	machineContext := "test-context"
+
+	// Test with flow execution enabled
+	err = qm.PositionMachineOnInitial(ctx, machineContext, "u1", true)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// Verify universe is positioned and initialized
+	exQm := qm.(*ExQuantumMachine)
+	universe := exQm.universes["u1"]
+	if universe.currentReality == nil || *universe.currentReality != "initial-state" {
+		t.Errorf("Expected current reality 'initial-state', got %v", universe.currentReality)
+	}
+	if !universe.initialized || !universe.realityInitialized {
+		t.Error("Universe and reality should be initialized")
+	}
+}

@@ -37,4 +37,14 @@ type QuantumMachine interface {
 	//                  If false, only positions the machine without executing any actions.
 	// Returns error if universe/reality doesn't exist or positioning fails
 	PositionMachine(ctx context.Context, machineContext any, universeID string, realityID string, executeFlow bool) error
+
+	// PositionMachineOnInitial positions the quantum machine on the initial state of the specified universe.
+	// This is a convenience method that automatically uses the universe's configured initial state.
+	// Parameters:
+	//   - ctx: Context for execution
+	//   - machineContext: Machine context to use
+	//   - universeID: Target universe identifier
+	//   - executeFlow: If true, executes full entry flow. If false, only positions without executing actions.
+	// Returns error if universe doesn't exist, has no initial state, or positioning fails
+	PositionMachineOnInitial(ctx context.Context, machineContext any, universeID string, executeFlow bool) error
 }

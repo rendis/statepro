@@ -12,6 +12,10 @@ import (
 	"github.com/rendis/statepro/v3/theoretical"
 )
 
+const (
+	universeNotFoundErrorTemplate = "universe '%s' not found"
+)
+
 type initFunc func(context.Context, any, *ExUniverse, []string, instrumentation.Event) ([]string, instrumentation.Event, error)
 
 var qmInitFunctions = map[refType]initFunc{
@@ -188,6 +192,7 @@ func (qm *ExQuantumMachine) PositionMachine(ctx context.Context, machineContext 
 	if universeID == "" {
 		return fmt.Errorf("universeID cannot be empty")
 	}
+
 	if realityID == "" {
 		return fmt.Errorf("realityID cannot be empty")
 	}
@@ -195,7 +200,7 @@ func (qm *ExQuantumMachine) PositionMachine(ctx context.Context, machineContext 
 	// Get target universe
 	universe, ok := qm.universes[universeID]
 	if !ok {
-		return fmt.Errorf("universe '%s' not found", universeID)
+		return fmt.Errorf(universeNotFoundErrorTemplate, universeID)
 	}
 
 	// Validate reality exists in universe model
@@ -231,6 +236,31 @@ func (qm *ExQuantumMachine) PositionMachine(ctx context.Context, machineContext 
 	}
 
 	return nil
+}
+
+func (qm *ExQuantumMachine) PositionMachineOnInitial(ctx context.Context, machineContext any, universeID string, executeFlow bool) error {
+	// Validate universeID
+	if universeID == "" {
+		return fmt.Errorf("universeID cannot be empty")
+	}
+
+	// Get target universe (without lock - PositionMachine will handle locking)
+	qm.quantumMachineMtx.Lock()
+	universe, ok := qm.universes[universeID]
+	qm.quantumMachineMtx.Unlock()
+
+	if !ok {
+		return fmt.Errorf(universeNotFoundErrorTemplate, universeID)
+	}
+
+	// Get initial state from universe model
+	initialState := universe.model.Initial
+	if initialState == nil || *initialState == "" {
+		return fmt.Errorf("universe '%s' has no initial state configured", universeID)
+	}
+
+	// Delegate to PositionMachine with the initial state
+	return qm.PositionMachine(ctx, machineContext, universeID, *initialState, executeFlow)
 }
 
 //--------- ConstantsLawsExecutor interface implementation ---------
@@ -452,7 +482,7 @@ func (qm *ExQuantumMachine) executeTransitions(ctx context.Context, event instru
 		exUniverse := qm.universes[parts[0]]
 
 		if exUniverse == nil {
-			return nil, fmt.Errorf("universe '%s' not found", parts[0])
+			return nil, fmt.Errorf(universeNotFoundErrorTemplate, parts[0])
 		}
 
 		var realityName *string = nil
