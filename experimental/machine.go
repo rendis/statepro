@@ -263,6 +263,56 @@ func (qm *ExQuantumMachine) PositionMachineOnInitial(ctx context.Context, machin
 	return qm.PositionMachine(ctx, machineContext, universeID, *initialState, executeFlow)
 }
 
+func (qm *ExQuantumMachine) PositionMachineByCanonicalName(ctx context.Context, machineContext any, universeCanonicalName string, realityID string, executeFlow bool) error {
+	// Validate canonical name
+	if universeCanonicalName == "" {
+		return fmt.Errorf("universeCanonicalName cannot be empty")
+	}
+
+	// Find universe by canonical name
+	qm.quantumMachineMtx.Lock()
+	var universeID string
+	for id, universe := range qm.universes {
+		if universe.model.CanonicalName == universeCanonicalName {
+			universeID = id
+			break
+		}
+	}
+	qm.quantumMachineMtx.Unlock()
+
+	if universeID == "" {
+		return fmt.Errorf("universe with canonical name '%s' not found", universeCanonicalName)
+	}
+
+	// Delegate to PositionMachine with the resolved universe ID
+	return qm.PositionMachine(ctx, machineContext, universeID, realityID, executeFlow)
+}
+
+func (qm *ExQuantumMachine) PositionMachineOnInitialByCanonicalName(ctx context.Context, machineContext any, universeCanonicalName string, executeFlow bool) error {
+	// Validate canonical name
+	if universeCanonicalName == "" {
+		return fmt.Errorf("universeCanonicalName cannot be empty")
+	}
+
+	// Find universe by canonical name
+	qm.quantumMachineMtx.Lock()
+	var universeID string
+	for id, universe := range qm.universes {
+		if universe.model.CanonicalName == universeCanonicalName {
+			universeID = id
+			break
+		}
+	}
+	qm.quantumMachineMtx.Unlock()
+
+	if universeID == "" {
+		return fmt.Errorf("universe with canonical name '%s' not found", universeCanonicalName)
+	}
+
+	// Delegate to PositionMachineOnInitial with the resolved universe ID
+	return qm.PositionMachineOnInitial(ctx, machineContext, universeID, executeFlow)
+}
+
 //--------- ConstantsLawsExecutor interface implementation ---------
 
 func (qm *ExQuantumMachine) ExecuteEntryInvokes(ctx context.Context, args *instrumentation.QuantumMachineExecutorArgs) {
