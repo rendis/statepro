@@ -13,12 +13,20 @@ type QuantumMachine interface {
     LoadSnapshot(snapshot *MachineSnapshot, machineContext any) error
     GetSnapshot() *MachineSnapshot
     ReplayOnEntry(ctx context.Context) error
+    PositionMachine(ctx context.Context, machineContext any, universeID string, realityID string, executeFlow bool) error
+    PositionMachineOnInitial(ctx context.Context, machineContext any, universeID string, executeFlow bool) error
+    PositionMachineByCanonicalName(ctx context.Context, machineContext any, universeCanonicalName string, realityID string, executeFlow bool) error
+    PositionMachineOnInitialByCanonicalName(ctx context.Context, machineContext any, universeCanonicalName string, executeFlow bool) error
 }
 ```
 
-- `machineContext` is an arbitrary pointer you manage. Executors can inspect/mutate it via
-  `GetContext()` on argument objects.
-- `SendEvent` returns `false` when no active universe accepted the event.
+**Key methods:**
+
+- `Init` / `InitWithEvent`: Boot the machine using `initials` references. `InitWithEvent` lets you inject custom metadata during startup.
+- `SendEvent`: Route an event to active universes. Returns `false` when no universe accepts it.
+- `LoadSnapshot` / `GetSnapshot`: Persist and restore complete machine state.
+- `ReplayOnEntry`: Re-execute entry actions without changing current realities.
+- `PositionMachine*`: Manually position the machine in specific states. Use `executeFlow=false` for testing or `executeFlow=true` to run full entry logic.
 
 ## Events
 

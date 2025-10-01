@@ -14,6 +14,21 @@ This document explains how it interprets a model and processes events.
   3. Reality `always` transitions (in order).
   4. Reality entry actions/invokes.
 
+### Manual Positioning
+
+Instead of using standard initialization, you can manually position the machine in a specific state:
+
+- **`PositionMachine(ctx, machineContext, universeID, realityID, executeFlow)`** - Position in a specific universe and reality by ID.
+- **`PositionMachineOnInitial(ctx, machineContext, universeID, executeFlow)`** - Position in a universe's configured initial state.
+- **`PositionMachineByCanonicalName(ctx, machineContext, universeCanonicalName, realityID, executeFlow)`** - Position using the universe's canonical name instead of ID.
+- **`PositionMachineOnInitialByCanonicalName(ctx, machineContext, universeCanonicalName, executeFlow)`** - Combine canonical name lookup with initial state positioning.
+
+The `executeFlow` parameter controls whether to run the full entry flow (actions, transitions) or simply position without execution. This is useful for:
+
+- Restoring machines to a known state for testing
+- Skipping initialization logic when loading from persistent storage
+- Debugging specific states without executing the full workflow
+
 ## Event Routing
 
 1. `SendEvent` locks the machine and finds universes that can handle the event.
@@ -73,6 +88,24 @@ machine context metadata but you must provide any external context objects when 
 
 `qm.ReplayOnEntry(ctx)` re-executes entry actions and invokes for every active universe without
 changing reality assignments. This is useful when you need to re-run side effects after downtime.
+
+### Snapshot Management
+
+**Loading Snapshots:**
+
+Use `qm.LoadSnapshot(snapshot, machineContext)` to restore a machine from a previous snapshot. This replaces:
+
+- All universe states (current realities, superposition states)
+- Event accumulators and their statistics
+- Tracking history for all universes
+- The machine context (provided as parameter)
+
+Snapshots are useful for:
+
+- Persisting state to disk or database
+- Recovering from crashes or restarts
+- Creating checkpoints for rollback scenarios
+- Testing with pre-configured states
 
 ## Error Handling
 

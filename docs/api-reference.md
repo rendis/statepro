@@ -187,8 +187,15 @@ The main interface for interacting with a quantum state machine.
 ```go
 type QuantumMachine interface {
     Init(ctx context.Context, machineContext any) error
+    InitWithEvent(ctx context.Context, machineContext any, event Event) error
     SendEvent(ctx context.Context, event Event) (bool, error)
-    GetSnapshot() Snapshot
+    LoadSnapshot(snapshot *MachineSnapshot, machineContext any) error
+    GetSnapshot() *MachineSnapshot
+    ReplayOnEntry(ctx context.Context) error
+    PositionMachine(ctx context.Context, machineContext any, universeID string, realityID string, executeFlow bool) error
+    PositionMachineOnInitial(ctx context.Context, machineContext any, universeID string, executeFlow bool) error
+    PositionMachineByCanonicalName(ctx context.Context, machineContext any, universeCanonicalName string, realityID string, executeFlow bool) error
+    PositionMachineOnInitialByCanonicalName(ctx context.Context, machineContext any, universeCanonicalName string, executeFlow bool) error
 }
 ```
 
@@ -207,6 +214,39 @@ Initializes the quantum machine with optional context.
 
 - `error` - Any initialization errors
 
+**Example:**
+
+```go
+err := qm.Init(ctx, map[string]any{"userId": "user123"})
+if err != nil {
+    log.Fatal("Initialization failed:", err)
+}
+```
+
+##### `InitWithEvent`
+
+Initializes the quantum machine with a custom event. Similar to `Init`, but allows passing a custom event that will be propagated through the initialization process.
+
+**Parameters:**
+
+- `ctx` - Go context for cancellation/timeout
+- `machineContext` - Machine context to be stored
+- `event` - Custom event to propagate during initialization
+
+**Returns:**
+
+- `error` - Any initialization errors
+
+**Example:**
+
+```go
+initEvent := statepro.NewEventBuilder("init").
+    SetData(map[string]any{"source": "migration"}).
+    Build()
+
+err := qm.InitWithEvent(ctx, machineContext, initEvent)
+```
+
 ##### `SendEvent`
 
 Sends an event to the quantum machine for processing.
@@ -221,13 +261,142 @@ Sends an event to the quantum machine for processing.
 - `bool` - True if the event was handled by any universe
 - `error` - Any processing errors
 
-##### `GetSnapshot`
+##### `LoadSnapshot`
 
-Gets the current state snapshot of the machine.
+Restores the quantum machine state from a snapshot. Loads the current reality, superposition state, tracking history, and other universe-specific state for each universe.
+
+**Parameters:**
+
+- `snapshot` - Snapshot containing the state to restore (nil snapshot is safely ignored)
+- `machineContext` - Machine context to set after loading
 
 **Returns:**
 
-- `Snapshot` - Current machine state and history
+- `error` - Any loading errors
+
+**Example:**
+
+```go
+snapshot := qm.GetSnapshot()
+// ... later or in another process ...
+err := qm.LoadSnapshot(snapshot, machineContext)
+```
+
+##### `GetSnapshot`
+
+Captures the current complete state of the quantum machine, including current reality, superposition state, tracking history, and categorization of universes.
+
+**Returns:**
+
+- `*MachineSnapshot` - Complete snapshot of the machine's current state
+
+##### `ReplayOnEntry`
+
+Re-executes entry actions for the current realities of all active universes. Creates a special event with ReplayOnEntry flag, then processes it through all active universes (not finalized or in superposition).
+
+**Parameters:**
+
+- `ctx` - Go context for cancellation/timeout
+
+**Returns:**
+
+- `error` - Any replay errors
+
+**Use cases:**
+
+- Re-applying entry logic after code reload
+- Refreshing state after configuration changes
+- Re-triggering side effects without state transitions
+
+##### `PositionMachine`
+
+Positions the quantum machine in a specific universe and reality.
+
+**Parameters:**
+
+- `ctx` - Go context for cancellation/timeout
+- `machineContext` - Machine context to use
+- `universeID` - Target universe identifier
+- `realityID` - Target reality (state) identifier
+- `executeFlow` - If true, executes full entry flow. If false, only positions without executing actions.
+
+**Returns:**
+
+- `error` - Error if universe/reality doesn't exist or positioning fails
+
+**Example:**
+
+```go
+// Position with full execution
+err := qm.PositionMachine(ctx, machineContext, "signup-process", "VERIFYING_EMAIL", true)
+
+// Position without execution (for testing)
+err := qm.PositionMachine(ctx, machineContext, "signup-process", "VERIFYING_EMAIL", false)
+```
+
+##### `PositionMachineOnInitial`
+
+Positions the quantum machine on the initial state of the specified universe. This is a convenience method that automatically uses the universe's configured initial state.
+
+**Parameters:**
+
+- `ctx` - Go context for cancellation/timeout
+- `machineContext` - Machine context to use
+- `universeID` - Target universe identifier
+- `executeFlow` - If true, executes full entry flow. If false, only positions without executing actions.
+
+**Returns:**
+
+- `error` - Error if universe doesn't exist, has no initial state, or positioning fails
+
+**Example:**
+
+```go
+err := qm.PositionMachineOnInitial(ctx, machineContext, "signup-process", true)
+```
+
+##### `PositionMachineByCanonicalName`
+
+Positions the quantum machine using the universe's canonical name instead of ID.
+
+**Parameters:**
+
+- `ctx` - Go context for cancellation/timeout
+- `machineContext` - Machine context to use
+- `universeCanonicalName` - Target universe canonical name
+- `realityID` - Target reality (state) identifier
+- `executeFlow` - If true, executes full entry flow. If false, only positions without executing actions.
+
+**Returns:**
+
+- `error` - Error if universe/reality doesn't exist or positioning fails
+
+**Example:**
+
+```go
+err := qm.PositionMachineByCanonicalName(ctx, machineContext, "U:signup-process", "COMPLETED", true)
+```
+
+##### `PositionMachineOnInitialByCanonicalName`
+
+Positions the machine on initial state using canonical name. This combines canonical name lookup with initial state positioning.
+
+**Parameters:**
+
+- `ctx` - Go context for cancellation/timeout
+- `machineContext` - Machine context to use
+- `universeCanonicalName` - Target universe canonical name
+- `executeFlow` - If true, executes full entry flow. If false, only positions without executing actions.
+
+**Returns:**
+
+- `error` - Error if universe doesn't exist, has no initial state, or positioning fails
+
+**Example:**
+
+```go
+err := qm.PositionMachineOnInitialByCanonicalName(ctx, machineContext, "U:signup-process", false)
+```
 
 ### `Event`
 
