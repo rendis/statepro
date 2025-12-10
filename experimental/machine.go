@@ -218,6 +218,11 @@ func (qm *ExQuantumMachine) PositionMachine(ctx context.Context, machineContext 
 	}
 
 	// Path 2: Execute full flow - reuse existing startOnReality with proper external target handling
+
+	// reset reality initialized flag, to force entry actions to be executed
+	universe.realityInitialized = false
+
+	// execute startOnReality
 	externalTargets, originalEvent, err := universe.startOnReality(ctx, realityID, machineContext, nil)
 	if err != nil {
 		return err
