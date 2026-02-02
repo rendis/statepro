@@ -35,7 +35,13 @@ type EventHistory struct {
 // - qm: the quantum machine to be used by the bot.
 // - eventProvider: the function that provides the next event to be processed. If nil, the default sequential event provider is used.
 // - initQuantumMachine: if true, the quantum machine will be initialized before processing events.
-func NewBot(qm instrumentation.QuantumMachine, eventProvider EventProvider, initQuantumMachine bool) (SMBot, error) {
+// - opts: optional configurations for the bot.
+func NewBot(
+	qm instrumentation.QuantumMachine,
+	eventProvider EventProvider,
+	initQuantumMachine bool,
+	opts ...BotOption,
+) (SMBot, error) {
 	if qm == nil {
 		return nil, fmt.Errorf("quantum machine cannot be nil")
 	}
@@ -44,20 +50,35 @@ func NewBot(qm instrumentation.QuantumMachine, eventProvider EventProvider, init
 		return nil, fmt.Errorf("event provider cannot be nil")
 	}
 
-	return &bot{
+	b := &bot{
 		qm:                 qm,
 		initialSnapshot:    qm.GetSnapshot(),
 		eventProvider:      eventProvider,
 		initQuantumMachine: initQuantumMachine,
-	}, nil
+	}
+
+	for _, opt := range opts {
+		opt(b)
+	}
+
+	return b, nil
 }
 
 type bot struct {
-	qm                 instrumentation.QuantumMachine
-	initialSnapshot    *instrumentation.MachineSnapshot
-	eventProvider      EventProvider
-	initQuantumMachine bool
-	history            []*EventHistory
+	qm                    instrumentation.QuantumMachine
+	initialSnapshot       *instrumentation.MachineSnapshot
+	eventProvider         EventProvider
+	initQuantumMachine    bool
+	history               []*EventHistory
+	ignoreUnhandledEvents bool
+}
+
+type BotOption func(*bot)
+
+func WithIgnoreUnhandledEvents(ignore bool) BotOption {
+	return func(b *bot) {
+		b.ignoreUnhandledEvents = ignore
+	}
 }
 
 func (b *bot) Run(ctx context.Context, machineContext any) error {
@@ -87,6 +108,9 @@ func (b *bot) Run(ctx context.Context, machineContext any) error {
 		}
 
 		if !handled {
+			if b.ignoreUnhandledEvents {
+				continue
+			}
 			return fmt.Errorf("event '%s' was not handled", event.GetEventName())
 		}
 
