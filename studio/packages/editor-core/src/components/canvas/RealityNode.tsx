@@ -110,9 +110,18 @@ export const RealityNode = ({
         selected
           ? `${hasErrors ? "border-red-500" : typeConfig.border} z-40`
           : `${hasErrors ? "border-red-700" : "border-slate-600"} z-20`
-      } ${node.data.isInitial ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900" : ""} ${searchPulseClassName || ""}`}
+      } ${searchPulseClassName || ""}`}
       onMouseDown={(event) => onMouseDown(event, node)}
     >
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none absolute -inset-[4px] rounded-xl border border-dashed transition-opacity duration-150 ${
+          selected
+            ? "opacity-100 border-slate-300/45 shadow-[0_0_0_1px_rgba(148,163,184,0.16)]"
+            : "opacity-0"
+        }`}
+      />
+
       {hasErrors && (
         <div className="absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-red-600 border-2 border-slate-900 flex items-center justify-center shadow-lg shadow-red-900/40 z-50 pointer-events-none">
           <span className="text-[10px] font-bold text-white">{issueCount}</span>
