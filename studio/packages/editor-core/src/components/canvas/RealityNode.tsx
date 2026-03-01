@@ -1,5 +1,5 @@
 import { Copy, Settings2, StickyNote, Trash2 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import type { Dispatch, MouseEvent, SetStateAction } from "react";
 
 import {
@@ -40,7 +40,7 @@ interface RealityNodeProps {
   onEdit: () => void;
 }
 
-export const RealityNode = ({
+const RealityNodeComponent = ({
   node,
   selected,
   showContextMenu = true,
@@ -286,3 +286,5 @@ export const RealityNode = ({
     </div>
   );
 };
+
+export const RealityNode = memo(RealityNodeComponent);

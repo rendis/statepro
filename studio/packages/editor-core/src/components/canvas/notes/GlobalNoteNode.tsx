@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronUp, StickyNote, X } from "lucide-react";
+import { memo } from "react";
 import type { MouseEvent } from "react";
 import type { CSSProperties } from "react";
 
@@ -17,7 +18,7 @@ interface GlobalNoteNodeProps {
   onDelete: (id: string) => void;
 }
 
-export const GlobalNoteNode = ({
+const GlobalNoteNodeComponent = ({
   node,
   selected,
   onMouseDown,
@@ -109,3 +110,5 @@ export const GlobalNoteNode = ({
     </div>
   );
 };
+
+export const GlobalNoteNode = memo(GlobalNoteNodeComponent);

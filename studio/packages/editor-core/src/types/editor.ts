@@ -237,8 +237,14 @@ export interface DragStartInfo {
   mouseY: number;
   nodeStartX: number;
   nodeStartY: number;
+  nodeStartW?: number;
+  nodeStartH?: number;
   children: Array<{ id: string; startX: number; startY: number }>;
+  childStartById?: Record<string, { startX: number; startY: number }>;
   parentUniverse: UniverseNode | null;
+  otherUniverseBounds?: Array<{ id: string; x: number; y: number; w: number; h: number }>;
+  otherRealityBounds?: Array<{ id: string; x: number; y: number; w: number; h: number }>;
+  nodeSizeById?: Record<string, { w: number; h: number }>;
   isUniverse: boolean;
   isNote?: boolean;
 }
@@ -251,6 +257,8 @@ export interface ResizingStart {
   startH: number;
   nodeX: number;
   nodeY: number;
+  realityBounds?: Array<{ id: string; x: number; y: number; w: number; h: number }>;
+  otherUniverseBounds?: Array<{ id: string; x: number; y: number; w: number; h: number }>;
 }
 
 export type ConnectingStart =
@@ -430,6 +438,17 @@ export interface StudioUniverseTemplate {
   universe: StateProUniverse;
 }
 
+export type StudioPerformanceMode = "auto" | "off" | "aggressive";
+
+export interface StudioPerformanceFeatureFlags {
+  mode?: StudioPerformanceMode;
+  staticPressureThreshold?: number;
+  onEmaMs?: number;
+  offEmaMs?: number;
+  onMissRatio?: number;
+  offMissRatio?: number;
+}
+
 export interface StudioFeatureFlags {
   json?: {
     import?: boolean;
@@ -443,6 +462,7 @@ export interface StudioFeatureFlags {
       create?: boolean;
     };
   };
+  performance?: StudioPerformanceFeatureFlags;
 }
 
 export interface StudioChangePayload {

@@ -161,4 +161,33 @@ describe("TransitionRoute", () => {
     expect(onHover).toHaveBeenNthCalledWith(1, true);
     expect(onHover).toHaveBeenNthCalledWith(2, false);
   });
+
+  it("en modo skeleton dibuja solo stroke visual sin puertos ni hit-path", () => {
+    const onSelect = vi.fn();
+    render(
+      <svg>
+        <TransitionRoute
+          transition={transition}
+          legs={legs}
+          nodes={nodes}
+          nodeSizes={nodeSizes}
+          selected={false}
+          renderMode="skeleton"
+          onSelect={onSelect}
+          onHover={vi.fn()}
+          onOutputPortMouseDown={vi.fn()}
+        />
+      </svg>,
+    );
+
+    expect(
+      screen.queryByTestId(/transition-segment-hit-tr-1::/),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("transition-port-left-hit-tr-1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("transition-port-right-hit-tr-1")).not.toBeInTheDocument();
+
+    const visualSegment = screen.getByTestId("transition-segment-tr-1::inbound");
+    expect(visualSegment).toHaveClass("studio-transition-skeleton");
+    expect(visualSegment).not.toHaveAttribute("marker-end");
+  });
 });

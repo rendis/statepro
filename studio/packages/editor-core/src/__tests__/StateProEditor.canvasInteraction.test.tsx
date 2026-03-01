@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { StateProEditor } from "../StateProEditor";
+import type { StudioExternalValue } from "../types";
 
 class ResizeObserverMock {
   observe() {}
@@ -146,7 +147,60 @@ const parseTranslate = (value: string | null): { x: number; y: number } => {
   return { x: Number(match[1]), y: Number(match[2]) };
 };
 
+const largeTransitionsValue: StudioExternalValue = {
+  definition: {
+    id: "large-transitions-machine",
+    canonicalName: "large-transitions-machine",
+    version: "1.0.0",
+    initials: ["U:main"],
+    universes: {
+      main: {
+        id: "main",
+        canonicalName: "main",
+        version: "1.0.0",
+        initial: "idle",
+        realities: {
+          idle: {
+            id: "idle",
+            type: "transition",
+            always: Array.from({ length: 96 }, () => ({
+              targets: ["done"],
+            })),
+          },
+          done: {
+            id: "done",
+            type: "final",
+          },
+        },
+      },
+    },
+  },
+};
+
 describe("StateProEditor canvas interaction", () => {
+  it("renderiza nodos en primer paint con performance aggressive", async () => {
+    render(
+      <StateProEditor
+        locale="es"
+        features={{
+          performance: {
+            mode: "aggressive",
+            staticPressureThreshold: 1,
+            onEmaMs: 1,
+            offEmaMs: 1,
+            onMissRatio: 0,
+            offMissRatio: 0,
+          },
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("universe-node-univ-1")).toBeInTheDocument();
+      expect(screen.getByTestId("reality-node-wrapper-real-1")).toBeInTheDocument();
+    });
+  });
+
   it("permite panear al arrastrar en fondo vacío", async () => {
     render(<StateProEditor locale="es" />);
 
@@ -165,6 +219,88 @@ describe("StateProEditor canvas interaction", () => {
 
     await waitFor(() => {
       expect(transformLayer.style.transform).not.toBe(initialTransform);
+    });
+  });
+
+  it("no deja canvas en blanco durante paneo con performance aggressive", async () => {
+    render(
+      <StateProEditor
+        locale="es"
+        features={{
+          performance: {
+            mode: "aggressive",
+            staticPressureThreshold: 1,
+            onEmaMs: 1,
+            offEmaMs: 1,
+            onMissRatio: 0,
+            offMissRatio: 0,
+          },
+        }}
+      />,
+    );
+
+    const canvas = screen.getByTestId("editor-canvas");
+    const transformLayer = getTransformLayer();
+    const initialTransform = transformLayer.style.transform;
+
+    expect(screen.getByTestId("universe-node-univ-1")).toBeInTheDocument();
+
+    fireEvent.mouseDown(canvas, { clientX: 640, clientY: 360, button: 0 });
+    fireEvent.mouseMove(window, { clientX: 760, clientY: 440, buttons: 1 });
+    fireEvent.mouseUp(window, { clientX: 760, clientY: 440, button: 0 });
+
+    await waitFor(() => {
+      expect(transformLayer.style.transform).not.toBe(initialTransform);
+      expect(screen.getByTestId("universe-node-univ-1")).toBeInTheDocument();
+      expect(screen.getByTestId("reality-node-wrapper-real-1")).toBeInTheDocument();
+    });
+  });
+
+  it("en pan/zoom con grafo grande mantiene rutas skeleton visibles y oculta badges temporalmente", async () => {
+    render(<StateProEditor locale="es" defaultValue={largeTransitionsValue} />);
+
+    const canvas = screen.getByTestId("editor-canvas");
+    await waitFor(() => {
+      expect(screen.queryAllByTestId(/transition-badge-/).length).toBeGreaterThan(0);
+    });
+
+    fireEvent.mouseDown(canvas, { clientX: 640, clientY: 360, button: 0 });
+    fireEvent.mouseMove(window, { clientX: 760, clientY: 440, buttons: 1 });
+
+    await waitFor(() => {
+      const skeletonSegments = document.querySelectorAll(".studio-transition-skeleton");
+      expect(skeletonSegments.length).toBeGreaterThan(0);
+      expect(screen.queryAllByTestId(/transition-badge-/).length).toBe(0);
+    });
+
+    fireEvent.mouseUp(window, { clientX: 760, clientY: 440, button: 0 });
+
+    await waitFor(
+      () => {
+        expect(screen.queryAllByTestId(/transition-badge-/).length).toBeGreaterThan(0);
+      },
+      { timeout: 1200 },
+    );
+  });
+
+  it("no activa skeleton al solo seleccionar un nodo sin arrastrar", async () => {
+    render(<StateProEditor locale="es" defaultValue={largeTransitionsValue} />);
+
+    await waitFor(() => {
+      expect(screen.queryAllByTestId(/transition-badge-/).length).toBeGreaterThan(0);
+      expect(screen.queryAllByTestId(/reality-node-wrapper-/).length).toBeGreaterThan(0);
+    });
+    const realityNode = screen.queryAllByTestId(/reality-node-wrapper-/)[0];
+    if (!realityNode) {
+      throw new Error("Reality node wrapper not found");
+    }
+
+    fireEvent.mouseDown(realityNode, { clientX: 1100, clientY: 1120, button: 0 });
+    fireEvent.mouseUp(realityNode, { clientX: 1100, clientY: 1120, button: 0 });
+
+    await waitFor(() => {
+      expect(document.querySelectorAll(".studio-transition-skeleton").length).toBe(0);
+      expect(screen.queryAllByTestId(/transition-badge-/).length).toBeGreaterThan(0);
     });
   });
 
@@ -187,7 +323,7 @@ describe("StateProEditor canvas interaction", () => {
     expect(transformLayer.style.transform).toBe(initialTransform);
   });
 
-  it("hace deselect con click en fondo, pero no tras drag de paneo", () => {
+  it("hace deselect con click en fondo, pero no tras drag de paneo", async () => {
     render(<StateProEditor locale="es" />);
 
     const canvas = screen.getByTestId("editor-canvas");
@@ -195,21 +331,27 @@ describe("StateProEditor canvas interaction", () => {
 
     fireEvent.mouseDown(universeNode, { clientX: 520, clientY: 420, button: 0 });
     fireEvent.mouseUp(universeNode, { clientX: 520, clientY: 420, button: 0 });
-    expect(screen.getByTitle(/eliminar universo/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTitle(/eliminar universo/i)).toBeInTheDocument();
+    });
 
     fireEvent.click(canvas, { clientX: 200, clientY: 200 });
     expect(screen.queryByTitle(/eliminar universo/i)).not.toBeInTheDocument();
 
     fireEvent.mouseDown(universeNode, { clientX: 520, clientY: 420, button: 0 });
     fireEvent.mouseUp(universeNode, { clientX: 520, clientY: 420, button: 0 });
-    expect(screen.getByTitle(/eliminar universo/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTitle(/eliminar universo/i)).toBeInTheDocument();
+    });
 
     fireEvent.mouseDown(canvas, { clientX: 640, clientY: 360, button: 0 });
     fireEvent.mouseMove(window, { clientX: 740, clientY: 440, buttons: 1 });
     fireEvent.mouseUp(window, { clientX: 740, clientY: 440, button: 0 });
     fireEvent.click(canvas, { clientX: 740, clientY: 440 });
 
-    expect(screen.getByTitle(/eliminar universo/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTitle(/eliminar universo/i)).toBeInTheDocument();
+    });
 
     fireEvent.click(canvas, { clientX: 220, clientY: 220 });
     expect(screen.queryByTitle(/eliminar universo/i)).not.toBeInTheDocument();

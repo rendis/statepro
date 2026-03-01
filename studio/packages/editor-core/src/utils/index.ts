@@ -14,3 +14,6 @@ export * from "./behaviorScriptContract";
 export * from "./canvasSearch";
 export * from "./idReferencePropagation";
 export * from "./canvasVisualFilter";
+export * from "./canvasCulling";
+export * from "./performanceController";
+export * from "./transitionLod";

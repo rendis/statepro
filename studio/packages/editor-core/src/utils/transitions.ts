@@ -38,6 +38,8 @@ export interface TransitionRouteGeometry {
   segments: TransitionRouteSegment[];
 }
 
+export type TransitionNodeLookup = Map<string, EditorNode>;
+
 const DEFAULT_OFFSET = { x: 0, y: 0 } as const;
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
@@ -199,8 +201,9 @@ export const getTransitionLegGeometry = (
   nodes: EditorNode[],
   nodeSizes: NodeSizeMap,
   transition?: Pick<EditorTransition, "visualOffset">,
+  nodeLookup?: TransitionNodeLookup,
 ): TransitionLegGeometry | null => {
-  const endpoints = getLegEndpoints(leg, nodes, nodeSizes);
+  const endpoints = getLegEndpoints(leg, nodes, nodeSizes, nodeLookup);
   if (!endpoints) {
     return null;
   }
@@ -218,10 +221,13 @@ const getLegEndpoints = (
   leg: TransitionLeg,
   nodes: EditorNode[],
   nodeSizes: NodeSizeMap,
+  nodeLookup?: TransitionNodeLookup,
 ): { start: Point; end: Point } | null => {
   const sourceSize = nodeSizes[leg.source] || { w: 192, h: 80 };
-  const targetNode = nodes.find((node) => node.id === leg.target);
-  const sourceNode = nodes.find((node) => node.id === leg.source);
+  const sourceNode =
+    nodeLookup?.get(leg.source) || nodes.find((node) => node.id === leg.source);
+  const targetNode =
+    nodeLookup?.get(leg.target) || nodes.find((node) => node.id === leg.target);
   if (!sourceNode || !targetNode) {
     return null;
   }
@@ -259,9 +265,10 @@ export const getTransitionRouteGeometry = (
   legs: TransitionLeg[],
   nodes: EditorNode[],
   nodeSizes: NodeSizeMap,
+  nodeLookup?: TransitionNodeLookup,
 ): TransitionRouteGeometry | null => {
   const validLegEndpoints = legs
-    .map((leg) => ({ leg, endpoints: getLegEndpoints(leg, nodes, nodeSizes) }))
+    .map((leg) => ({ leg, endpoints: getLegEndpoints(leg, nodes, nodeSizes, nodeLookup) }))
     .filter(
       (entry): entry is { leg: TransitionLeg; endpoints: { start: Point; end: Point } } =>
         Boolean(entry.endpoints),

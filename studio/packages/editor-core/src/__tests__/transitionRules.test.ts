@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isInternalTargetRef, isInvalidNotifyTransition } from "../utils";
+import { buildInvalidNotifyTransitionMap, isInternalTargetRef, isInvalidNotifyTransition } from "../utils";
 import type { EditorNode, EditorTransition } from "../types";
 
 const baseNodes: EditorNode[] = [
@@ -110,5 +110,22 @@ describe("transitionRules", () => {
 
   it("default no se marca inválido", () => {
     expect(isInvalidNotifyTransition(transition("default", ["r-2"]), baseNodes)).toBe(false);
+  });
+
+  it("precalcula invalid notify por transición en lote", () => {
+    const transitions: EditorTransition[] = [
+      transition("notify", ["r-2"]),
+      transition("notify", ["U:u-2:r-3"]),
+      transition("default", ["r-2"]),
+    ];
+    transitions[0].id = "notify-invalid";
+    transitions[1].id = "notify-valid";
+    transitions[2].id = "default-valid";
+
+    const result = buildInvalidNotifyTransitionMap(transitions, baseNodes);
+
+    expect(result.get("notify-invalid")).toBe(true);
+    expect(result.get("notify-valid")).toBe(false);
+    expect(result.get("default-valid")).toBe(false);
   });
 });

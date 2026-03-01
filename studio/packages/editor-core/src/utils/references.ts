@@ -61,12 +61,14 @@ export const parseTargetReference = (ref: string): ParsedTargetReference | null 
 export interface NodeReferenceIndex {
   universeById: Map<string, Extract<EditorNode, { type: "universe" }>>;
   universeNodeByDataId: Map<string, Extract<EditorNode, { type: "universe" }>>;
+  realityById: Map<string, Extract<EditorNode, { type: "reality" }>>;
   realityByUniverseAndDataId: Map<string, Extract<EditorNode, { type: "reality" }>>;
 }
 
 export const buildNodeReferenceIndex = (nodes: EditorNode[]): NodeReferenceIndex => {
   const universeById = new Map<string, Extract<EditorNode, { type: "universe" }>>();
   const universeNodeByDataId = new Map<string, Extract<EditorNode, { type: "universe" }>>();
+  const realityById = new Map<string, Extract<EditorNode, { type: "reality" }>>();
   const realityByUniverseAndDataId = new Map<string, Extract<EditorNode, { type: "reality" }>>();
 
   nodes.forEach((node) => {
@@ -80,6 +82,7 @@ export const buildNodeReferenceIndex = (nodes: EditorNode[]): NodeReferenceIndex
       return;
     }
 
+    realityById.set(node.id, node);
     const key = `${node.data.universeId}::${node.data.id}`;
     realityByUniverseAndDataId.set(key, node);
   });
@@ -87,6 +90,7 @@ export const buildNodeReferenceIndex = (nodes: EditorNode[]): NodeReferenceIndex
   return {
     universeById,
     universeNodeByDataId,
+    realityById,
     realityByUniverseAndDataId,
   };
 };
@@ -154,10 +158,12 @@ export const resolveTargetReferenceToNodeId = (
     return index.realityByUniverseAndDataId.get(key)?.id || null;
   }
 
-  const sourceReality = nodes.find(
-    (node): node is Extract<EditorNode, { type: "reality" }> =>
-      node.type === "reality" && node.id === sourceRealityNodeId,
-  );
+  const sourceReality =
+    index.realityById.get(sourceRealityNodeId) ||
+    nodes.find(
+      (node): node is Extract<EditorNode, { type: "reality" }> =>
+        node.type === "reality" && node.id === sourceRealityNodeId,
+    );
   if (!sourceReality) {
     return null;
   }

@@ -226,6 +226,14 @@ export function FullEmbeddedStudio() {
         behaviors: { manage: false },
         metadataPacks: { create: false },
       },
+      performance: {
+        mode: "auto",
+        staticPressureThreshold: 1200,
+        onEmaMs: 18,
+        offEmaMs: 14,
+        onMissRatio: 0.25,
+        offMissRatio: 0.1,
+      },
     }),
     [],
   );
@@ -364,6 +372,9 @@ el.value = {
 el.features = {
   json: { import: true, export: true },
   library: { behaviors: { manage: false }, metadataPacks: { create: false } },
+  performance: {
+    mode: "auto",
+  },
 };
 
 el.addEventListener(STUDIO_CHANGE_EVENT, (event) => {
@@ -469,6 +480,9 @@ onMounted(() => {
       behaviors: { manage: false },
       metadataPacks: { create: false },
     },
+    performance: {
+      mode: "auto",
+    },
   };
 
   el.addEventListener(STUDIO_CHANGE_EVENT, handleChange as EventListener);
@@ -504,7 +518,7 @@ If your Vue build complains about unknown custom elements, configure compiler cu
 | `changeDebounceMs`   | `number`                                 | `250`                      | Debounce window for `onChange`.                          |
 | `universeTemplates`  | `StudioUniverseTemplate[]`               | `[]`                       | Enables template-based universe creation in toolbar.     |
 | `libraryBehaviors`   | `BehaviorRegistryItem[]`                 | `undefined`                | External behavior registry input.                        |
-| `features`           | `StudioFeatureFlags`                     | all supported flags `true` | Enables/disables JSON/library capabilities.              |
+| `features`           | `StudioFeatureFlags`                     | JSON/library enabled + performance `auto` | Enables/disables capabilities and configures adaptive performance mode. |
 | `locale`             | `"en"                                    | "es"`                      | `undefined`                                              | Controlled locale value. |
 | `defaultLocale`      | `"en"                                    | "es"`                      | `"en"`                                                   | Initial/fallback locale. |
 | `onLocaleChange`     | `(locale: StudioLocale) => void`         | `undefined`                | Notified when locale changes in UI/provider.             |
@@ -527,6 +541,14 @@ features?: {
       create?: boolean;
     };
   };
+  performance?: {
+    mode?: "auto" | "off" | "aggressive";
+    staticPressureThreshold?: number;
+    onEmaMs?: number;
+    offEmaMs?: number;
+    onMissRatio?: number;
+    offMissRatio?: number;
+  };
 }
 ```
 
@@ -536,6 +558,19 @@ features?: {
 | `json.export`                  | Enables model/layout export tab/actions in JSON modal    | Export actions disabled/hidden          |
 | `library.behaviors.manage`     | Allows creating/editing/deleting behavior registry items | Behavior management UI/actions disabled |
 | `library.metadataPacks.create` | Allows creating new metadata packs                       | New pack creation is disabled           |
+
+Performance flags:
+
+| Flag                                  | Default | Effect |
+| ------------------------------------- | ------- | ------ |
+| `performance.mode`                    | `auto`  | `auto`: adaptive, `off`: no adaptive degradation, `aggressive`: enables earlier/longer. |
+| `performance.staticPressureThreshold` | `1200`  | Static activation threshold using `renderPressure = nodeCount + routeSegmentCount*2 + transitionCount*8`. |
+| `performance.onEmaMs`                 | `18`    | Turns on adaptive mode when frame-time EMA crosses this value during interaction. |
+| `performance.offEmaMs`                | `14`    | Turns adaptive mode off (with hysteresis) when EMA goes below this value. |
+| `performance.onMissRatio`             | `0.25`  | Turns on adaptive mode when ratio of frames above `16.7ms` crosses this value. |
+| `performance.offMissRatio`            | `0.1`   | Turns adaptive mode off (with hysteresis) when miss ratio drops below this value. |
+
+In `auto`/`aggressive`, Studio may temporarily cull offscreen nodes/transitions and reduce non-critical overlays during heavy interaction, then restore full fidelity when load drops.
 
 Important nuance:
 

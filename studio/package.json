@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "packageManager": "pnpm@10.11.0",
   "scripts": {
-    "dev": "pnpm --filter @rendis/statepro-studio-react build && pnpm --parallel --stream --filter @rendis/statepro-studio-react --filter studio-app run dev",
+    "dev": "STUDIO_USE_EDITOR_CORE_SRC=true pnpm --filter studio-app dev",
+    "dev:dist": "STUDIO_USE_EDITOR_CORE_SRC=false pnpm --filter @rendis/statepro-studio-react build && pnpm --parallel --stream --filter @rendis/statepro-studio-react --filter studio-app run dev",
+    "dev:doctor": "node ./scripts/dev-doctor.mjs",
     "build": "pnpm -r --if-present build",
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",

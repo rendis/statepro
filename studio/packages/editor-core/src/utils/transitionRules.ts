@@ -62,6 +62,46 @@ export const isInvalidNotifyTransition = (
   return hasInternalTargets(transition, nodes);
 };
 
+export const buildInvalidNotifyTransitionMap = (
+  transitions: EditorTransition[],
+  nodes: EditorNode[],
+): Map<string, boolean> => {
+  const invalidByTransitionId = new Map<string, boolean>();
+  const sourceRealityById = new Map(
+    nodes
+      .filter((node): node is Extract<EditorNode, { type: "reality" }> => node.type === "reality")
+      .map((node) => [node.id, node]),
+  );
+  const internalRealityKeySet = new Set(
+    nodes
+      .filter((node): node is Extract<EditorNode, { type: "reality" }> => node.type === "reality")
+      .map((node) => `${node.data.universeId}::${node.data.id}`),
+  );
+
+  transitions.forEach((transition) => {
+    if (transition.type !== "notify") {
+      invalidByTransitionId.set(transition.id, false);
+      return;
+    }
+
+    const sourceReality = sourceRealityById.get(transition.sourceRealityId);
+    if (!sourceReality) {
+      invalidByTransitionId.set(transition.id, false);
+      return;
+    }
+
+    const hasInternalTarget = transition.targets.some((targetRef) => {
+      if (isUniverseRef(targetRef)) {
+        return false;
+      }
+      return internalRealityKeySet.has(`${sourceReality.data.universeId}::${targetRef}`);
+    });
+    invalidByTransitionId.set(transition.id, hasInternalTarget);
+  });
+
+  return invalidByTransitionId;
+};
+
 export const resolveTargetUniverseIdFromRef = (targetRef: string): string | null => {
   const parsed = parseUniverseRealityRef(targetRef);
   return parsed?.universeId || null;

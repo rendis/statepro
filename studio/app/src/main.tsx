@@ -23,8 +23,10 @@ const upsertFavicon = (href: string): void => {
 
 upsertFavicon(favicon);
 
+const strictModeRaw = String(import.meta.env.VITE_STRICT_MODE ?? "true").toLowerCase();
+const strictModeEnabled = !["0", "false", "off", "no"].includes(strictModeRaw);
+const appTree = <App />;
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
+  strictModeEnabled ? <React.StrictMode>{appTree}</React.StrictMode> : appTree,
 );

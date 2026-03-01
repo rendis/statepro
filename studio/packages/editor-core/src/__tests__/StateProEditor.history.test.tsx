@@ -343,9 +343,9 @@ describe("StateProEditor history", () => {
     const user = userEvent.setup();
     render(<StateProEditor locale="es" />);
 
-    const transitionBadge = screen.getByTestId("transition-badge-tr-1");
-    fireEvent.mouseDown(transitionBadge, { clientX: 1120, clientY: 1120, button: 0 });
-    fireEvent.mouseUp(transitionBadge, { clientX: 1120, clientY: 1120, button: 0 });
+    const realityNode = await screen.findByTestId("reality-node-wrapper-real-1");
+    fireEvent.mouseDown(realityNode, { clientX: 1100, clientY: 1120, button: 0 });
+    fireEvent.mouseUp(realityNode, { clientX: 1100, clientY: 1120, button: 0 });
 
     await user.click(screen.getByText(/maquina de estados/i));
     const machineIdInput = screen.getByDisplayValue("admission-process-machine");
@@ -354,6 +354,8 @@ describe("StateProEditor history", () => {
     fireEvent.keyDown(machineIdInput, { key: "Delete" });
     fireEvent.keyDown(machineIdInput, { key: "Backspace" });
 
-    expect(screen.getByTestId("transition-badge-tr-1")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("reality-node-wrapper-real-1")).toBeInTheDocument();
+    });
   });
 });

@@ -1,5 +1,5 @@
-import ELK from "elkjs/lib/elk.bundled.js";
-import type { ElkExtendedEdge, ElkNode } from "elkjs/lib/elk-api";
+import * as ELKBundle from "elkjs/lib/elk.bundled.js";
+import type { ELK as ElkInstance, ELKConstructorArguments, ElkExtendedEdge, ElkNode } from "elkjs/lib/elk-api";
 
 import type { EditorNode, EditorTransition, NodeSizeMap } from "../types";
 import {
@@ -27,7 +27,31 @@ const INNER_PADDING_BOTTOM = 20;
 
 const DISCONNECTED_COMPONENT_GAP = 180;
 
-const elk = new ELK();
+type ElkConstructorLike = new (args?: ELKConstructorArguments) => ElkInstance;
+
+const resolveElkConstructor = (): ElkConstructorLike => {
+  const moduleShape = ELKBundle as unknown as {
+    default?: ElkConstructorLike;
+    ELK?: ElkConstructorLike;
+  };
+  const globalShape = globalThis as typeof globalThis & {
+    ELK?: ElkConstructorLike;
+  };
+
+  const elkCtor = moduleShape.default || moduleShape.ELK || globalShape.ELK;
+  if (!elkCtor) {
+    throw new Error("StatePro Studio: failed to resolve ELK constructor from bundled module.");
+  }
+
+  return elkCtor;
+};
+
+const createElk = () => {
+  const ElkConstructor = resolveElkConstructor();
+  return new ElkConstructor();
+};
+
+const elk = createElk();
 
 type UniverseNode = Extract<EditorNode, { type: "universe" }>;
 type RealityNode = Extract<EditorNode, { type: "reality" }>;
@@ -314,7 +338,7 @@ const computeInternalUniverseLayout = async (
     edges,
   };
 
-  const result = await elk.layout(graph);
+  const result = await elk.layout(graph, { measureExecutionTime: true });
   const childById = new Map((result.children || []).map((child) => [child.id, child]));
 
   const rawLayout = orderedRealities.map((reality, indexPosition) => {
@@ -568,7 +592,7 @@ export const computeAutoLayout = async (
     edges: externalEdges,
   };
 
-  const externalLayout = await elk.layout(externalGraph);
+  const externalLayout = await elk.layout(externalGraph, { measureExecutionTime: true });
   const externalById = new Map((externalLayout.children || []).map((child) => [child.id, child]));
 
   const positionedUniverses: PositionedUniverse[] = universes.map((universe, index) => {

@@ -1,5 +1,5 @@
 import { StickyNote, Trash2, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 
 import type { AnchoredNoteData } from "../../../types";
@@ -15,7 +15,7 @@ interface AnchoredNoteProps {
   styleClass?: string;
 }
 
-export const AnchoredNote = ({
+const AnchoredNoteComponent = ({
   note,
   isFocused,
   onRequestFocus,
@@ -137,3 +137,5 @@ export const AnchoredNote = ({
     </div>
   );
 };
+
+export const AnchoredNote = memo(AnchoredNoteComponent);

@@ -543,4 +543,81 @@ describe("transition geometry", () => {
     expect(outboundControls.control1X).toBeGreaterThan(outboundControls.startX);
     expect(outboundControls.control2X).toBeLessThan(outboundControls.endX);
   });
+
+  it("mantiene la misma geometría con lookup indexado y sin lookup", () => {
+    const nodes: EditorNode[] = [
+      {
+        id: "real-src",
+        type: "reality",
+        x: 120,
+        y: 120,
+        data: {
+          id: "source",
+          name: "source",
+          universeId: "univ-1",
+          isInitial: true,
+          realityType: "normal",
+        },
+      },
+      {
+        id: "real-target",
+        type: "reality",
+        x: 380,
+        y: 240,
+        data: {
+          id: "target",
+          name: "target",
+          universeId: "univ-1",
+          isInitial: false,
+          realityType: "success",
+        },
+      },
+    ];
+    const nodeLookup = new Map(nodes.map((node) => [node.id, node]));
+
+    const nodeSizes: NodeSizeMap = {
+      "real-src": { w: 192, h: 150 },
+      "real-target": { w: 192, h: 150 },
+    };
+
+    const legs: TransitionLeg[] = [
+      {
+        id: "tr-5::0",
+        transitionId: "tr-5",
+        source: "real-src",
+        target: "real-target",
+        targetRef: "target",
+      },
+    ];
+
+    const transition: EditorTransition = {
+      id: "tr-5",
+      sourceRealityId: "real-src",
+      triggerKind: "on",
+      eventName: "GO",
+      type: "default",
+      condition: undefined,
+      conditions: [],
+      actions: [],
+      invokes: [],
+      description: "",
+      metadata: "",
+      targets: ["target"],
+      order: 0,
+    };
+
+    const legWithoutLookup = getTransitionLegGeometry(legs[0], nodes, nodeSizes, transition);
+    const legWithLookup = getTransitionLegGeometry(legs[0], nodes, nodeSizes, transition, nodeLookup);
+    expect(legWithLookup).toEqual(legWithoutLookup);
+
+    const routeWithoutLookup = getTransitionRouteGeometry(transition, legs, nodes, nodeSizes);
+    const routeWithLookup = getTransitionRouteGeometry(
+      transition,
+      legs,
+      nodes,
+      nodeSizes,
+      nodeLookup,
+    );
+    expect(routeWithLookup).toEqual(routeWithoutLookup);
+  });
 });

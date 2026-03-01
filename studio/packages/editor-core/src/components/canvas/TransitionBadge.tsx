@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import { STUDIO_ICON_REGISTRY, STUDIO_ICONS } from "../../constants";
 import { useI18n } from "../../i18n";
 import type { EditorTransition } from "../../types";
@@ -24,7 +26,7 @@ interface TransitionBadgeProps {
   onHover?: (isHovered: boolean) => void;
 }
 
-export const TransitionBadge = ({
+const TransitionBadgeComponent = ({
   x,
   y,
   transition,
@@ -231,3 +233,5 @@ export const TransitionBadge = ({
     </g>
   );
 };
+
+export const TransitionBadge = memo(TransitionBadgeComponent);

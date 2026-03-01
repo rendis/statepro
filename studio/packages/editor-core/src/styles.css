@@ -118,8 +118,32 @@ body {
 
 .studio-visual-muted {
   opacity: 0.24;
-  filter: saturate(0.55);
-  transition: opacity 180ms ease, filter 180ms ease;
+  transition: opacity 140ms ease;
+}
+
+.studio-transition-skeleton {
+  opacity: 0.45;
+  transition: none !important;
+  filter: none !important;
+}
+
+.studio-low-latency .canvas-interactive,
+.studio-low-latency .canvas-interactive * {
+  animation: none !important;
+  transition: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+.studio-low-latency .studio-search-pulse-a,
+.studio-low-latency .studio-search-pulse-b {
+  animation: none !important;
+  outline-color: transparent !important;
+}
+
+.studio-low-latency .studio-visual-muted {
+  opacity: 0.28;
+  transition: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -10,11 +10,12 @@ import {
   StickyNote,
   Trash2,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ComponentProps } from "react";
 import {
   TransformComponent,
   TransformWrapper,
   type ReactZoomPanPinchContentRef,
+  useTransformComponent,
 } from "react-zoom-pan-pinch";
 
 import {
@@ -74,17 +75,22 @@ import type {
 import {
   BADGE_WIDTH,
   DEFAULT_CANVAS_SEARCH_FILTERS,
+  buildCanvasCullResult,
+  buildInvalidNotifyTransitionMap,
   buildIssueIndex,
   buildTargetReferenceFromNodes,
   buildTransitionLegs,
   cleanIdentifier,
+  computeCanvasViewportBounds,
+  computeRenderPressure,
   collectBehaviorUsages,
   ensureUniqueIdentifier,
   getTransitionRouteGeometry,
   getTransitionGroupKey,
-  isInvalidNotifyTransition,
   moveTransitionInsideGroup,
+  selectSkeletonTransitionIds,
   searchCanvasNodes,
+  usePerformanceController,
   viewportPointToCanvasPoint,
   removeTransitionsReferencingDeletedNodes,
   replacePackIdInBindings,
@@ -118,6 +124,8 @@ import {
 
 type SelectedEditorElement = EditorNode | { type: "transition"; id: string; data: EditorTransition };
 type InspectableEditorNode = Extract<EditorNode, { type: "universe" | "reality" }>;
+type InteractionPhase = "idle" | "navigating" | "editing";
+type ConnectionRenderMode = "full" | "skeleton" | "minimal";
 type TransitionDragStart = {
   transitionId: string;
   mouseX: number;
@@ -141,6 +149,16 @@ const VIEWPORT_ANIMATION_MS = 180;
 const VIEWPORT_ANIMATION_TYPE = "easeOutCubic" as const;
 const DEFAULT_CHANGE_DEBOUNCE_MS = 250;
 const SEARCH_PULSE_DURATION_MS = 1300;
+const CULLING_VIEWPORT_PADDING = 240;
+const SERIALIZATION_IDLE_TIMEOUT_MS = 240;
+const SERIALIZATION_FALLBACK_DELAY_MS = 120;
+const NAVIGATION_SETTLE_MS = 120;
+const PERF_OVERLAY_INTERVAL_MS = 500;
+const NAVIGATING_FULL_TRANSITION_THRESHOLD = 80;
+const MAX_SKELETON_TRANSITIONS_AGGRESSIVE = 220;
+const MAX_SKELETON_TRANSITIONS_DEFAULT = 320;
+const EDITING_GESTURE_ACTIVATION_PX = 4;
+const NOOP = () => {};
 
 type HistoryTrackingOptions = {
   mode?: HistoryApplyMode;
@@ -148,10 +166,24 @@ type HistoryTrackingOptions = {
   markDirtyFromImport?: boolean;
 };
 
+type EditorRuntimeEnv = Record<string, string | boolean | undefined>;
+
+const getEditorRuntimeEnv = (): EditorRuntimeEnv => {
+  const meta = import.meta as unknown as { env?: EditorRuntimeEnv };
+  return meta.env || {};
+};
+
 const isInspectableEditorNode = (
   element: SelectedEditorElement | null,
 ): element is InspectableEditorNode => {
   return Boolean(element && element.type !== "transition" && element.type !== "note");
+};
+
+type CanvasToolbarWithTransformProps = Omit<ComponentProps<typeof CanvasToolbar>, "zoom">;
+
+const CanvasToolbarWithTransform = (props: CanvasToolbarWithTransformProps) => {
+  const zoom = useTransformComponent((state) => state.state.scale);
+  return <CanvasToolbar {...props} zoom={zoom} />;
 };
 
 export interface StateProEditorProps {
@@ -195,6 +227,14 @@ interface StateProEditorInnerProps {
         create: boolean;
       };
     };
+    performance: {
+      mode: "auto" | "off" | "aggressive";
+      staticPressureThreshold: number;
+      onEmaMs: number;
+      offEmaMs: number;
+      onMissRatio: number;
+      offMissRatio: number;
+    };
   };
 }
 
@@ -232,6 +272,14 @@ export function StateProEditor({
       metadataPacks: {
         create: features?.library?.metadataPacks?.create ?? true,
       },
+    },
+    performance: {
+      mode: features?.performance?.mode ?? "auto",
+      staticPressureThreshold: features?.performance?.staticPressureThreshold ?? 1200,
+      onEmaMs: features?.performance?.onEmaMs ?? 18,
+      offEmaMs: features?.performance?.offEmaMs ?? 14,
+      onMissRatio: features?.performance?.onMissRatio ?? 0.25,
+      offMissRatio: features?.performance?.offMissRatio ?? 0.1,
     },
   };
 
@@ -546,6 +594,26 @@ function StateProEditorInner({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [hoveredTransitionId, setHoveredTransitionId] = useState<string | null>(null);
+  const [interactionPhase, setInteractionPhase] = useState<InteractionPhase>("idle");
+  const [derivedEditorState, setDerivedEditorState] = useState(editorState);
+  const showPerfOverlay = useMemo(() => {
+    const runtimeEnv = getEditorRuntimeEnv();
+    if (!runtimeEnv.DEV) {
+      return false;
+    }
+    const raw = String(runtimeEnv.VITE_STUDIO_PERF_OVERLAY ?? "0").toLowerCase();
+    return !["0", "false", "off", "no", ""].includes(raw);
+  }, []);
+  const [perfOverlaySnapshot, setPerfOverlaySnapshot] = useState<{
+    emaFrameMs: number;
+    missRatio: number;
+    renderPressure: number;
+    loafDetected: boolean;
+    visibleNodes: number;
+    visibleTransitions: number;
+    phase: InteractionPhase;
+    longTaskCount: number;
+  } | null>(null);
 
   useEffect(() => {
     if ((features.json.import || features.json.export) || !showJsonModal) {
@@ -566,17 +634,70 @@ function StateProEditorInner({
   const [dragStartInfo, setDragStartInfo] = useState<DragStartInfo | null>(null);
   const [draggingTransition, setDraggingTransition] = useState<TransitionDragStart | null>(null);
   const [connectingStart, setConnectingStart] = useState<ConnectingStart | null>(null);
+  const [isEditingGestureActive, setIsEditingGestureActive] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
   const [isCanvasPanning, setIsCanvasPanning] = useState(false);
+  const [isCanvasZooming, setIsCanvasZooming] = useState(false);
   const [isAutoLayouting, setIsAutoLayouting] = useState(false);
   const transformRef = useRef<ReactZoomPanPinchContentRef | null>(null);
+  const mouseMoveRafRef = useRef<number | null>(null);
+  const hoverRafRef = useRef<number | null>(null);
+  const pendingHoverTransitionRef = useRef<string | null>(null);
+  const navigationSettleTimerRef = useRef<number | null>(null);
+  const longTaskCountRef = useRef(0);
+  const pendingMouseMoveRef = useRef<{
+    clientX: number;
+    clientY: number;
+    canvasX: number;
+    canvasY: number;
+  } | null>(null);
+  const pendingDerivedEditorStateRef = useRef(editorState);
+  const deriveIdleHandleRef = useRef<number | null>(null);
+  const deriveTimeoutHandleRef = useRef<number | null>(null);
+  const transitionRouteGeometryCacheRef = useRef<
+    Map<string, ReturnType<typeof getTransitionRouteGeometry>>
+  >(new Map());
   const didInitialAutoLayoutRef = useRef(false);
   const didInitialAutoFitRef = useRef(false);
   const lastAutoFitImportRef = useRef<StateProMachine | null>(null);
   const gestureBaseSnapshotRef = useRef<EditorHistorySnapshot | null>(null);
   const panStartedRef = useRef(false);
   const panMovedRef = useRef(false);
+  const clearNavigationSettleTimer = useCallback(() => {
+    if (navigationSettleTimerRef.current !== null) {
+      window.clearTimeout(navigationSettleTimerRef.current);
+      navigationSettleTimerRef.current = null;
+    }
+  }, []);
+  const flushHoverTransition = useCallback(() => {
+    hoverRafRef.current = null;
+    const nextId = pendingHoverTransitionRef.current;
+    pendingHoverTransitionRef.current = null;
+    setHoveredTransitionId((previous) => (previous === nextId ? previous : nextId));
+  }, []);
+  const scheduleHoverTransition = useCallback(
+    (nextId: string | null) => {
+      if (interactionPhase !== "idle") {
+        pendingHoverTransitionRef.current = null;
+        if (hoverRafRef.current !== null) {
+          window.cancelAnimationFrame(hoverRafRef.current);
+          hoverRafRef.current = null;
+        }
+        setHoveredTransitionId((previous) => (previous === null ? previous : null));
+        return;
+      }
+
+      pendingHoverTransitionRef.current = nextId;
+      if (hoverRafRef.current !== null) {
+        return;
+      }
+
+      hoverRafRef.current = window.requestAnimationFrame(() => {
+        flushHoverTransition();
+      });
+    },
+    [flushHoverTransition, interactionPhase],
+  );
   const clearMultiSelection = useCallback(() => {
     setMultiSelectedNodeIds((previous) => (previous.length === 0 ? previous : []));
   }, []);
@@ -711,6 +832,10 @@ function StateProEditorInner({
     return [];
   }, [selectedElement, validMultiSelectedNodeIds]);
   const hasMultiNodeSelection = effectiveSelectedNodeIds.length > 1;
+  const effectiveSelectedNodeIdSet = useMemo(
+    () => new Set(effectiveSelectedNodeIds),
+    [effectiveSelectedNodeIds],
+  );
   const visualFocus = useMemo(
     () => resolveVisualFocus(nodes, transitions, effectiveSelectedNodeIds),
     [effectiveSelectedNodeIds, nodes, transitions],
@@ -965,12 +1090,85 @@ function StateProEditorInner({
     [handleFitToContent],
   );
 
+  const cancelDerivedStateSchedule = useCallback(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (deriveIdleHandleRef.current !== null) {
+      const cancelIdleCallback = (
+        window as Window & { cancelIdleCallback?: (handle: number) => void }
+      ).cancelIdleCallback;
+      if (typeof cancelIdleCallback === "function") {
+        cancelIdleCallback(deriveIdleHandleRef.current);
+      }
+      deriveIdleHandleRef.current = null;
+    }
+
+    if (deriveTimeoutHandleRef.current !== null) {
+      window.clearTimeout(deriveTimeoutHandleRef.current);
+      deriveTimeoutHandleRef.current = null;
+    }
+  }, []);
+
+  const flushDerivedState = useCallback(() => {
+    cancelDerivedStateSchedule();
+    if (!isMountedRef.current) {
+      return;
+    }
+    setDerivedEditorState((previous) => {
+      const next = pendingDerivedEditorStateRef.current;
+      return previous === next ? previous : next;
+    });
+  }, [cancelDerivedStateSchedule]);
+
+  const scheduleDerivedState = useCallback(() => {
+    if (deriveIdleHandleRef.current !== null || deriveTimeoutHandleRef.current !== null) {
+      return;
+    }
+
+    const requestIdleCallback = (
+      window as Window & {
+        requestIdleCallback?: (
+          callback: (deadline: IdleDeadline) => void,
+          options?: { timeout: number },
+        ) => number;
+      }
+    ).requestIdleCallback;
+
+    if (typeof requestIdleCallback === "function") {
+      deriveIdleHandleRef.current = requestIdleCallback(
+        () => {
+          flushDerivedState();
+        },
+        { timeout: SERIALIZATION_IDLE_TIMEOUT_MS },
+      );
+      return;
+    }
+
+    deriveTimeoutHandleRef.current = window.setTimeout(() => {
+      flushDerivedState();
+    }, SERIALIZATION_FALLBACK_DELAY_MS);
+  }, [flushDerivedState]);
+
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
+      if (mouseMoveRafRef.current !== null) {
+        window.cancelAnimationFrame(mouseMoveRafRef.current);
+        mouseMoveRafRef.current = null;
+      }
+      if (hoverRafRef.current !== null) {
+        window.cancelAnimationFrame(hoverRafRef.current);
+        hoverRafRef.current = null;
+      }
+      pendingHoverTransitionRef.current = null;
+      pendingMouseMoveRef.current = null;
+      clearNavigationSettleTimer();
+      cancelDerivedStateSchedule();
       isMountedRef.current = false;
     };
-  }, []);
+  }, [cancelDerivedStateSchedule, clearNavigationSettleTimer]);
 
   useEffect(() => {
     if (didInitialAutoLayoutRef.current) {
@@ -1121,6 +1319,69 @@ function StateProEditorInner({
     };
   }, [canRedo, canUndo, redo, undo]);
 
+  const isCanvasNavigating = Boolean(isCanvasPanning || isCanvasZooming);
+  const isHeavyEditInteraction = Boolean(
+    connectingStart ||
+      (isEditingGestureActive && (draggingTransition || draggingNode || resizingStart)),
+  );
+  const isInteractionActive = Boolean(isHeavyEditInteraction || isCanvasNavigating);
+  const isIdlePhase = interactionPhase === "idle";
+  const isNavigatingPhase = interactionPhase === "navigating";
+  const isEditingPhase = interactionPhase === "editing";
+  const isLowLatencyPhase = interactionPhase !== "idle";
+
+  useEffect(() => {
+    if (isHeavyEditInteraction) {
+      clearNavigationSettleTimer();
+      setInteractionPhase((previous) => (previous === "editing" ? previous : "editing"));
+      return;
+    }
+
+    if (isCanvasNavigating) {
+      clearNavigationSettleTimer();
+      setInteractionPhase((previous) => (previous === "navigating" ? previous : "navigating"));
+      return;
+    }
+
+    clearNavigationSettleTimer();
+    if (interactionPhase === "navigating") {
+      navigationSettleTimerRef.current = window.setTimeout(() => {
+        setInteractionPhase((previous) => (previous === "idle" ? previous : "idle"));
+      }, NAVIGATION_SETTLE_MS);
+      return;
+    }
+    setInteractionPhase((previous) => (previous === "idle" ? previous : "idle"));
+  }, [
+    clearNavigationSettleTimer,
+    interactionPhase,
+    isCanvasNavigating,
+    isHeavyEditInteraction,
+  ]);
+
+  useEffect(() => {
+    if (interactionPhase !== "idle") {
+      scheduleHoverTransition(null);
+    }
+  }, [interactionPhase, scheduleHoverTransition]);
+
+  useEffect(() => {
+    pendingDerivedEditorStateRef.current = editorState;
+
+    if (isInteractionActive) {
+      scheduleDerivedState();
+      return;
+    }
+
+    cancelDerivedStateSchedule();
+    setDerivedEditorState((previous) => (previous === editorState ? previous : editorState));
+  }, [
+    cancelDerivedStateSchedule,
+    editorState,
+    isInteractionActive,
+    scheduleDerivedState,
+  ]);
+
+  const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
   const transitionLegs = useMemo(() => buildTransitionLegs(transitions, nodes), [transitions, nodes]);
 
   const transitionsById = useMemo(
@@ -1162,19 +1423,130 @@ function StateProEditorInner({
     return grouped;
   }, [transitionLegs]);
 
-  const transitionRouteGeometryByTransitionId = useMemo(() => {
-    const geometryByTransitionId = new Map<string, ReturnType<typeof getTransitionRouteGeometry>>();
-
+  const transitionNodeIdsByTransitionId = useMemo(() => {
+    const grouped = new Map<string, Set<string>>();
     transitions.forEach((transition) => {
+      const nodeIds = new Set<string>([transition.sourceRealityId]);
       const legs = transitionLegsByTransitionId.get(transition.id) || [];
-      geometryByTransitionId.set(
-        transition.id,
-        getTransitionRouteGeometry(transition, legs, nodes, nodeSizes),
-      );
+      legs.forEach((leg) => nodeIds.add(leg.target));
+      grouped.set(transition.id, nodeIds);
+    });
+    return grouped;
+  }, [transitionLegsByTransitionId, transitions]);
+
+  const geometryAffectedTransitionIds = useMemo(() => {
+    if (!isHeavyEditInteraction) {
+      return null;
+    }
+
+    if (draggingTransition) {
+      return new Set<string>([draggingTransition.transitionId]);
+    }
+
+    const affectedNodeIds = new Set<string>();
+
+    if (draggingNode) {
+      affectedNodeIds.add(draggingNode);
+      dragStartInfo?.children.forEach((child) => {
+        affectedNodeIds.add(child.id);
+      });
+      if (dragStartInfo?.parentUniverse?.id) {
+        affectedNodeIds.add(dragStartInfo.parentUniverse.id);
+      }
+    }
+
+    if (resizingStart) {
+      affectedNodeIds.add(resizingStart.id);
+    }
+
+    if (connectingStart) {
+      affectedNodeIds.add(connectingStart.sourceRealityId);
+    }
+
+    if (affectedNodeIds.size === 0) {
+      return null;
+    }
+
+    const affectedTransitionIds = new Set<string>();
+    transitionNodeIdsByTransitionId.forEach((nodeIds, transitionId) => {
+      for (const nodeId of affectedNodeIds) {
+        if (nodeIds.has(nodeId)) {
+          affectedTransitionIds.add(transitionId);
+          break;
+        }
+      }
     });
 
+    return affectedTransitionIds;
+  }, [
+    connectingStart,
+    dragStartInfo,
+    draggingNode,
+    draggingTransition,
+    isHeavyEditInteraction,
+    resizingStart,
+    transitionNodeIdsByTransitionId,
+  ]);
+
+  const transitionRouteGeometryByTransitionId = useMemo(() => {
+    const resolveGeometry = (transition: EditorTransition) => {
+      const legs = transitionLegsByTransitionId.get(transition.id) || [];
+      return getTransitionRouteGeometry(transition, legs, nodes, nodeSizes, nodeById);
+    };
+
+    if (!geometryAffectedTransitionIds || geometryAffectedTransitionIds.size === 0) {
+      const geometryByTransitionId = new Map<
+        string,
+        ReturnType<typeof getTransitionRouteGeometry>
+      >();
+      transitions.forEach((transition) => {
+        geometryByTransitionId.set(transition.id, resolveGeometry(transition));
+      });
+      transitionRouteGeometryCacheRef.current = geometryByTransitionId;
+      return geometryByTransitionId;
+    }
+
+    const cached = transitionRouteGeometryCacheRef.current;
+    const geometryByTransitionId = new Map(cached);
+    const activeTransitionIdSet = new Set(transitions.map((transition) => transition.id));
+
+    for (const cachedTransitionId of geometryByTransitionId.keys()) {
+      if (!activeTransitionIdSet.has(cachedTransitionId)) {
+        geometryByTransitionId.delete(cachedTransitionId);
+      }
+    }
+
+    transitions.forEach((transition) => {
+      const shouldRecompute =
+        geometryAffectedTransitionIds.has(transition.id) ||
+        !geometryByTransitionId.has(transition.id);
+      if (!shouldRecompute) {
+        return;
+      }
+      geometryByTransitionId.set(transition.id, resolveGeometry(transition));
+    });
+
+    transitionRouteGeometryCacheRef.current = geometryByTransitionId;
     return geometryByTransitionId;
-  }, [nodeSizes, nodes, transitionLegsByTransitionId, transitions]);
+  }, [
+    geometryAffectedTransitionIds,
+    nodeById,
+    nodeSizes,
+    nodes,
+    transitionLegsByTransitionId,
+    transitions,
+  ]);
+
+  const routeSegmentCount = useMemo(
+    () =>
+      Array.from(transitionRouteGeometryByTransitionId.values()).reduce((sum, geometry) => {
+        if (!geometry) {
+          return sum;
+        }
+        return sum + geometry.segments.length;
+      }, 0),
+    [transitionRouteGeometryByTransitionId],
+  );
 
   const transitionBadgeAnchors = useMemo(() => {
     const anchors = new Map<string, { x: number; y: number }>();
@@ -1186,11 +1558,8 @@ function StateProEditorInner({
         return;
       }
 
-      const sourceNode = nodes.find(
-        (node): node is Extract<EditorNode, { type: "reality" }> =>
-          node.type === "reality" && node.id === transition.sourceRealityId,
-      );
-      if (!sourceNode) {
+      const sourceNode = nodeById.get(transition.sourceRealityId);
+      if (!sourceNode || sourceNode.type !== "reality") {
         return;
       }
       const sourceSize = nodeSizes[sourceNode.id] || { w: 192, h: 80 };
@@ -1202,7 +1571,208 @@ function StateProEditorInner({
     });
 
     return anchors;
-  }, [nodeSizes, nodes, transitionRouteGeometryByTransitionId, transitions]);
+  }, [nodeById, nodeSizes, transitionRouteGeometryByTransitionId, transitions]);
+
+  const invalidNotifyByTransitionId = useMemo(
+    () => buildInvalidNotifyTransitionMap(transitions, nodes),
+    [nodes, transitions],
+  );
+
+  const renderPressure = useMemo(
+    () => computeRenderPressure(nodes.length, routeSegmentCount, transitions.length),
+    [nodes.length, routeSegmentCount, transitions.length],
+  );
+
+  const performanceController = usePerformanceController({
+    featureFlags: features.performance,
+    renderPressure,
+    isInteracting: isInteractionActive,
+  });
+  const shouldCullCanvas = performanceController.isPerformanceMode && isEditingPhase;
+  const shouldHideHeavyOverlays = !isIdlePhase;
+  const shouldFreezeSearchPulse = isLowLatencyPhase;
+  const connectionRenderMode: ConnectionRenderMode = useMemo(() => {
+    if (isEditingPhase) {
+      return "minimal";
+    }
+    if (
+      isNavigatingPhase &&
+      transitions.length > NAVIGATING_FULL_TRANSITION_THRESHOLD
+    ) {
+      return "skeleton";
+    }
+    return "full";
+  }, [isEditingPhase, isNavigatingPhase, transitions.length]);
+  const activeSearchNodeId =
+    searchActiveIndex >= 0 && searchActiveIndex < searchResults.length
+      ? searchResults[searchActiveIndex]?.nodeId || null
+      : null;
+
+  const alwaysVisibleTransitionIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (selectedElement?.type === "transition") {
+      ids.add(selectedElement.id);
+    }
+    if (hoveredTransitionId) {
+      ids.add(hoveredTransitionId);
+    }
+    if (draggingTransition) {
+      ids.add(draggingTransition.transitionId);
+    }
+    if (connectingStart?.kind === "transition") {
+      ids.add(connectingStart.transitionId);
+    }
+    return ids;
+  }, [connectingStart, draggingTransition, hoveredTransitionId, selectedElement]);
+  const shouldRenderTransitionInMinimalMode = useMemo(
+    () => new Set(alwaysVisibleTransitionIds),
+    [alwaysVisibleTransitionIds],
+  );
+
+  const alwaysVisibleNodeIds = useMemo(() => {
+    const ids = new Set<string>();
+    effectiveSelectedNodeIds.forEach((nodeId) => ids.add(nodeId));
+    if (selectedElement && selectedElement.type !== "transition" && selectedElement.type !== "note") {
+      ids.add(selectedElement.id);
+    }
+    if (searchPulseNodeId) {
+      ids.add(searchPulseNodeId);
+    }
+    if (activeSearchNodeId) {
+      ids.add(activeSearchNodeId);
+    }
+    if (draggingNode) {
+      ids.add(draggingNode);
+    }
+    if (connectingStart?.sourceRealityId) {
+      ids.add(connectingStart.sourceRealityId);
+    }
+
+    alwaysVisibleTransitionIds.forEach((transitionId) => {
+      const transition = transitionsById.get(transitionId);
+      if (!transition) {
+        return;
+      }
+      ids.add(transition.sourceRealityId);
+      const legs = transitionLegsByTransitionId.get(transition.id) || [];
+      legs.forEach((leg) => ids.add(leg.target));
+    });
+
+    return ids;
+  }, [
+    activeSearchNodeId,
+    alwaysVisibleTransitionIds,
+    connectingStart,
+    draggingNode,
+    effectiveSelectedNodeIds,
+    searchPulseNodeId,
+    selectedElement,
+    transitionLegsByTransitionId,
+    transitionsById,
+  ]);
+
+  const viewportBounds = useMemo(() => {
+    const viewport = getViewportSize();
+    const transform = getTransformState();
+    return computeCanvasViewportBounds(viewport, transform, CULLING_VIEWPORT_PADDING);
+  }, [
+    canvasSize.height,
+    canvasSize.width,
+    connectingStart,
+    draggingNode,
+    draggingTransition,
+    isCanvasPanning,
+    isCanvasZooming,
+    resizingStart,
+    searchActiveIndex,
+    searchPulseTick,
+    selectedElement,
+  ]);
+
+  const canvasCullResult = useMemo(
+    () =>
+      buildCanvasCullResult({
+        nodes,
+        transitions,
+        nodeSizes,
+        transitionLegsByTransitionId,
+        viewportBounds: shouldCullCanvas ? viewportBounds : null,
+        alwaysVisibleNodeIds,
+        alwaysVisibleTransitionIds,
+      }),
+    [
+      alwaysVisibleNodeIds,
+      alwaysVisibleTransitionIds,
+      nodeSizes,
+      nodes,
+      shouldCullCanvas,
+      transitionLegsByTransitionId,
+      transitions,
+      viewportBounds,
+    ],
+  );
+
+  const visibleNodes = useMemo(
+    () => nodes.filter((node) => canvasCullResult.visibleNodeIds.has(node.id)),
+    [canvasCullResult.visibleNodeIds, nodes],
+  );
+  const visibleTransitions = useMemo(
+    () => transitions.filter((transition) => canvasCullResult.visibleTransitionIds.has(transition.id)),
+    [canvasCullResult.visibleTransitionIds, transitions],
+  );
+  const skeletonTransitionLimit =
+    performanceController.mode === "aggressive"
+      ? MAX_SKELETON_TRANSITIONS_AGGRESSIVE
+      : MAX_SKELETON_TRANSITIONS_DEFAULT;
+  const viewportCenter = useMemo(
+    () =>
+      viewportBounds
+        ? {
+            x: (viewportBounds.left + viewportBounds.right) / 2,
+            y: (viewportBounds.top + viewportBounds.bottom) / 2,
+          }
+        : {
+            x: canvasSize.width / 2,
+            y: canvasSize.height / 2,
+          },
+    [canvasSize.height, canvasSize.width, viewportBounds],
+  );
+  const skeletonTransitionIds = useMemo(() => {
+    if (connectionRenderMode !== "skeleton") {
+      return new Set<string>();
+    }
+
+    return selectSkeletonTransitionIds({
+      transitions: visibleTransitions,
+      alwaysVisibleTransitionIds,
+      transitionBadgeAnchors,
+      viewportCenter,
+      limit: skeletonTransitionLimit,
+    });
+  }, [
+    alwaysVisibleTransitionIds,
+    connectionRenderMode,
+    skeletonTransitionLimit,
+    transitionBadgeAnchors,
+    viewportCenter,
+    visibleTransitions,
+  ]);
+  const routeVisibleTransitionIds = useMemo(() => {
+    if (connectionRenderMode === "minimal") {
+      return shouldRenderTransitionInMinimalMode;
+    }
+    if (connectionRenderMode === "skeleton") {
+      return skeletonTransitionIds;
+    }
+    return new Set(visibleTransitions.map((transition) => transition.id));
+  }, [
+    connectionRenderMode,
+    shouldRenderTransitionInMinimalMode,
+    skeletonTransitionIds,
+    visibleTransitions,
+  ]);
+  const isSkeletonConnectionMode = connectionRenderMode === "skeleton";
+  const shouldRenderTransitionBadges = connectionRenderMode === "full";
 
   const resolveRegistryBehaviorUsage = (src: string) =>
     collectBehaviorUsages(src, {
@@ -1617,6 +2187,7 @@ function StateProEditorInner({
       setDraggingNode(null);
       setDragStartInfo(null);
       setResizingStart(null);
+      setIsEditingGestureActive(false);
       setIsModalOpen(false);
 
       const baseSelection =
@@ -1655,6 +2226,7 @@ function StateProEditorInner({
     captureGestureBaseSnapshot();
     clearMultiSelection();
     setSelectedElement(node);
+    setIsEditingGestureActive(false);
     setDraggingNode(node.id);
 
     if (node.type === "note") {
@@ -1663,8 +2235,14 @@ function StateProEditorInner({
         mouseY: e.clientY,
         nodeStartX: node.x,
         nodeStartY: node.y,
+        nodeStartW: undefined,
+        nodeStartH: undefined,
         children: [],
+        childStartById: {},
         parentUniverse: null,
+        otherUniverseBounds: [],
+        otherRealityBounds: [],
+        nodeSizeById: {},
         isUniverse: false,
         isNote: true,
       });
@@ -1672,17 +2250,62 @@ function StateProEditorInner({
     }
 
     const childrenNodes: Array<{ id: string; startX: number; startY: number }> = [];
+    const childStartById: Record<string, { startX: number; startY: number }> = {};
+    const nodeSizeById: Record<string, { w: number; h: number }> = {};
+    const otherUniverseBounds: Array<{ id: string; x: number; y: number; w: number; h: number }> = [];
+    const otherRealityBounds: Array<{ id: string; x: number; y: number; w: number; h: number }> = [];
     let parentUniverse: Extract<EditorNode, { type: "universe" }> | null = null;
+
+    nodes.forEach((candidate) => {
+      if (candidate.type === "reality") {
+        const size = nodeSizes[candidate.id] || { w: DEFAULT_REALITY_WIDTH, h: DEFAULT_REALITY_HEIGHT };
+        nodeSizeById[candidate.id] = size;
+      }
+    });
 
     if (node.type === "universe") {
       nodes.forEach((n) => {
+        if (n.type === "universe" && n.id !== node.id) {
+          otherUniverseBounds.push({
+            id: n.id,
+            x: n.x,
+            y: n.y,
+            w: n.w,
+            h: n.h,
+          });
+          return;
+        }
         if (n.type === "reality" && n.data.universeId === node.id) {
-          childrenNodes.push({ id: n.id, startX: n.x, startY: n.y });
+          const childPosition = { startX: n.x, startY: n.y };
+          childrenNodes.push({ id: n.id, ...childPosition });
+          childStartById[n.id] = childPosition;
         }
       });
     } else if (node.type === "reality") {
       parentUniverse =
         nodes.find((u): u is Extract<EditorNode, { type: "universe" }> => u.type === "universe" && u.id === node.data.universeId) || null;
+      nodes.forEach((n) => {
+        if (n.type === "universe" && (!parentUniverse || n.id !== parentUniverse.id)) {
+          otherUniverseBounds.push({
+            id: n.id,
+            x: n.x,
+            y: n.y,
+            w: n.w,
+            h: n.h,
+          });
+          return;
+        }
+        if (n.type === "reality" && n.id !== node.id) {
+          const size = nodeSizeById[n.id] || { w: DEFAULT_REALITY_WIDTH, h: DEFAULT_REALITY_HEIGHT };
+          otherRealityBounds.push({
+            id: n.id,
+            x: n.x,
+            y: n.y,
+            w: size.w,
+            h: size.h,
+          });
+        }
+      });
     }
 
     setDragStartInfo({
@@ -1690,8 +2313,14 @@ function StateProEditorInner({
       mouseY: e.clientY,
       nodeStartX: node.x,
       nodeStartY: node.y,
+      nodeStartW: node.type === "universe" ? node.w : undefined,
+      nodeStartH: node.type === "universe" ? node.h : undefined,
       children: childrenNodes,
+      childStartById,
       parentUniverse,
+      otherUniverseBounds,
+      otherRealityBounds,
+      nodeSizeById,
       isUniverse: node.type === "universe",
     });
   };
@@ -1707,6 +2336,7 @@ function StateProEditorInner({
       id: transition.id,
       data: transition,
     });
+    setIsEditingGestureActive(false);
     setDraggingTransition({
       transitionId: transition.id,
       mouseX: event.clientX,
@@ -1721,6 +2351,34 @@ function StateProEditorInner({
     captureGestureBaseSnapshot();
     clearMultiSelection();
     setSelectedElement(node);
+    setIsEditingGestureActive(false);
+    const realityBounds = nodes
+      .filter(
+        (candidate): candidate is Extract<EditorNode, { type: "reality" }> =>
+          candidate.type === "reality" && candidate.data.universeId === node.id,
+      )
+      .map((candidate) => {
+        const size = nodeSizes[candidate.id] || { w: DEFAULT_REALITY_WIDTH, h: DEFAULT_REALITY_HEIGHT };
+        return {
+          id: candidate.id,
+          x: candidate.x,
+          y: candidate.y,
+          w: size.w,
+          h: size.h,
+        };
+      });
+    const otherUniverseBounds = nodes
+      .filter(
+        (candidate): candidate is Extract<EditorNode, { type: "universe" }> =>
+          candidate.type === "universe" && candidate.id !== node.id,
+      )
+      .map((candidate) => ({
+        id: candidate.id,
+        x: candidate.x,
+        y: candidate.y,
+        w: candidate.w,
+        h: candidate.h,
+      }));
     setResizingStart({
       id: node.id,
       mouseX: e.clientX,
@@ -1729,6 +2387,8 @@ function StateProEditorInner({
       startH: node.h,
       nodeX: node.x,
       nodeY: node.y,
+      realityBounds,
+      otherUniverseBounds,
     });
   };
 
@@ -1905,12 +2565,29 @@ function StateProEditorInner({
     setConnectingStart(null);
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const processMouseMove = (pointer: {
+    clientX: number;
+    clientY: number;
+    canvasX: number;
+    canvasY: number;
+  }) => {
     const currentScale = getTransformState().scale;
 
     if (draggingTransition) {
-      const dx = (e.clientX - draggingTransition.mouseX) / currentScale;
-      const dy = (e.clientY - draggingTransition.mouseY) / currentScale;
+      const deltaClientX = pointer.clientX - draggingTransition.mouseX;
+      const deltaClientY = pointer.clientY - draggingTransition.mouseY;
+      if (
+        !isEditingGestureActive &&
+        Math.hypot(deltaClientX, deltaClientY) < EDITING_GESTURE_ACTIVATION_PX
+      ) {
+        return;
+      }
+      if (!isEditingGestureActive) {
+        setIsEditingGestureActive(true);
+      }
+
+      const dx = deltaClientX / currentScale;
+      const dy = deltaClientY / currentScale;
       const nextOffsetX = draggingTransition.startOffsetX + dx;
       const nextOffsetY = draggingTransition.startOffsetY + dy;
 
@@ -1933,8 +2610,20 @@ function StateProEditorInner({
         },
       );
     } else if (draggingNode && dragStartInfo) {
-      const dx = (e.clientX - dragStartInfo.mouseX) / currentScale;
-      const dy = (e.clientY - dragStartInfo.mouseY) / currentScale;
+      const deltaClientX = pointer.clientX - dragStartInfo.mouseX;
+      const deltaClientY = pointer.clientY - dragStartInfo.mouseY;
+      if (
+        !isEditingGestureActive &&
+        Math.hypot(deltaClientX, deltaClientY) < EDITING_GESTURE_ACTIVATION_PX
+      ) {
+        return;
+      }
+      if (!isEditingGestureActive) {
+        setIsEditingGestureActive(true);
+      }
+
+      const dx = deltaClientX / currentScale;
+      const dy = deltaClientY / currentScale;
 
       let targetX = dragStartInfo.nodeStartX + dx;
       let targetY = dragStartInfo.nodeStartY + dy;
@@ -1956,25 +2645,17 @@ function StateProEditorInner({
       let expandUniverse: { id: string; w: number; h: number } | null = null;
 
       if (dragStartInfo.isUniverse) {
-        const currentUniverse = nodes.find(
-          (node): node is Extract<EditorNode, { type: "universe" }> =>
-            node.id === draggingNode && node.type === "universe",
-        );
-        if (!currentUniverse) {
-          return;
-        }
+        const universeW = dragStartInfo.nodeStartW || 400;
+        const universeH = dragStartInfo.nodeStartH || 300;
 
-        nodes.forEach((node) => {
-          if (node.type !== "universe" || node.id === draggingNode) {
-            return;
-          }
+        (dragStartInfo.otherUniverseBounds || []).forEach((node) => {
 
           const overlapsV = !(
-            targetY + currentUniverse.h + COLLISION_MARGIN <= node.y ||
+            targetY + universeH + COLLISION_MARGIN <= node.y ||
             targetY >= node.y + node.h + COLLISION_MARGIN
           );
           const overlapsH = !(
-            targetX + currentUniverse.w + COLLISION_MARGIN <= node.x ||
+            targetX + universeW + COLLISION_MARGIN <= node.x ||
             targetX >= node.x + node.w + COLLISION_MARGIN
           );
 
@@ -1982,86 +2663,82 @@ function StateProEditorInner({
             return;
           }
 
-          const wasAbove = currentUniverse.y + currentUniverse.h + COLLISION_MARGIN <= node.y;
-          const wasBelow = currentUniverse.y >= node.y + node.h + COLLISION_MARGIN;
-          const wasLeft = currentUniverse.x + currentUniverse.w + COLLISION_MARGIN <= node.x;
-          const wasRight = currentUniverse.x >= node.x + node.w + COLLISION_MARGIN;
+          const wasAbove = dragStartInfo.nodeStartY + universeH + COLLISION_MARGIN <= node.y;
+          const wasBelow = dragStartInfo.nodeStartY >= node.y + node.h + COLLISION_MARGIN;
+          const wasLeft = dragStartInfo.nodeStartX + universeW + COLLISION_MARGIN <= node.x;
+          const wasRight = dragStartInfo.nodeStartX >= node.x + node.w + COLLISION_MARGIN;
 
-          if (wasAbove) targetY = node.y - currentUniverse.h - COLLISION_MARGIN;
+          if (wasAbove) {
+            targetY = node.y - universeH - COLLISION_MARGIN;
+          }
           else if (wasBelow) targetY = node.y + node.h + COLLISION_MARGIN;
-          else if (wasLeft) targetX = node.x - currentUniverse.w - COLLISION_MARGIN;
+          else if (wasLeft) targetX = node.x - universeW - COLLISION_MARGIN;
           else if (wasRight) targetX = node.x + node.w + COLLISION_MARGIN;
           else {
-            const pushRight = targetX + currentUniverse.w + COLLISION_MARGIN - node.x;
+            const pushRight = targetX + universeW + COLLISION_MARGIN - node.x;
             const pushLeft = node.x + node.w + COLLISION_MARGIN - targetX;
-            const pushDown = targetY + currentUniverse.h + COLLISION_MARGIN - node.y;
+            const pushDown = targetY + universeH + COLLISION_MARGIN - node.y;
             const pushUp = node.y + node.h + COLLISION_MARGIN - targetY;
             const minPush = Math.min(pushRight, pushLeft, pushDown, pushUp);
 
-            if (minPush === pushRight) targetX = node.x - currentUniverse.w - COLLISION_MARGIN;
+            if (minPush === pushRight) targetX = node.x - universeW - COLLISION_MARGIN;
             else if (minPush === pushLeft) targetX = node.x + node.w + COLLISION_MARGIN;
-            else if (minPush === pushDown) targetY = node.y - currentUniverse.h - COLLISION_MARGIN;
+            else if (minPush === pushDown) targetY = node.y - universeH - COLLISION_MARGIN;
             else targetY = node.y + node.h + COLLISION_MARGIN;
           }
         });
       } else {
-        const currentReality = nodes.find(
-          (node): node is Extract<EditorNode, { type: "reality" }> =>
-            node.id === draggingNode && node.type === "reality",
-        );
-        if (!currentReality) {
-          return;
-        }
-
-        const realityW = nodeSizes[draggingNode]?.w || DEFAULT_REALITY_WIDTH;
-        const realityH = nodeSizes[draggingNode]?.h || DEFAULT_REALITY_HEIGHT;
+        const realityW =
+          dragStartInfo.nodeSizeById?.[draggingNode]?.w ||
+          nodeSizes[draggingNode]?.w ||
+          DEFAULT_REALITY_WIDTH;
+        const realityH =
+          dragStartInfo.nodeSizeById?.[draggingNode]?.h ||
+          nodeSizes[draggingNode]?.h ||
+          DEFAULT_REALITY_HEIGHT;
 
         if (dragStartInfo.parentUniverse) {
           targetX = Math.max(dragStartInfo.parentUniverse.x + 20, targetX);
           targetY = Math.max(dragStartInfo.parentUniverse.y + 40, targetY);
         }
 
-        nodes.forEach((node) => {
-          if (node.type !== "reality" || node.id === draggingNode) {
-            return;
-          }
-
-          const nodeW = nodeSizes[node.id]?.w || DEFAULT_REALITY_WIDTH;
-          const nodeH = nodeSizes[node.id]?.h || DEFAULT_REALITY_HEIGHT;
-
+        (dragStartInfo.otherRealityBounds || []).forEach((node) => {
           const overlapsV = !(
             targetY + realityH + COLLISION_MARGIN <= node.y ||
-            targetY >= node.y + nodeH + COLLISION_MARGIN
+            targetY >= node.y + node.h + COLLISION_MARGIN
           );
           const overlapsH = !(
             targetX + realityW + COLLISION_MARGIN <= node.x ||
-            targetX >= node.x + nodeW + COLLISION_MARGIN
+            targetX >= node.x + node.w + COLLISION_MARGIN
           );
 
           if (!overlapsV || !overlapsH) {
             return;
           }
 
-          const wasAbove = currentReality.y + realityH + COLLISION_MARGIN <= node.y;
-          const wasBelow = currentReality.y >= node.y + nodeH + COLLISION_MARGIN;
-          const wasLeft = currentReality.x + realityW + COLLISION_MARGIN <= node.x;
-          const wasRight = currentReality.x >= node.x + nodeW + COLLISION_MARGIN;
+          const wasAbove = dragStartInfo.nodeStartY + realityH + COLLISION_MARGIN <= node.y;
+          const wasBelow = dragStartInfo.nodeStartY >= node.y + node.h + COLLISION_MARGIN;
+          const wasLeft = dragStartInfo.nodeStartX + realityW + COLLISION_MARGIN <= node.x;
+          const wasRight = dragStartInfo.nodeStartX >= node.x + node.w + COLLISION_MARGIN;
 
-          if (wasAbove) targetY = node.y - realityH - COLLISION_MARGIN;
-          else if (wasBelow) targetY = node.y + nodeH + COLLISION_MARGIN;
+          if (wasAbove) {
+            targetY = node.y - realityH - COLLISION_MARGIN;
+          } else if (wasBelow) {
+            targetY = node.y + node.h + COLLISION_MARGIN;
+          }
           else if (wasLeft) targetX = node.x - realityW - COLLISION_MARGIN;
-          else if (wasRight) targetX = node.x + nodeW + COLLISION_MARGIN;
+          else if (wasRight) targetX = node.x + node.w + COLLISION_MARGIN;
           else {
             const pushRight = targetX + realityW + COLLISION_MARGIN - node.x;
-            const pushLeft = node.x + nodeW + COLLISION_MARGIN - targetX;
+            const pushLeft = node.x + node.w + COLLISION_MARGIN - targetX;
             const pushDown = targetY + realityH + COLLISION_MARGIN - node.y;
-            const pushUp = node.y + nodeH + COLLISION_MARGIN - targetY;
+            const pushUp = node.y + node.h + COLLISION_MARGIN - targetY;
             const minPush = Math.min(pushRight, pushLeft, pushDown, pushUp);
 
             if (minPush === pushRight) targetX = node.x - realityW - COLLISION_MARGIN;
-            else if (minPush === pushLeft) targetX = node.x + nodeW + COLLISION_MARGIN;
+            else if (minPush === pushLeft) targetX = node.x + node.w + COLLISION_MARGIN;
             else if (minPush === pushDown) targetY = node.y - realityH - COLLISION_MARGIN;
-            else targetY = node.y + nodeH + COLLISION_MARGIN;
+            else targetY = node.y + node.h + COLLISION_MARGIN;
           }
         });
 
@@ -2076,11 +2753,7 @@ function StateProEditorInner({
           let proposedW = Math.max(parentUniverse.w, neededRight - parentUniverse.x);
           let proposedH = Math.max(parentUniverse.h, neededBottom - parentUniverse.y);
 
-          nodes.forEach((node) => {
-            if (node.type !== "universe" || node.id === parentUniverse.id) {
-              return;
-            }
-
+          (dragStartInfo.otherUniverseBounds || []).forEach((node) => {
             const overlapsV = !(
               parentUniverse.y + proposedH + COLLISION_MARGIN <= node.y ||
               parentUniverse.y >= node.y + node.h + COLLISION_MARGIN
@@ -2094,11 +2767,13 @@ function StateProEditorInner({
               return;
             }
 
-            if (parentUniverse.x + parentUniverse.w + COLLISION_MARGIN <= node.x) {
+            const initialParentW = dragStartInfo.parentUniverse?.w || parentUniverse.w;
+            const initialParentH = dragStartInfo.parentUniverse?.h || parentUniverse.h;
+            if (parentUniverse.x + initialParentW + COLLISION_MARGIN <= node.x) {
               proposedW = node.x - COLLISION_MARGIN - parentUniverse.x;
               targetX = Math.min(targetX, parentUniverse.x + proposedW - 20 - realityW);
             }
-            if (parentUniverse.y + parentUniverse.h + COLLISION_MARGIN <= node.y) {
+            if (parentUniverse.y + initialParentH + COLLISION_MARGIN <= node.y) {
               proposedH = node.y - COLLISION_MARGIN - parentUniverse.y;
               targetY = Math.min(targetY, parentUniverse.y + proposedH - 20 - realityH);
             }
@@ -2115,12 +2790,8 @@ function StateProEditorInner({
               return { ...node, x: targetX, y: targetY } as EditorNode;
             }
 
-            if (dragStartInfo.children.some((child) => child.id === node.id)) {
-              const child = dragStartInfo.children.find((entry) => entry.id === node.id);
-              if (!child) {
-                return node;
-              }
-
+            const child = dragStartInfo.childStartById?.[node.id];
+            if (child) {
               const finalDx = targetX - dragStartInfo.nodeStartX;
               const finalDy = targetY - dragStartInfo.nodeStartY;
               return { ...node, x: child.startX + finalDx, y: child.startY + finalDy } as EditorNode;
@@ -2138,28 +2809,29 @@ function StateProEditorInner({
         },
       );
     } else if (resizingStart) {
-      const dx = (e.clientX - resizingStart.mouseX) / currentScale;
-      const dy = (e.clientY - resizingStart.mouseY) / currentScale;
+      const deltaClientX = pointer.clientX - resizingStart.mouseX;
+      const deltaClientY = pointer.clientY - resizingStart.mouseY;
+      if (
+        !isEditingGestureActive &&
+        Math.hypot(deltaClientX, deltaClientY) < EDITING_GESTURE_ACTIVATION_PX
+      ) {
+        return;
+      }
+      if (!isEditingGestureActive) {
+        setIsEditingGestureActive(true);
+      }
+
+      const dx = deltaClientX / currentScale;
+      const dy = deltaClientY / currentScale;
       let newW = Math.max(200, resizingStart.startW + dx);
       let newH = Math.max(150, resizingStart.startH + dy);
 
-      const realitiesInside = nodes.filter(
-        (node): node is Extract<EditorNode, { type: "reality" }> =>
-          node.type === "reality" && node.data.universeId === resizingStart.id,
-      );
-
-      realitiesInside.forEach((reality) => {
-        const realityW = nodeSizes[reality.id]?.w || DEFAULT_REALITY_WIDTH;
-        const realityH = nodeSizes[reality.id]?.h || DEFAULT_REALITY_HEIGHT;
-        newW = Math.max(newW, reality.x + realityW + 20 - resizingStart.nodeX);
-        newH = Math.max(newH, reality.y + realityH + 20 - resizingStart.nodeY);
+      (resizingStart.realityBounds || []).forEach((reality) => {
+        newW = Math.max(newW, reality.x + reality.w + 20 - resizingStart.nodeX);
+        newH = Math.max(newH, reality.y + reality.h + 20 - resizingStart.nodeY);
       });
 
-      nodes.forEach((node) => {
-        if (node.type !== "universe" || node.id === resizingStart.id) {
-          return;
-        }
-
+      (resizingStart.otherUniverseBounds || []).forEach((node) => {
         const overlapsV = !(
           resizingStart.nodeY + newH + COLLISION_MARGIN <= node.y ||
           resizingStart.nodeY >= node.y + node.h + COLLISION_MARGIN
@@ -2194,17 +2866,51 @@ function StateProEditorInner({
         },
       );
     } else if (connectingStart) {
-      setMousePos(getCanvasCoords(e));
+      setMousePos({ x: pointer.canvasX, y: pointer.canvasY });
     }
   };
 
+  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    const canvasPoint = getCanvasCoords(event);
+    pendingMouseMoveRef.current = {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      canvasX: canvasPoint.x,
+      canvasY: canvasPoint.y,
+    };
+
+    if (mouseMoveRafRef.current !== null) {
+      return;
+    }
+
+    mouseMoveRafRef.current = window.requestAnimationFrame(() => {
+      mouseMoveRafRef.current = null;
+      const pending = pendingMouseMoveRef.current;
+      pendingMouseMoveRef.current = null;
+      if (!pending) {
+        return;
+      }
+      processMouseMove(pending);
+    });
+  };
+
   const handleMouseUp = () => {
+    if (mouseMoveRafRef.current !== null) {
+      window.cancelAnimationFrame(mouseMoveRafRef.current);
+      mouseMoveRafRef.current = null;
+    }
+    const pending = pendingMouseMoveRef.current;
+    pendingMouseMoveRef.current = null;
+    if (pending) {
+      processMouseMove(pending);
+    }
     commitGestureHistoryStep();
     setDraggingTransition(null);
     setDraggingNode(null);
     setDragStartInfo(null);
     setResizingStart(null);
     setConnectingStart(null);
+    setIsEditingGestureActive(false);
   };
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -2874,6 +3580,58 @@ function StateProEditorInner({
       };
     });
   };
+  const transitionSelectHandlerById = useMemo(() => {
+    const handlers = new Map<string, () => void>();
+    transitions.forEach((transition) => {
+      handlers.set(transition.id, () => {
+        selectTransitionElement(transition);
+      });
+    });
+    return handlers;
+  }, [selectTransitionElement, transitions]);
+  const transitionMouseDownHandlerById = useMemo(() => {
+    const handlers = new Map<string, (event: React.MouseEvent<SVGGElement>) => void>();
+    transitions.forEach((transition) => {
+      handlers.set(transition.id, (event) => {
+        handleTransitionMouseDown(event, transition);
+      });
+    });
+    return handlers;
+  }, [transitions]);
+  const transitionOutputPortMouseDownHandlerById = useMemo(() => {
+    const handlers = new Map<string, (event: React.MouseEvent<SVGCircleElement>) => void>();
+    transitions.forEach((transition) => {
+      handlers.set(transition.id, (event) => {
+        startConnectionFromTransitionOutput(event, transition.id);
+      });
+    });
+    return handlers;
+  }, [transitions]);
+  const transitionHoverHandlerById = useMemo(() => {
+    const handlers = new Map<string, (isHovered: boolean) => void>();
+    transitions.forEach((transition) => {
+      handlers.set(transition.id, (isHovered) => {
+        scheduleHoverTransition(isHovered ? transition.id : null);
+      });
+    });
+    return handlers;
+  }, [scheduleHoverTransition, transitions]);
+  const handleRealityTypeChange = useCallback((id: string, type: keyof typeof REALITY_TYPES) => {
+    markDirtyFromImport();
+    setNodes((prev) =>
+      prev.map((node) =>
+        node.id === id && node.type === "reality"
+          ? { ...node, data: { ...node.data, realityType: type } }
+          : node,
+      ),
+    );
+  }, []);
+  const handleCreateAnchoredRealityNote = useCallback((realityId: string) => {
+    updateNodeAnchoredNote(realityId, createAnchoredNote());
+  }, [updateNodeAnchoredNote]);
+  const openTransitionPropertiesModal = useCallback(() => {
+    setIsModalOpen(true);
+  }, []);
 
   const updateGlobalNote = (noteId: string, data: GlobalNoteData) => {
     markDirtyFromImport();
@@ -3385,11 +4143,19 @@ function StateProEditorInner({
     setShowJsonModal(false);
   };
 
-  const serialized = useMemo(() => serializeStatePro(editorState), [editorState]);
-  const serializedLayout = useMemo(() => serializeStudioLayout(editorState), [editorState]);
+  const serialized = useMemo(() => serializeStatePro(derivedEditorState), [derivedEditorState]);
+  const serializedLayout = useMemo(
+    () => serializeStudioLayout(derivedEditorState),
+    [derivedEditorState],
+  );
   const issueIndex = useMemo(
-    () => buildIssueIndex(serialized.issues, nodes, transitions),
-    [serialized.issues, nodes, transitions],
+    () =>
+      buildIssueIndex(
+        serialized.issues,
+        derivedEditorState.nodes,
+        derivedEditorState.transitions,
+      ),
+    [derivedEditorState.nodes, derivedEditorState.transitions, serialized.issues],
   );
   const selectedElementIssues = useMemo(() => {
     if (!selectedElement) {
@@ -3408,12 +4174,86 @@ function StateProEditorInner({
   }, [issueIndex.realities, issueIndex.transitions, issueIndex.universes, selectedElement]);
   const propertiesModalElement =
     selectedElement && selectedElement.type !== "note" ? selectedElement : null;
-  const generatedJson = useMemo(() => JSON.stringify(serialized.machine, null, 2), [serialized.machine]);
+  const generatedJson = useMemo(() => {
+    if (!showJsonModal) {
+      return "";
+    }
+    return JSON.stringify(serialized.machine, null, 2);
+  }, [serialized.machine, showJsonModal]);
   const generatedLayoutJson = useMemo(
-    () => JSON.stringify(serializedLayout, null, 2),
-    [serializedLayout],
+    () => (showJsonModal ? JSON.stringify(serializedLayout, null, 2) : ""),
+    [serializedLayout, showJsonModal],
   );
   const canOpenJsonModal = features.json.import || features.json.export;
+  useEffect(() => {
+    if (!showPerfOverlay || typeof PerformanceObserver === "undefined") {
+      return;
+    }
+
+    let observer: PerformanceObserver | null = null;
+    try {
+      observer = new PerformanceObserver((list) => {
+        longTaskCountRef.current += list.getEntries().length;
+      });
+      observer.observe({ entryTypes: ["longtask"] as string[] } as PerformanceObserverInit);
+    } catch {
+      observer = null;
+    }
+
+    return () => {
+      observer?.disconnect();
+    };
+  }, [showPerfOverlay]);
+  useEffect(() => {
+    if (!showPerfOverlay) {
+      setPerfOverlaySnapshot((previous) => (previous === null ? previous : null));
+      return;
+    }
+
+    const publishSnapshot = () => {
+      const metrics = performanceController.metrics;
+      const nextSnapshot = {
+        emaFrameMs: Number(metrics.emaFrameMs.toFixed(2)),
+        missRatio: Number(metrics.missRatio.toFixed(3)),
+        renderPressure: metrics.renderPressure,
+        loafDetected: metrics.loafDetected,
+        visibleNodes: visibleNodes.length,
+        visibleTransitions: visibleTransitions.length,
+        phase: interactionPhase,
+        longTaskCount: longTaskCountRef.current,
+      };
+
+      setPerfOverlaySnapshot((previous) => {
+        if (
+          previous &&
+          previous.emaFrameMs === nextSnapshot.emaFrameMs &&
+          previous.missRatio === nextSnapshot.missRatio &&
+          previous.renderPressure === nextSnapshot.renderPressure &&
+          previous.loafDetected === nextSnapshot.loafDetected &&
+          previous.visibleNodes === nextSnapshot.visibleNodes &&
+          previous.visibleTransitions === nextSnapshot.visibleTransitions &&
+          previous.phase === nextSnapshot.phase &&
+          previous.longTaskCount === nextSnapshot.longTaskCount
+        ) {
+          return previous;
+        }
+
+        return nextSnapshot;
+      });
+    };
+
+    publishSnapshot();
+    const timerId = window.setInterval(publishSnapshot, PERF_OVERLAY_INTERVAL_MS);
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, [
+    interactionPhase,
+    performanceController.metrics,
+    showPerfOverlay,
+    visibleNodes.length,
+    visibleTransitions.length,
+  ]);
 
   useEffect(() => {
     if (!onChange) {
@@ -3541,10 +4381,11 @@ function StateProEditorInner({
           maxScale={MAX_ZOOM}
           centerOnInit={false}
           limitToBounds={false}
-          smooth
+          smooth={false}
           wheel={{ activationKeys: ["Control", "Meta"] }}
           panning={{
             disabled: false,
+            velocityDisabled: true,
             wheelPanning: false,
             allowLeftClickPan: true,
             allowMiddleClickPan: true,
@@ -3552,6 +4393,9 @@ function StateProEditorInner({
             activationKeys: [],
             excluded: ["canvas-interactive"],
           }}
+          zoomAnimation={{ disabled: true }}
+          alignmentAnimation={{ disabled: true }}
+          velocityAnimation={{ disabled: true }}
           pinch={{ disabled: true }}
           doubleClick={{ disabled: true }}
           onPanningStart={() => {
@@ -3568,8 +4412,12 @@ function StateProEditorInner({
             panStartedRef.current = false;
             setIsCanvasPanning(false);
           }}
-          onInit={(ref) => setZoom(ref.state.scale)}
-          onTransformed={(_ref, state) => setZoom(state.scale)}
+          onZoomStart={() => {
+            setIsCanvasZooming(true);
+          }}
+          onZoomStop={() => {
+            setIsCanvasZooming(false);
+          }}
         >
           <TransformComponent
             wrapperStyle={{ width: "100%", height: "100%" }}
@@ -3579,12 +4427,12 @@ function StateProEditorInner({
               ref={canvasRef}
               data-testid="editor-canvas"
               className={`relative ${
-                isCanvasPanning || draggingTransition
+                isCanvasPanning || (draggingTransition && isEditingGestureActive)
                   ? "cursor-grabbing"
                   : connectingStart
                     ? "cursor-alias"
                     : ""
-              }`}
+              } ${isLowLatencyPhase ? "studio-low-latency" : ""}`}
               style={{
                 width: `${canvasSize.width}px`,
                 height: `${canvasSize.height}px`,
@@ -3623,7 +4471,10 @@ function StateProEditorInner({
                 <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b82f6" />
               </marker>
             </defs>
-            {transitions.map((transition) => {
+            {visibleTransitions.map((transition) => {
+              if (!routeVisibleTransitionIds.has(transition.id)) {
+                return null;
+              }
               const isFocusedByFilter = isTransitionFocusedBySelection(transition.id);
               const shouldHide =
                 isFilterActive &&
@@ -3651,24 +4502,32 @@ function StateProEditorInner({
                     nodeSizes={nodeSizes}
                     routeGeometry={routeGeometry}
                     selected={selectedElement?.type === "transition" && selectedElement.id === transition.id}
-                    invalidNotify={isInvalidNotifyTransition(transition, nodes)}
-                    onSelect={() =>
-                      selectTransitionElement(transition)
+                    invalidNotify={invalidNotifyByTransitionId.get(transition.id) || false}
+                    renderMode={isSkeletonConnectionMode ? "skeleton" : "full"}
+                    onSelect={
+                      isSkeletonConnectionMode
+                        ? NOOP
+                        : transitionSelectHandlerById.get(transition.id) || NOOP
                     }
-                    onHover={(isHovered) =>
-                      setHoveredTransitionId((prev) =>
-                        isHovered ? transition.id : prev === transition.id ? null : prev,
-                      )
+                    onHover={
+                      isSkeletonConnectionMode
+                        ? undefined
+                        : transitionHoverHandlerById.get(transition.id)
                     }
-                    onOutputPortMouseDown={(event) =>
-                      startConnectionFromTransitionOutput(event, transition.id)
+                    onOutputPortMouseDown={
+                      isSkeletonConnectionMode
+                        ? undefined
+                        : transitionOutputPortMouseDownHandlerById.get(transition.id) || undefined
                     }
                   />
                 </g>
               );
             })}
 
-            {transitions.map((transition) => {
+            {shouldRenderTransitionBadges && visibleTransitions.map((transition) => {
+              if (!routeVisibleTransitionIds.has(transition.id)) {
+                return null;
+              }
               const isFocusedByFilter = isTransitionFocusedBySelection(transition.id);
               const shouldHide =
                 isFilterActive &&
@@ -3705,21 +4564,13 @@ function StateProEditorInner({
                         ? `${transitionOrderSummary.position} / ${transitionOrderSummary.total}`
                         : undefined
                     }
-                    invalidNotify={isInvalidNotifyTransition(transition, nodes)}
+                    invalidNotify={invalidNotifyByTransitionId.get(transition.id) || false}
                     issueCount={transitionIssueCount}
-                    onSelect={() =>
-                      selectTransitionElement(transition)
-                    }
-                    onEdit={() => setIsModalOpen(true)}
-                    onMouseDown={(event) => handleTransitionMouseDown(event, transition)}
-                    onOutputPortMouseDown={(event) =>
-                      startConnectionFromTransitionOutput(event, transition.id)
-                    }
-                    onHover={(isHovered) =>
-                      setHoveredTransitionId((prev) =>
-                        isHovered ? transition.id : prev === transition.id ? null : prev,
-                      )
-                    }
+                    onSelect={transitionSelectHandlerById.get(transition.id) || NOOP}
+                    onEdit={openTransitionPropertiesModal}
+                    onMouseDown={transitionMouseDownHandlerById.get(transition.id)}
+                    onOutputPortMouseDown={transitionOutputPortMouseDownHandlerById.get(transition.id)}
+                    onHover={transitionHoverHandlerById.get(transition.id)}
                   />
                 </g>
               );
@@ -3747,7 +4598,7 @@ function StateProEditorInner({
               })()}
           </svg>
 
-          {nodes.map((node) => {
+          {visibleNodes.map((node) => {
             const isVisualFilterCandidate =
               node.type === "universe" || node.type === "reality";
             const isFocusedByFilter = isVisualFilterCandidate
@@ -3782,7 +4633,7 @@ function StateProEditorInner({
                       ? `${hasUniverseErrors ? "border-red-500" : "border-blue-500"} bg-slate-900/40 z-0`
                       : `${hasUniverseErrors ? "border-red-700" : "border-slate-600"} bg-slate-900/20 z-0`
                   } transition-colors ${
-                    searchPulseNodeId === node.id
+                    !shouldFreezeSearchPulse && searchPulseNodeId === node.id
                       ? searchPulseTick % 2 === 0
                         ? "studio-search-pulse-a"
                         : "studio-search-pulse-b"
@@ -3837,11 +4688,16 @@ function StateProEditorInner({
             }
 
             if (node.type === "note") {
+              const isFocusedGlobalNote =
+                selectedElement?.type === "note" && selectedElement.id === node.id;
+              if (shouldHideHeavyOverlays && !isFocusedGlobalNote) {
+                return null;
+              }
               return (
                 <GlobalNoteNode
                   key={node.id}
                   node={node}
-                  selected={selectedElement?.type === "note" && selectedElement.id === node.id}
+                  selected={isFocusedGlobalNote}
                   onMouseDown={handleNodeMouseDown}
                   onUpdate={updateGlobalNote}
                   onDelete={(noteId) =>
@@ -3869,10 +4725,10 @@ function StateProEditorInner({
               >
                 <RealityNode
                   node={node}
-                  selected={effectiveSelectedNodeIds.includes(node.id)}
+                  selected={effectiveSelectedNodeIdSet.has(node.id)}
                   showContextMenu={!hasMultiNodeSelection}
                   searchPulseClassName={
-                    searchPulseNodeId === node.id
+                    !shouldFreezeSearchPulse && searchPulseNodeId === node.id
                       ? searchPulseTick % 2 === 0
                         ? "studio-search-pulse-a"
                         : "studio-search-pulse-b"
@@ -3880,30 +4736,21 @@ function StateProEditorInner({
                   }
                   issueCount={issueIndex.realities.get(node.id)?.length || 0}
                   onMouseDown={handleNodeMouseDown}
-                  onPortMouseDown={(e, nodeId) => startConnectionFromRealitySource(e, nodeId)}
-                  onPortMouseUp={(e, nodeId) => completeConnectionOnTargetPort(e, nodeId)}
+                  onPortMouseDown={startConnectionFromRealitySource}
+                  onPortMouseUp={completeConnectionOnTargetPort}
                   setNodeSizes={setNodeSizes}
-                  onTypeChange={(id, type) => {
-                    markDirtyFromImport();
-                    setNodes((prev) =>
-                      prev.map((n) =>
-                        n.id === id && n.type === "reality"
-                          ? { ...n, data: { ...n.data, realityType: type } }
-                          : n,
-                      ),
-                    );
-                  }}
+                  onTypeChange={handleRealityTypeChange}
                   onEdit={() => setIsModalOpen(true)}
                   onClone={cloneReality}
                   hasNote={Boolean(node.data.note)}
-                  onCreateNote={(realityId) => updateNodeAnchoredNote(realityId, createAnchoredNote())}
+                  onCreateNote={handleCreateAnchoredRealityNote}
                   onDelete={() => deleteElement(node)}
                 />
               </div>
             );
           })}
 
-          {nodes.map((node) => {
+          {!shouldHideHeavyOverlays && visibleNodes.map((node) => {
             if (
               node.type === "universe" &&
               !hasMultiNodeSelection &&
@@ -4022,7 +4869,7 @@ function StateProEditorInner({
             return null;
           })}
 
-          {selectedElement?.type === "transition" &&
+          {!shouldHideHeavyOverlays && selectedElement?.type === "transition" &&
             (!isFilterActive ||
               visualizationMode !== "hide" ||
               isTransitionFocusedBySelection(selectedElement.id)) &&
@@ -4080,7 +4927,7 @@ function StateProEditorInner({
               );
             })()}
 
-          {nodes.map((node) => {
+          {!shouldHideHeavyOverlays && visibleNodes.map((node) => {
             if (node.type === "note" || !node.data.note) {
               return null;
             }
@@ -4095,6 +4942,9 @@ function StateProEditorInner({
               isFilterActive && visualizationMode === "dim" && !ownerFocused;
             const isFocused =
               selectedElement?.type !== "transition" && selectedElement?.id === node.id;
+            if (shouldCullCanvas && isInteractionActive && !isFocused) {
+              return null;
+            }
 
             let x = node.x;
             let y = node.y;
@@ -4130,7 +4980,7 @@ function StateProEditorInner({
             );
           })}
 
-          {transitions.map((transition) => {
+          {!shouldHideHeavyOverlays && visibleTransitions.map((transition) => {
             if (!transition.note) {
               return null;
             }
@@ -4151,6 +5001,9 @@ function StateProEditorInner({
               isFilterActive && visualizationMode === "dim" && !transitionFocused;
             const isFocused =
               selectedElement?.type === "transition" && selectedElement.id === transition.id;
+            if (shouldCullCanvas && isInteractionActive && !isFocused) {
+              return null;
+            }
 
             return (
               <div
@@ -4173,7 +5026,7 @@ function StateProEditorInner({
             );
           })}
 
-          {hoveredTransitionId && (() => {
+          {hoveredTransitionId && interactionPhase === "idle" && (() => {
             const transition = transitionsById.get(hoveredTransitionId);
             const anchor = transition ? transitionBadgeAnchors.get(transition.id) : null;
             if (!transition || !anchor) return null;
@@ -4185,7 +5038,7 @@ function StateProEditorInner({
             const triggerName = isAlways
               ? t("editor.transition.trigger.always")
               : transition.eventName || t("editor.transition.trigger.newEvent");
-            const invalidNotify = isInvalidNotifyTransition(transition, nodes);
+            const invalidNotify = invalidNotifyByTransitionId.get(transition.id) || false;
             const effectiveType = invalidNotify ? "default" : transition.type;
             const isNotify = effectiveType === "notify";
             const hasEffects = transition.actions.length > 0 || transition.invokes.length > 0;
@@ -4306,42 +5159,54 @@ function StateProEditorInner({
           })()}
             </div>
           </TransformComponent>
+
+          <CanvasToolbarWithTransform
+            onAddUniverse={addUniverse}
+            onAddUniverseFromTemplate={addUniverseFromTemplate}
+            universeTemplates={universeTemplates}
+            onAddGlobalNote={addGlobalNote}
+            onAutoLayout={handleAutoLayout}
+            isAutoLayouting={isAutoLayouting}
+            onUndo={undo}
+            onRedo={redo}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            onFit={() => handleFitToContent("smooth")}
+            onCenter={() => handleCenterContent("smooth")}
+            searchQuery={searchQuery}
+            searchResults={searchResults}
+            searchFilters={searchFilters}
+            searchActiveIndex={searchActiveIndex}
+            onSearchQueryChange={(query) => {
+              setSearchQuery(query);
+              if (!query.trim()) {
+                setSearchActiveIndex(-1);
+              }
+            }}
+            onSearchFiltersChange={setSearchFilters}
+            onSearchMoveSelection={moveSearchSelection}
+            onSearchSelect={selectSearchResult}
+            selectedNodeCount={effectiveSelectedNodeIds.length}
+            visualizationMode={visualizationMode}
+            onVisualizationModeChange={handleVisualizationModeChange}
+          />
+          {showPerfOverlay && perfOverlaySnapshot && (
+            <div className="pointer-events-none absolute left-4 top-20 z-[95] rounded-md border border-slate-700 bg-slate-950/85 px-3 py-2 text-[11px] font-mono text-slate-200 shadow-xl">
+              <div>phase: {perfOverlaySnapshot.phase}</div>
+              <div>ema: {perfOverlaySnapshot.emaFrameMs}ms</div>
+              <div>miss: {(perfOverlaySnapshot.missRatio * 100).toFixed(1)}%</div>
+              <div>pressure: {perfOverlaySnapshot.renderPressure}</div>
+              <div>
+                visible: {perfOverlaySnapshot.visibleNodes}n / {perfOverlaySnapshot.visibleTransitions}t
+              </div>
+              <div>longtasks: {perfOverlaySnapshot.longTaskCount}</div>
+              <div>loaf: {perfOverlaySnapshot.loafDetected ? "yes" : "no"}</div>
+            </div>
+          )}
         </TransformWrapper>
       </main>
-
-      <CanvasToolbar
-        onAddUniverse={addUniverse}
-        onAddUniverseFromTemplate={addUniverseFromTemplate}
-        universeTemplates={universeTemplates}
-        onAddGlobalNote={addGlobalNote}
-        onAutoLayout={handleAutoLayout}
-        isAutoLayouting={isAutoLayouting}
-        onUndo={undo}
-        onRedo={redo}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onFit={() => handleFitToContent("smooth")}
-        onCenter={() => handleCenterContent("smooth")}
-        zoom={zoom}
-        searchQuery={searchQuery}
-        searchResults={searchResults}
-        searchFilters={searchFilters}
-        searchActiveIndex={searchActiveIndex}
-        onSearchQueryChange={(query) => {
-          setSearchQuery(query);
-          if (!query.trim()) {
-            setSearchActiveIndex(-1);
-          }
-        }}
-        onSearchFiltersChange={setSearchFilters}
-        onSearchMoveSelection={moveSearchSelection}
-        onSearchSelect={selectSearchResult}
-        selectedNodeCount={effectiveSelectedNodeIds.length}
-        visualizationMode={visualizationMode}
-        onVisualizationModeChange={handleVisualizationModeChange}
-      />
 
       {isModalOpen && propertiesModalElement && (
         <PropertiesModal
