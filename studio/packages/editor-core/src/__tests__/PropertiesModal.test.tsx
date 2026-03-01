@@ -65,15 +65,31 @@ const transition: EditorTransition = {
   order: 0,
 };
 
+const noopRenameHandlers = {
+  commitUniverseIdRename: (_universeNodeId: string, nextUniverseIdDraft: string) => nextUniverseIdDraft,
+  commitUniverseCanonicalRename: (
+    _universeNodeId: string,
+    nextCanonicalDraft: string,
+    options: { syncId: boolean },
+  ) => ({
+    id: options.syncId ? nextCanonicalDraft : "main",
+    canonicalName: nextCanonicalDraft,
+  }),
+  commitRealityIdRename: (_realityNodeId: string, nextRealityIdDraft: string) => nextRealityIdDraft,
+};
+
 describe("PropertiesModal transition behavior", () => {
-  it("actualiza canonicalName de universo sin reescribir id", async () => {
-    const updateNodeData = vi.fn();
+  it("en universo emparejado bloquea id y edita canonical con syncId", () => {
     const universe = nodes.find(
       (node): node is Extract<EditorNode, { type: "universe" }> => node.type === "universe",
     );
     if (!universe) {
       throw new Error("Universe fixture not found");
     }
+    const commitUniverseCanonicalRename = vi.fn(() => ({
+      id: "payments-flow",
+      canonicalName: "payments-flow",
+    }));
 
     render(
       <PropertiesModal
@@ -81,7 +97,10 @@ describe("PropertiesModal transition behavior", () => {
         nodes={nodes}
         transitions={[transition]}
         onClose={vi.fn()}
-        updateNodeData={updateNodeData}
+        updateNodeData={vi.fn()}
+        commitUniverseIdRename={noopRenameHandlers.commitUniverseIdRename}
+        commitUniverseCanonicalRename={commitUniverseCanonicalRename}
+        commitRealityIdRename={noopRenameHandlers.commitRealityIdRename}
         updateTransitionData={vi.fn()}
         moveTransition={vi.fn()}
         openBehaviorModal={vi.fn() as never}
@@ -97,16 +116,129 @@ describe("PropertiesModal transition behavior", () => {
       />,
     );
 
+    const idInput = screen
+      .getAllByDisplayValue("main")
+      .find((input) => (input as HTMLInputElement).readOnly) as HTMLInputElement;
     const canonicalInput = screen
       .getAllByDisplayValue("main")
       .find((input) => !(input as HTMLInputElement).readOnly) as HTMLInputElement;
-    expect(canonicalInput).toBeDefined();
-    fireEvent.change(canonicalInput, { target: { value: "payments flow" } });
-    fireEvent.blur(canonicalInput, { target: { value: "payments flow" } });
+    expect(idInput).toHaveAttribute("readonly");
 
-    expect(updateNodeData).toHaveBeenCalledWith("canonicalName", "payments-flow");
-    expect(updateNodeData).not.toHaveBeenCalledWith("id", expect.anything());
-    expect(updateNodeData).not.toHaveBeenCalledWith("name", expect.anything());
+    fireEvent.change(canonicalInput, { target: { value: "payments flow" } });
+    fireEvent.blur(canonicalInput);
+
+    expect(commitUniverseCanonicalRename).toHaveBeenCalledWith("u-1", "payments-flow", {
+      syncId: true,
+    });
+    expect(idInput).toHaveValue("payments-flow");
+    expect(canonicalInput).toHaveValue("payments-flow");
+  });
+
+  it("en universo desemparejado permite editar id y activarlo vuelve a canonical", async () => {
+    const user = userEvent.setup();
+    const commitUniverseIdRename = vi.fn(() => "billing");
+    const commitUniverseCanonicalRename = vi.fn(() => ({
+      id: "main-canonical",
+      canonicalName: "main-canonical",
+    }));
+    const universe = nodes.find(
+      (node): node is Extract<EditorNode, { type: "universe" }> => node.type === "universe",
+    );
+    if (!universe) {
+      throw new Error("Universe fixture not found");
+    }
+    const unpairedUniverse = {
+      ...universe,
+      data: {
+        ...universe.data,
+        canonicalName: "main-canonical",
+      },
+    };
+
+    render(
+      <PropertiesModal
+        element={unpairedUniverse}
+        nodes={nodes}
+        transitions={[transition]}
+        onClose={vi.fn()}
+        updateNodeData={vi.fn()}
+        commitUniverseIdRename={commitUniverseIdRename}
+        commitUniverseCanonicalRename={commitUniverseCanonicalRename}
+        commitRealityIdRename={noopRenameHandlers.commitRealityIdRename}
+        updateTransitionData={vi.fn()}
+        moveTransition={vi.fn()}
+        openBehaviorModal={vi.fn() as never}
+        registry={[]}
+        metadataPackRegistry={[]}
+        metadataPackBindings={{
+          machine: [],
+          universe: [],
+          reality: [],
+          transition: [],
+        }}
+        setMetadataPackBindings={vi.fn() as never}
+      />,
+    );
+
+    const idInput = screen.getByDisplayValue("main") as HTMLInputElement;
+    expect(idInput).not.toHaveAttribute("readonly");
+    const linkToggle = screen.getByRole("checkbox", { name: /link id and canonicalname/i });
+    expect(linkToggle).not.toBeChecked();
+
+    fireEvent.change(idInput, { target: { value: "billing" } });
+    fireEvent.blur(idInput);
+    expect(commitUniverseIdRename).toHaveBeenCalledWith("u-1", "billing");
+    expect(idInput).toHaveValue("billing");
+
+    await user.click(linkToggle);
+    expect(commitUniverseCanonicalRename).toHaveBeenCalledWith("u-1", "main-canonical", {
+      syncId: true,
+    });
+    expect(idInput).toHaveAttribute("readonly");
+    expect(idInput).toHaveValue("main-canonical");
+  });
+
+  it("en realidad permite editar id y confirmar en blur", () => {
+    const commitRealityIdRename = vi.fn(() => "waiting-room");
+    const reality = nodes.find(
+      (node): node is Extract<EditorNode, { type: "reality" }> =>
+        node.type === "reality" && node.id === "r-1",
+    );
+    if (!reality) {
+      throw new Error("Reality fixture not found");
+    }
+
+    render(
+      <PropertiesModal
+        element={reality}
+        nodes={nodes}
+        transitions={[transition]}
+        onClose={vi.fn()}
+        updateNodeData={vi.fn()}
+        commitUniverseIdRename={noopRenameHandlers.commitUniverseIdRename}
+        commitUniverseCanonicalRename={noopRenameHandlers.commitUniverseCanonicalRename}
+        commitRealityIdRename={commitRealityIdRename}
+        updateTransitionData={vi.fn()}
+        moveTransition={vi.fn()}
+        openBehaviorModal={vi.fn() as never}
+        registry={[]}
+        metadataPackRegistry={[]}
+        metadataPackBindings={{
+          machine: [],
+          universe: [],
+          reality: [],
+          transition: [],
+        }}
+        setMetadataPackBindings={vi.fn() as never}
+      />,
+    );
+
+    const realityIdInput = screen.getByDisplayValue("idle") as HTMLInputElement;
+    fireEvent.change(realityIdInput, { target: { value: "waiting room" } });
+    fireEvent.blur(realityIdInput);
+
+    expect(commitRealityIdRename).toHaveBeenCalledWith("r-1", "waiting-room");
+    expect(realityIdInput).toHaveValue("waiting-room");
   });
 
   it("deshabilita notify cuando el target es interno al mismo universo", async () => {
@@ -120,6 +252,9 @@ describe("PropertiesModal transition behavior", () => {
         transitions={[transition]}
         onClose={vi.fn()}
         updateNodeData={vi.fn()}
+        commitUniverseIdRename={noopRenameHandlers.commitUniverseIdRename}
+        commitUniverseCanonicalRename={noopRenameHandlers.commitUniverseCanonicalRename}
+        commitRealityIdRename={noopRenameHandlers.commitRealityIdRename}
         updateTransitionData={updateTransitionData}
         moveTransition={vi.fn()}
         openBehaviorModal={vi.fn() as never}
@@ -146,6 +281,49 @@ describe("PropertiesModal transition behavior", () => {
     expect(updateTransitionData).not.toHaveBeenCalledWith("type", "notify");
   });
 
+  it("muestra labels simplificados en trigger y mode", () => {
+    const transitionWithExternalTarget: EditorTransition = {
+      ...transition,
+      id: "tr-external",
+      targets: ["U:billing"],
+    };
+
+    render(
+      <PropertiesModal
+        element={{ type: "transition", id: transitionWithExternalTarget.id, data: transitionWithExternalTarget }}
+        nodes={nodes}
+        transitions={[transitionWithExternalTarget]}
+        onClose={vi.fn()}
+        updateNodeData={vi.fn()}
+        commitUniverseIdRename={noopRenameHandlers.commitUniverseIdRename}
+        commitUniverseCanonicalRename={noopRenameHandlers.commitUniverseCanonicalRename}
+        commitRealityIdRename={noopRenameHandlers.commitRealityIdRename}
+        updateTransitionData={vi.fn()}
+        moveTransition={vi.fn()}
+        openBehaviorModal={vi.fn() as never}
+        registry={[]}
+        metadataPackRegistry={[]}
+        metadataPackBindings={{
+          machine: [],
+          universe: [],
+          reality: [],
+          transition: [],
+        }}
+        setMetadataPackBindings={vi.fn() as never}
+      />,
+    );
+
+    expect(screen.getByRole("option", { name: "On" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Always" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Default" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Notify" })).toBeInTheDocument();
+
+    expect(screen.queryByRole("option", { name: "Specific event (on)" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Automatic (always)" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Default (Advance)" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Notify (Notify/Keep)" })).not.toBeInTheDocument();
+  });
+
   it("permite reordenar transición y muestra errores inline del elemento", async () => {
     const user = userEvent.setup();
     const moveTransition = vi.fn();
@@ -163,6 +341,9 @@ describe("PropertiesModal transition behavior", () => {
         transitions={[transition, secondTransition]}
         onClose={vi.fn()}
         updateNodeData={vi.fn()}
+        commitUniverseIdRename={noopRenameHandlers.commitUniverseIdRename}
+        commitUniverseCanonicalRename={noopRenameHandlers.commitUniverseCanonicalRename}
+        commitRealityIdRename={noopRenameHandlers.commitRealityIdRename}
         updateTransitionData={vi.fn()}
         moveTransition={moveTransition}
         openBehaviorModal={vi.fn() as never}
@@ -211,6 +392,9 @@ describe("PropertiesModal transition behavior", () => {
         transitions={[transitionWithInvalidTarget]}
         onClose={vi.fn()}
         updateNodeData={vi.fn()}
+        commitUniverseIdRename={noopRenameHandlers.commitUniverseIdRename}
+        commitUniverseCanonicalRename={noopRenameHandlers.commitUniverseCanonicalRename}
+        commitRealityIdRename={noopRenameHandlers.commitRealityIdRename}
         updateTransitionData={updateTransitionData}
         moveTransition={vi.fn()}
         openBehaviorModal={vi.fn() as never}
@@ -264,6 +448,9 @@ describe("PropertiesModal transition behavior", () => {
         transitions={[guardedTransition]}
         onClose={vi.fn()}
         updateNodeData={vi.fn()}
+        commitUniverseIdRename={noopRenameHandlers.commitUniverseIdRename}
+        commitUniverseCanonicalRename={noopRenameHandlers.commitUniverseCanonicalRename}
+        commitRealityIdRename={noopRenameHandlers.commitRealityIdRename}
         updateTransitionData={updateTransitionData}
         moveTransition={vi.fn()}
         openBehaviorModal={openBehaviorModal as never}
@@ -300,6 +487,9 @@ describe("PropertiesModal transition behavior", () => {
         transitions={[transition]}
         onClose={vi.fn()}
         updateNodeData={vi.fn()}
+        commitUniverseIdRename={noopRenameHandlers.commitUniverseIdRename}
+        commitUniverseCanonicalRename={noopRenameHandlers.commitUniverseCanonicalRename}
+        commitRealityIdRename={noopRenameHandlers.commitRealityIdRename}
         updateTransitionData={updateTransitionData}
         moveTransition={vi.fn()}
         openBehaviorModal={vi.fn() as never}

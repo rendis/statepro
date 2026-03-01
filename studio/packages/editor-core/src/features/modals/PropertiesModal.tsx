@@ -15,8 +15,6 @@ import {
   buildRealityEntityRef,
   buildTransitionEntityRef,
   buildUniverseEntityRef,
-  cleanIdentifier,
-  ensureUniqueIdentifier,
   formatIdentifier,
   hasInternalTargets,
 } from "../../utils";
@@ -46,6 +44,13 @@ interface PropertiesModalProps {
   transitions: EditorTransition[];
   onClose: () => void;
   updateNodeData: (field: string, value: unknown) => void;
+  commitUniverseIdRename: (universeNodeId: string, nextUniverseIdDraft: string) => string;
+  commitUniverseCanonicalRename: (
+    universeNodeId: string,
+    nextCanonicalDraft: string,
+    options: { syncId: boolean },
+  ) => { id: string; canonicalName: string };
+  commitRealityIdRename: (realityNodeId: string, nextRealityIdDraft: string) => string;
   updateTransitionData: (field: string, value: unknown) => void;
   moveTransition: (direction: "up" | "down") => void;
   openBehaviorModal: Dispatch<SetStateAction<BehaviorModalState>>;
@@ -70,6 +75,9 @@ const PropertiesModal = ({
   transitions,
   onClose,
   updateNodeData,
+  commitUniverseIdRename,
+  commitUniverseCanonicalRename,
+  commitRealityIdRename,
   updateTransitionData,
   moveTransition,
   openBehaviorModal,
@@ -81,12 +89,90 @@ const PropertiesModal = ({
 }: PropertiesModalProps) => {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState("general");
+  const [universeIdDraft, setUniverseIdDraft] = useState("");
+  const [universeCanonicalDraft, setUniverseCanonicalDraft] = useState("");
+  const [universeIdCanonicalLinked, setUniverseIdCanonicalLinked] = useState(false);
+  const [realityIdDraft, setRealityIdDraft] = useState("");
 
   useEffect(() => {
     setActiveTab("general");
   }, [element?.id]);
 
   if (!element) return null;
+
+  const universeElement = element.type === "universe" ? element : null;
+  const realityElement = element.type === "reality" ? element : null;
+
+  useEffect(() => {
+    if (universeElement) {
+      const nextUniverseId = universeElement.data.id || "";
+      const nextCanonical = universeElement.data.canonicalName || nextUniverseId;
+      setUniverseIdDraft(nextUniverseId);
+      setUniverseCanonicalDraft(nextCanonical);
+      setUniverseIdCanonicalLinked(nextUniverseId === nextCanonical);
+      return;
+    }
+
+    if (realityElement) {
+      setRealityIdDraft(realityElement.data.id || realityElement.data.name || "");
+    }
+  }, [
+    realityElement?.data.id,
+    realityElement?.data.name,
+    realityElement?.id,
+    universeElement?.data.canonicalName,
+    universeElement?.data.id,
+    universeElement?.id,
+  ]);
+
+  const commitUniverseIdDraft = () => {
+    if (!universeElement || universeIdCanonicalLinked) {
+      return;
+    }
+
+    const resolvedId = commitUniverseIdRename(universeElement.id, universeIdDraft);
+    setUniverseIdDraft(resolvedId);
+  };
+
+  const commitUniverseCanonicalDraft = () => {
+    if (!universeElement) {
+      return;
+    }
+
+    const committed = commitUniverseCanonicalRename(
+      universeElement.id,
+      universeCanonicalDraft,
+      { syncId: universeIdCanonicalLinked },
+    );
+    setUniverseCanonicalDraft(committed.canonicalName);
+    if (universeIdCanonicalLinked) {
+      setUniverseIdDraft(committed.id);
+    }
+  };
+
+  const commitRealityIdDraft = () => {
+    if (!realityElement) {
+      return;
+    }
+
+    const resolvedId = commitRealityIdRename(realityElement.id, realityIdDraft);
+    setRealityIdDraft(resolvedId);
+  };
+
+  const handleUniversePairToggle = (checked: boolean) => {
+    setUniverseIdCanonicalLinked(checked);
+    if (!checked || !universeElement) {
+      return;
+    }
+
+    const committed = commitUniverseCanonicalRename(
+      universeElement.id,
+      universeCanonicalDraft,
+      { syncId: true },
+    );
+    setUniverseCanonicalDraft(committed.canonicalName);
+    setUniverseIdDraft(committed.id);
+  };
 
   const transitionElement = element.type === "transition" ? element : null;
 
@@ -250,14 +336,6 @@ const PropertiesModal = ({
       : transitionElement.data.type || "default"
     : "default";
 
-  const targetSummary = transitionElement
-    ? transitionElement.data.targets.length === 0
-      ? "Destino"
-      : transitionElement.data.targets.length === 1
-        ? transitionElement.data.targets[0]
-        : `${transitionElement.data.targets[0]} +${transitionElement.data.targets.length - 1}`
-    : "";
-
   const TransitionDefaultIcon = STUDIO_ICONS.transition.type.default;
   const TransitionNotifyIcon = STUDIO_ICONS.transition.type.notify;
   const UniverseIcon = STUDIO_ICONS.entity.universe;
@@ -267,9 +345,6 @@ const PropertiesModal = ({
   const OnTransitionPhaseIcon = STUDIO_ICONS.phase.onTransition;
   const transitionNotifyColorClass = STUDIO_ICON_REGISTRY.transition.type.notify.colors.base;
   const transitionDefaultColorClass = STUDIO_ICON_REGISTRY.transition.type.default.colors.base;
-  const transitionDefaultAccentClass =
-    STUDIO_ICON_REGISTRY.transition.type.default.colors.accent ??
-    STUDIO_ICON_REGISTRY.transition.type.default.colors.base;
   const universeColorClass = STUDIO_ICON_REGISTRY.entity.universe.colors.base;
   const realityColorClass = STUDIO_ICON_REGISTRY.entity.reality.colors.base;
   const observerColorClass = STUDIO_ICON_REGISTRY.behavior.observer.colors.base;
@@ -353,15 +428,22 @@ const PropertiesModal = ({
           {element.type === "reality" && activeTab === "general" && (
             <div className="space-y-4 animate-in fade-in">
               <div>
-                <label className="block text-[10px] text-slate-400 mb-1 font-mono uppercase tracking-wider flex justify-between">
-                  <span>{t("properties.reality.id")}</span>
-                  <span className="text-slate-500 normal-case">{t("common.readOnly")}</span>
+                <label className="block text-[10px] text-slate-400 mb-1 font-mono uppercase tracking-wider">
+                  {t("properties.reality.id")}
                 </label>
                 <input
                   type="text"
-                  value={element.data.id || element.data.name || ""}
-                  readOnly
-                  className={`${STUDIO_DS.input} font-mono text-slate-400 cursor-not-allowed`}
+                  value={realityIdDraft}
+                  onChange={(event) => setRealityIdDraft(formatIdentifier(event.target.value))}
+                  onBlur={commitRealityIdDraft}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter") {
+                      return;
+                    }
+                    event.preventDefault();
+                    event.currentTarget.blur();
+                  }}
+                  className={`${STUDIO_DS.input} font-mono`}
                 />
               </div>
               <label className="flex items-center gap-2 cursor-pointer bg-slate-950 p-2 border border-slate-700 rounded hover:border-slate-600 transition-colors">
@@ -459,15 +541,40 @@ const PropertiesModal = ({
                 <div>
                   <label className="block text-[10px] text-slate-400 mb-1 font-mono uppercase tracking-wider flex justify-between">
                     <span>{t("properties.universe.id")}</span>
-                    <span className="text-slate-500 normal-case">{t("common.readOnly")}</span>
+                    {universeIdCanonicalLinked && (
+                      <span className="text-slate-500 normal-case">{t("common.readOnly")}</span>
+                    )}
                   </label>
                   <input
                     type="text"
-                    value={element.data.id || ""}
-                    readOnly
-                    className={`${STUDIO_DS.inputSm} text-slate-400 cursor-not-allowed`}
+                    value={universeIdDraft}
+                    onChange={(event) => setUniverseIdDraft(formatIdentifier(event.target.value))}
+                    onBlur={commitUniverseIdDraft}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter") {
+                        return;
+                      }
+                      event.preventDefault();
+                      event.currentTarget.blur();
+                    }}
+                    readOnly={universeIdCanonicalLinked}
+                    className={`${STUDIO_DS.inputSm} ${
+                      universeIdCanonicalLinked
+                        ? "text-slate-400 cursor-not-allowed"
+                        : ""
+                    }`}
                   />
                 </div>
+                <label className="flex items-center gap-2 cursor-pointer bg-slate-950 p-2 border border-slate-700 rounded hover:border-slate-600 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={universeIdCanonicalLinked}
+                    onChange={(event) => handleUniversePairToggle(event.target.checked)}
+                    className="accent-blue-500 w-4 h-4"
+                  />
+                  <span className="text-slate-300 text-sm">{t("properties.universe.linkIdCanonical")}</span>
+                </label>
+                <p className="text-[10px] text-slate-500 -mt-2">{t("properties.universe.linkHelp")}</p>
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <label className="block text-[10px] text-slate-400 mb-1 font-mono uppercase tracking-wider">
@@ -475,29 +582,15 @@ const PropertiesModal = ({
                     </label>
                     <input
                       type="text"
-                      value={element.data.canonicalName || ""}
-                      onChange={(event) => {
-                        const formattedCanonical = formatIdentifier(event.target.value);
-                        updateNodeData("canonicalName", formattedCanonical);
-                      }}
-                      onBlur={(event) => {
-                        const cleanCanonical = cleanIdentifier(event.target.value) || "universe";
-                        const usedUniverseIdentifiers = new Set(
-                          nodes
-                            .filter(
-                              (node): node is Extract<EditorNode, { type: "universe" }> =>
-                                node.type === "universe" && node.id !== element.id,
-                            )
-                            .flatMap((node) => [node.data.id, node.data.canonicalName || node.data.id])
-                            .filter(Boolean),
-                        );
-                        const uniqueCanonical = ensureUniqueIdentifier(
-                          cleanCanonical,
-                          usedUniverseIdentifiers,
-                          "universe",
-                        );
-
-                        updateNodeData("canonicalName", uniqueCanonical);
+                      value={universeCanonicalDraft}
+                      onChange={(event) => setUniverseCanonicalDraft(formatIdentifier(event.target.value))}
+                      onBlur={commitUniverseCanonicalDraft}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter") {
+                          return;
+                        }
+                        event.preventDefault();
+                        event.currentTarget.blur();
                       }}
                       className={STUDIO_DS.inputSm}
                     />
@@ -636,16 +729,6 @@ const PropertiesModal = ({
 
           {transitionElement && activeTab === "general" && (
             <div className="space-y-4 animate-in fade-in">
-              <div className="flex items-center justify-between text-xs text-slate-400 bg-slate-950 p-3 rounded border border-slate-800">
-                <span className="font-mono truncate w-28 text-right">
-                  {sourceReality?.data.id || transitionElement.data.sourceRealityId}
-                </span>
-                <TransitionDefaultIcon size={14} className={transitionDefaultAccentClass} />
-                <span className="font-mono truncate w-28" title={transitionElement.data.targets.join(", ")}>
-                  {targetSummary}
-                </span>
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] text-slate-400 mb-1 font-mono uppercase tracking-wider">

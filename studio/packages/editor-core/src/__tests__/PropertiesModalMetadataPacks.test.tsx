@@ -77,6 +77,12 @@ describe("PropertiesModal metadata packs tab", () => {
         transitions={[transition]}
         onClose={vi.fn()}
         updateNodeData={vi.fn()}
+        commitUniverseIdRename={vi.fn((_, draft) => draft)}
+        commitUniverseCanonicalRename={vi.fn((_, draft, options) => ({
+          id: options.syncId ? draft : "main",
+          canonicalName: draft,
+        }))}
+        commitRealityIdRename={vi.fn((_, draft) => draft)}
         updateTransitionData={vi.fn()}
         moveTransition={vi.fn()}
         openBehaviorModal={vi.fn() as never}

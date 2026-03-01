@@ -88,6 +88,8 @@ import {
   replacePackIdInBindings,
   removePackBindingsByPackId,
   removeBehaviorReferences,
+  renameRealityId,
+  renameUniverseId,
 } from "./utils";
 import { computeAutoLayout } from "./utils/autoLayout";
 import {
@@ -1941,6 +1943,455 @@ function StateProEditorInner({
     panMovedRef.current = false;
   };
 
+  const commitUniverseIdRename = useCallback(
+    (universeNodeId: string, nextUniverseIdDraft: string): string => {
+      const universeNode = nodes.find(
+        (node): node is Extract<EditorNode, { type: "universe" }> =>
+          node.type === "universe" && node.id === universeNodeId,
+      );
+      if (!universeNode) {
+        return "";
+      }
+
+      const usedUniverseIds = new Set(
+        nodes
+          .filter(
+            (node): node is Extract<EditorNode, { type: "universe" }> =>
+              node.type === "universe" && node.id !== universeNodeId,
+          )
+          .map((node) => node.data.id)
+          .filter(Boolean),
+      );
+
+      const cleanUniverseId = cleanIdentifier(nextUniverseIdDraft) || "universe";
+      const resolvedUniverseId = ensureUniqueIdentifier(
+        cleanUniverseId,
+        usedUniverseIds,
+        "universe",
+      );
+      const shouldRename = universeNode.data.id !== resolvedUniverseId;
+      const shouldSyncName = universeNode.data.name !== resolvedUniverseId;
+
+      if (!shouldRename && !shouldSyncName) {
+        return resolvedUniverseId;
+      }
+
+      markDirtyFromImport();
+      const historyGroup = `rename-universe-id:${universeNodeId}`;
+
+      if (shouldRename) {
+        const remapped = renameUniverseId({
+          nodes,
+          transitions,
+          machineConfig,
+          metadataPackBindings,
+          universeNodeId,
+          nextUniverseId: resolvedUniverseId,
+        });
+
+        setNodes(remapped.nodes, {
+          mode: "coalesce",
+          group: historyGroup,
+        });
+        setTransitions(remapped.transitions, {
+          mode: "coalesce",
+          group: historyGroup,
+        });
+        setMachineConfig(remapped.machineConfig, {
+          mode: "coalesce",
+          group: historyGroup,
+        });
+        setMetadataPackBindings(remapped.metadataPackBindings, {
+          mode: "coalesce",
+          group: historyGroup,
+        });
+        setSelectedElement((previous) => {
+          if (
+            !previous ||
+            previous.type !== "universe" ||
+            previous.id !== universeNodeId
+          ) {
+            return previous;
+          }
+
+          return (
+            remapped.nodes.find(
+              (node): node is InspectableEditorNode =>
+                node.id === universeNodeId && node.type !== "note",
+            ) || previous
+          );
+        });
+        return resolvedUniverseId;
+      }
+
+      setNodes(
+        (previous) =>
+          previous.map((node) =>
+            node.type === "universe" && node.id === universeNodeId
+              ? {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    name: resolvedUniverseId,
+                  },
+                }
+              : node,
+          ),
+        {
+          mode: "coalesce",
+          group: historyGroup,
+        },
+      );
+      setSelectedElement((previous) => {
+        if (
+          !previous ||
+          previous.type !== "universe" ||
+          previous.id !== universeNodeId
+        ) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+          data: {
+            ...previous.data,
+            name: resolvedUniverseId,
+          },
+        };
+      });
+      return resolvedUniverseId;
+    },
+    [machineConfig, metadataPackBindings, nodes, transitions],
+  );
+
+  const commitUniverseCanonicalRename = useCallback(
+    (
+      universeNodeId: string,
+      nextCanonicalDraft: string,
+      options: { syncId: boolean } = { syncId: false },
+    ): { id: string; canonicalName: string } => {
+      const universeNode = nodes.find(
+        (node): node is Extract<EditorNode, { type: "universe" }> =>
+          node.type === "universe" && node.id === universeNodeId,
+      );
+      if (!universeNode) {
+        return { id: "", canonicalName: "" };
+      }
+
+      const usedUniverseIdentifiers = new Set(
+        nodes
+          .filter(
+            (node): node is Extract<EditorNode, { type: "universe" }> =>
+              node.type === "universe" && node.id !== universeNodeId,
+          )
+          .flatMap((node) => [node.data.id, node.data.canonicalName || node.data.id])
+          .filter(Boolean),
+      );
+
+      const cleanCanonical = cleanIdentifier(nextCanonicalDraft) || "universe";
+      const resolvedCanonical = ensureUniqueIdentifier(
+        cleanCanonical,
+        usedUniverseIdentifiers,
+        "universe",
+      );
+
+      const currentUniverseId = universeNode.data.id;
+      const currentCanonical = universeNode.data.canonicalName || currentUniverseId;
+
+      if (options.syncId) {
+        const nextUniverseId = resolvedCanonical;
+        const shouldRenameUniverse = currentUniverseId !== nextUniverseId;
+        const shouldUpdateCanonical = currentCanonical !== nextUniverseId;
+        const shouldSyncName = universeNode.data.name !== nextUniverseId;
+
+        if (!shouldRenameUniverse && !shouldUpdateCanonical && !shouldSyncName) {
+          return {
+            id: nextUniverseId,
+            canonicalName: nextUniverseId,
+          };
+        }
+
+        markDirtyFromImport();
+        const historyGroup = `rename-universe-canonical:${universeNodeId}`;
+
+        if (shouldRenameUniverse) {
+          const remapped = renameUniverseId({
+            nodes,
+            transitions,
+            machineConfig,
+            metadataPackBindings,
+            universeNodeId,
+            nextUniverseId,
+          });
+          const nextNodes = remapped.nodes.map((node) =>
+            node.type === "universe" && node.id === universeNodeId
+              ? {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    canonicalName: nextUniverseId,
+                    name: nextUniverseId,
+                  },
+                }
+              : node,
+          );
+
+          setNodes(nextNodes, {
+            mode: "coalesce",
+            group: historyGroup,
+          });
+          setTransitions(remapped.transitions, {
+            mode: "coalesce",
+            group: historyGroup,
+          });
+          setMachineConfig(remapped.machineConfig, {
+            mode: "coalesce",
+            group: historyGroup,
+          });
+          setMetadataPackBindings(remapped.metadataPackBindings, {
+            mode: "coalesce",
+            group: historyGroup,
+          });
+          setSelectedElement((previous) => {
+            if (
+              !previous ||
+              previous.type !== "universe" ||
+              previous.id !== universeNodeId
+            ) {
+              return previous;
+            }
+
+            return (
+              nextNodes.find(
+                (node): node is InspectableEditorNode =>
+                  node.id === universeNodeId && node.type !== "note",
+              ) || previous
+            );
+          });
+          return {
+            id: nextUniverseId,
+            canonicalName: nextUniverseId,
+          };
+        }
+
+        setNodes(
+          (previous) =>
+            previous.map((node) =>
+              node.type === "universe" && node.id === universeNodeId
+                ? {
+                    ...node,
+                    data: {
+                      ...node.data,
+                      canonicalName: nextUniverseId,
+                      name: nextUniverseId,
+                    },
+                  }
+                : node,
+            ),
+          {
+            mode: "coalesce",
+            group: historyGroup,
+          },
+        );
+        setSelectedElement((previous) => {
+          if (
+            !previous ||
+            previous.type !== "universe" ||
+            previous.id !== universeNodeId
+          ) {
+            return previous;
+          }
+
+          return {
+            ...previous,
+            data: {
+              ...previous.data,
+              canonicalName: nextUniverseId,
+              name: nextUniverseId,
+            },
+          };
+        });
+        return {
+          id: nextUniverseId,
+          canonicalName: nextUniverseId,
+        };
+      }
+
+      if (currentCanonical === resolvedCanonical) {
+        return {
+          id: currentUniverseId,
+          canonicalName: resolvedCanonical,
+        };
+      }
+
+      markDirtyFromImport();
+      const historyGroup = `rename-universe-canonical:${universeNodeId}`;
+      setNodes(
+        (previous) =>
+          previous.map((node) =>
+            node.type === "universe" && node.id === universeNodeId
+              ? {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    canonicalName: resolvedCanonical,
+                  },
+                }
+              : node,
+          ),
+        {
+          mode: "coalesce",
+          group: historyGroup,
+        },
+      );
+      setSelectedElement((previous) => {
+        if (
+          !previous ||
+          previous.type !== "universe" ||
+          previous.id !== universeNodeId
+        ) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+          data: {
+            ...previous.data,
+            canonicalName: resolvedCanonical,
+          },
+        };
+      });
+      return {
+        id: currentUniverseId,
+        canonicalName: resolvedCanonical,
+      };
+    },
+    [machineConfig, metadataPackBindings, nodes, transitions],
+  );
+
+  const commitRealityIdRename = useCallback(
+    (realityNodeId: string, nextRealityIdDraft: string): string => {
+      const realityNode = nodes.find(
+        (node): node is Extract<EditorNode, { type: "reality" }> =>
+          node.type === "reality" && node.id === realityNodeId,
+      );
+      if (!realityNode) {
+        return "";
+      }
+
+      const usedRealityIds = new Set(
+        nodes
+          .filter(
+            (node): node is Extract<EditorNode, { type: "reality" }> =>
+              node.type === "reality" &&
+              node.data.universeId === realityNode.data.universeId &&
+              node.id !== realityNodeId,
+          )
+          .map((node) => node.data.id)
+          .filter(Boolean),
+      );
+
+      const cleanRealityId = cleanIdentifier(nextRealityIdDraft) || "reality";
+      const resolvedRealityId = ensureUniqueIdentifier(
+        cleanRealityId,
+        usedRealityIds,
+        "reality",
+      );
+      const shouldRename = realityNode.data.id !== resolvedRealityId;
+      const shouldSyncName = realityNode.data.name !== resolvedRealityId;
+
+      if (!shouldRename && !shouldSyncName) {
+        return resolvedRealityId;
+      }
+
+      markDirtyFromImport();
+      const historyGroup = `rename-reality-id:${realityNodeId}`;
+
+      if (shouldRename) {
+        const remapped = renameRealityId({
+          nodes,
+          transitions,
+          machineConfig,
+          metadataPackBindings,
+          realityNodeId,
+          nextRealityId: resolvedRealityId,
+        });
+
+        setNodes(remapped.nodes, {
+          mode: "coalesce",
+          group: historyGroup,
+        });
+        setTransitions(remapped.transitions, {
+          mode: "coalesce",
+          group: historyGroup,
+        });
+        setMachineConfig(remapped.machineConfig, {
+          mode: "coalesce",
+          group: historyGroup,
+        });
+        setMetadataPackBindings(remapped.metadataPackBindings, {
+          mode: "coalesce",
+          group: historyGroup,
+        });
+        setSelectedElement((previous) => {
+          if (
+            !previous ||
+            previous.type !== "reality" ||
+            previous.id !== realityNodeId
+          ) {
+            return previous;
+          }
+
+          return (
+            remapped.nodes.find(
+              (node): node is InspectableEditorNode =>
+                node.id === realityNodeId && node.type !== "note",
+            ) || previous
+          );
+        });
+        return resolvedRealityId;
+      }
+
+      setNodes(
+        (previous) =>
+          previous.map((node) =>
+            node.type === "reality" && node.id === realityNodeId
+              ? {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    name: resolvedRealityId,
+                  },
+                }
+              : node,
+          ),
+        {
+          mode: "coalesce",
+          group: historyGroup,
+        },
+      );
+      setSelectedElement((previous) => {
+        if (
+          !previous ||
+          previous.type !== "reality" ||
+          previous.id !== realityNodeId
+        ) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+          data: {
+            ...previous.data,
+            name: resolvedRealityId,
+          },
+        };
+      });
+      return resolvedRealityId;
+    },
+    [machineConfig, metadataPackBindings, nodes, transitions],
+  );
+
   const updateModalNodeData = (field: string, value: unknown) => {
     if (!isInspectableEditorNode(selectedElement)) return;
 
@@ -3454,6 +3905,9 @@ function StateProEditorInner({
           transitions={transitions}
           onClose={() => setIsModalOpen(false)}
           updateNodeData={updateModalNodeData}
+          commitUniverseIdRename={commitUniverseIdRename}
+          commitUniverseCanonicalRename={commitUniverseCanonicalRename}
+          commitRealityIdRename={commitRealityIdRename}
           updateTransitionData={updateModalTransitionData}
           moveTransition={moveSelectedTransition}
           openBehaviorModal={setBehaviorModal}

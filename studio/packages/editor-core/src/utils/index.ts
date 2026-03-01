@@ -11,3 +11,4 @@ export * from "./targetOptions";
 export * from "./canvasCoordinates";
 export * from "./transitionBadgeLayout";
 export * from "./behaviorScriptContract";
+export * from "./idReferencePropagation";
