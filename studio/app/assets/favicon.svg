@@ -1,0 +1,80 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Patrón de cuadrícula sutil de fondo -->
+    <pattern id="dotGrid" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
+      <circle cx="4" cy="4" r="2" fill="#1e293b" />
+    </pattern>
+
+    <!-- Degradado cyberpunk para el flujo de estados -->
+    <linearGradient id="flowGradient" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#06b6d4" />  <!-- Cian vibrante -->
+      <stop offset="50%" stop-color="#8b5cf6" /> <!-- Púrpura -->
+      <stop offset="100%" stop-color="#ec4899" /> <!-- Rosa -->
+    </linearGradient>
+
+    <!-- Resplandor de Neón para la línea -->
+    <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="16" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Fondo Base: Squircle oscuro -->
+  <rect width="512" height="512" rx="120" fill="#020617" />
+  <rect width="512" height="512" rx="120" fill="url(#dotGrid)" />
+
+  <!-- Escala central para que llene bien el espacio de 512x512 -->
+  <g transform="translate(256, 256) scale(1.15) translate(-256, -256)">
+    
+    <!-- 
+      TRAYECTORIA (TRANSICIÓN): 
+      Dibuja una 'S' perfecta usando 4 arcos de semicírculo exactos.
+    -->
+    <!-- Capa de Resplandor (Glow) -->
+    <path d="M 352 160 
+             A 96 96 0 0 0 160 160 
+             A 96 96 0 0 0 256 256 
+             A 96 96 0 0 1 352 352 
+             A 96 96 0 0 1 160 352" 
+          fill="none" stroke="url(#flowGradient)" stroke-width="24" stroke-linecap="round" 
+          filter="url(#neonGlow)" opacity="0.6" />
+          
+    <!-- Capa Sólida (Línea principal) -->
+    <path d="M 352 160 
+             A 96 96 0 0 0 160 160 
+             A 96 96 0 0 0 256 256 
+             A 96 96 0 0 1 352 352 
+             A 96 96 0 0 1 160 352" 
+          fill="none" stroke="url(#flowGradient)" stroke-width="24" stroke-linecap="round" />
+
+    <!-- 
+      NODOS DE ESTADO: 
+      Círculos que rompen la línea principal creando el efecto de "Nodos"
+    -->
+    
+    <!-- Nodo 1: Inicio (Arriba Derecha) -->
+    <g transform="translate(352, 160)">
+      <circle cx="0" cy="0" r="32" fill="#020617" /> <!-- Recorte oscuro -->
+      <circle cx="0" cy="0" r="20" fill="none" stroke="#06b6d4" stroke-width="8" /> <!-- Borde -->
+      <circle cx="0" cy="0" r="8" fill="#06b6d4" /> <!-- Centro -->
+    </g>
+
+    <!-- Nodo 2: Proceso / Router (Centro) -->
+    <g transform="translate(256, 256)">
+      <circle cx="0" cy="0" r="32" fill="#020617" />
+      <circle cx="0" cy="0" r="20" fill="none" stroke="#8b5cf6" stroke-width="8" />
+      <circle cx="0" cy="0" r="8" fill="#8b5cf6" />
+    </g>
+
+    <!-- Nodo 3: Fin (Abajo Izquierda) -->
+    <g transform="translate(160, 352)">
+      <circle cx="0" cy="0" r="32" fill="#020617" />
+      <circle cx="0" cy="0" r="20" fill="none" stroke="#ec4899" stroke-width="8" />
+      <circle cx="0" cy="0" r="8" fill="#ec4899" />
+    </g>
+
+  </g>
+</svg>

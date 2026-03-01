@@ -167,11 +167,15 @@ export interface StateProEditorProps {
   onLocaleChange?: (locale: StudioLocale) => void;
   persistLocale?: boolean;
   showLocaleSwitcher?: boolean;
+  logoSrc?: string;
+  logoAlt?: string;
 }
 
 interface StateProEditorInnerProps {
   initialLocale: StudioLocale;
   showLocaleSwitcher: boolean;
+  logoSrc?: string;
+  logoAlt?: string;
   value?: StudioExternalValue;
   defaultValue?: StudioExternalValue;
   onChange?: (payload: StudioChangePayload) => void;
@@ -207,6 +211,8 @@ export function StateProEditor({
   onLocaleChange,
   persistLocale = true,
   showLocaleSwitcher = true,
+  logoSrc,
+  logoAlt,
 }: StateProEditorProps = {}) {
   const initialLocale = resolveInitialStudioLocale({
     locale,
@@ -239,6 +245,8 @@ export function StateProEditor({
       <StateProEditorInner
         initialLocale={initialLocale}
         showLocaleSwitcher={showLocaleSwitcher}
+        logoSrc={logoSrc}
+        logoAlt={logoAlt}
         value={value}
         defaultValue={defaultValue}
         onChange={onChange}
@@ -254,6 +262,8 @@ export function StateProEditor({
 function StateProEditorInner({
   initialLocale,
   showLocaleSwitcher,
+  logoSrc,
+  logoAlt,
   value,
   defaultValue,
   onChange,
@@ -3435,9 +3445,17 @@ function StateProEditorInner({
     <div className="flex flex-col h-screen bg-slate-950 text-slate-200 font-sans overflow-hidden relative">
       <header className="absolute top-0 w-full h-14 bg-slate-900/80 backdrop-blur border-b border-slate-800 flex items-center justify-between px-6 z-[60]">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20">
-            SP
-          </div>
+          {logoSrc ? (
+            <img
+              src={logoSrc}
+              alt={logoAlt ?? "Studio logo"}
+              className="w-8 h-8 object-contain"
+            />
+          ) : (
+            <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20">
+              SP
+            </div>
+          )}
           <h1 className="font-semibold text-lg tracking-wide">
             {t("editor.header.title")}
           </h1>
