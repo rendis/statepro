@@ -138,7 +138,7 @@ const CANVAS_EDGE_PADDING = 600;
 const VIEWPORT_ANIMATION_MS = 180;
 const VIEWPORT_ANIMATION_TYPE = "easeOutCubic" as const;
 const DEFAULT_CHANGE_DEBOUNCE_MS = 250;
-const SEARCH_PULSE_DURATION_MS = 900;
+const SEARCH_PULSE_DURATION_MS = 1300;
 
 type HistoryTrackingOptions = {
   mode?: HistoryApplyMode;

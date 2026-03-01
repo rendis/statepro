@@ -83,7 +83,11 @@ const valueWithTags: StudioExternalValue = {
 
 const openSearchInput = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.click(screen.getByTestId("toolbar-search-toggle"));
-  return screen.findByRole("textbox", { name: /buscar nodos/i });
+  const input = await screen.findByRole("textbox", { name: /buscar nodos/i });
+  await waitFor(() => {
+    expect(input).toHaveFocus();
+  });
+  return input;
 };
 
 describe("StateProEditor viewport toolbar", () => {
@@ -196,6 +200,15 @@ describe("StateProEditor viewport toolbar", () => {
     await waitFor(() => {
       expect(universeNode.style.width).not.toBe(initialWidth);
     });
+  });
+
+  it("expande buscador y enfoca input automaticamente sin click adicional", async () => {
+    const user = userEvent.setup();
+    render(<StateProEditor locale="es" />);
+
+    expect(screen.queryByRole("textbox", { name: /buscar nodos/i })).not.toBeInTheDocument();
+    const searchInput = await openSearchInput(user);
+    expect(searchInput).toHaveFocus();
   });
 
   it("muestra buscador y lista coincidencias con iconografia por entidad", async () => {
@@ -344,7 +357,7 @@ describe("StateProEditor viewport toolbar", () => {
       () => {
         expect(realityNode.className).not.toMatch(/studio-search-pulse-(a|b)/);
       },
-      { timeout: 2000 },
+      { timeout: 5000 },
     );
   });
 });

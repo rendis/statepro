@@ -11,7 +11,7 @@ import {
   Undo2,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { STUDIO_ICON_REGISTRY, STUDIO_ICONS } from "../../constants";
 import { useI18n } from "../../i18n";
@@ -101,6 +101,46 @@ export const CanvasToolbar = ({
       ...searchFilters,
       [key]: !searchFilters[key],
     });
+
+    requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+  };
+
+  const handleSearchKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!showExpandedSearch) {
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      onSearchMoveSelection?.("down");
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      onSearchMoveSelection?.("up");
+      return;
+    }
+
+    if (event.key === "Enter" && searchActiveIndex >= 0) {
+      event.preventDefault();
+      onSearchSelect?.(searchActiveIndex);
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onSearchQueryChange?.("");
+      setIsSearchFocusWithin(false);
+      setIsSearchExpanded(false);
+
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        target.blur();
+      }
+    }
   };
 
   useEffect(() => {
@@ -162,11 +202,22 @@ export const CanvasToolbar = ({
     });
   }, [searchActiveIndex, searchResults, showSearchResults]);
 
+  useEffect(() => {
+    if (!showExpandedSearch) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus({ preventScroll: true });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [showExpandedSearch]);
+
   const openSearchInput = () => {
     setIsSearchExpanded(true);
-    requestAnimationFrame(() => {
-      searchInputRef.current?.focus();
-    });
   };
 
   return (
@@ -176,6 +227,7 @@ export const CanvasToolbar = ({
         className={`fixed top-20 right-8 z-[70] transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           showExpandedSearch ? "w-[440px]" : "w-11"
         }`}
+        onKeyDownCapture={handleSearchKeyDown}
         onFocusCapture={() => setIsSearchFocusWithin(true)}
         onBlurCapture={(event) => {
           const nextTarget = event.relatedTarget;
@@ -201,6 +253,9 @@ export const CanvasToolbar = ({
             <button
               type="button"
               data-testid="toolbar-search-toggle"
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
               onClick={openSearchInput}
               className="w-11 h-11 flex items-center justify-center text-slate-300 hover:text-slate-100 transition-colors"
               title={t("toolbar.searchAria")}
@@ -213,35 +268,10 @@ export const CanvasToolbar = ({
               <Search size={14} className="text-slate-400 shrink-0" />
               <input
                 ref={searchInputRef}
+                autoFocus
                 data-testid="toolbar-search-input"
                 value={searchQuery}
                 onChange={(event) => onSearchQueryChange?.(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "ArrowDown") {
-                    event.preventDefault();
-                    onSearchMoveSelection?.("down");
-                    return;
-                  }
-                  if (event.key === "ArrowUp") {
-                    event.preventDefault();
-                    onSearchMoveSelection?.("up");
-                    return;
-                  }
-                  if (event.key === "Enter") {
-                    if (searchActiveIndex >= 0) {
-                      event.preventDefault();
-                      onSearchSelect?.(searchActiveIndex);
-                    }
-                    return;
-                  }
-                  if (event.key === "Escape") {
-                    event.preventDefault();
-                    onSearchQueryChange?.("");
-                    setIsSearchFocusWithin(false);
-                    setIsSearchExpanded(false);
-                    (event.currentTarget as HTMLInputElement).blur();
-                  }
-                }}
                 className="min-w-0 flex-1 bg-transparent text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none"
                 placeholder={t("toolbar.searchPlaceholder")}
                 aria-label={t("toolbar.searchAria")}
