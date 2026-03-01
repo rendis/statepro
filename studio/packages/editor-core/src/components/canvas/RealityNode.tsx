@@ -14,6 +14,7 @@ import type { NodeSizeMap, RealityType } from "../../types";
 interface RealityNodeProps {
   node: Extract<import("../../types").EditorNode, { type: "reality" }>;
   selected: boolean;
+  searchPulseClassName?: string;
   issueCount?: number;
   onMouseDown: (
     event: MouseEvent<HTMLDivElement>,
@@ -41,6 +42,7 @@ interface RealityNodeProps {
 export const RealityNode = ({
   node,
   selected,
+  searchPulseClassName,
   issueCount = 0,
   onMouseDown,
   onPortMouseDown,
@@ -108,7 +110,7 @@ export const RealityNode = ({
         selected
           ? `${hasErrors ? "border-red-500" : typeConfig.border} z-40`
           : `${hasErrors ? "border-red-700" : "border-slate-600"} z-20`
-      } ${node.data.isInitial ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900" : ""}`}
+      } ${node.data.isInitial ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900" : ""} ${searchPulseClassName || ""}`}
       onMouseDown={(event) => onMouseDown(event, node)}
     >
       {hasErrors && (

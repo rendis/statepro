@@ -73,6 +73,7 @@ import type {
 } from "./types";
 import {
   BADGE_WIDTH,
+  DEFAULT_CANVAS_SEARCH_FILTERS,
   buildIssueIndex,
   buildTargetReferenceFromNodes,
   buildTransitionLegs,
@@ -83,6 +84,7 @@ import {
   getTransitionGroupKey,
   isInvalidNotifyTransition,
   moveTransitionInsideGroup,
+  searchCanvasNodes,
   viewportPointToCanvasPoint,
   removeTransitionsReferencingDeletedNodes,
   replacePackIdInBindings,
@@ -91,6 +93,7 @@ import {
   renameRealityId,
   renameUniverseId,
 } from "./utils";
+import type { CanvasSearchFilters } from "./utils";
 import { computeAutoLayout } from "./utils/autoLayout";
 import {
   computeCanvasSize,
@@ -135,6 +138,7 @@ const CANVAS_EDGE_PADDING = 600;
 const VIEWPORT_ANIMATION_MS = 180;
 const VIEWPORT_ANIMATION_TYPE = "easeOutCubic" as const;
 const DEFAULT_CHANGE_DEBOUNCE_MS = 250;
+const SEARCH_PULSE_DURATION_MS = 900;
 
 type HistoryTrackingOptions = {
   mode?: HistoryApplyMode;
@@ -308,6 +312,13 @@ function StateProEditorInner({
   const lastLibraryBehaviorsSignatureRef = useRef<string | null>(null);
 
   const [selectedElement, setSelectedElement] = useState<SelectedEditorElement | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchFilters, setSearchFilters] = useState<CanvasSearchFilters>({
+    ...DEFAULT_CANVAS_SEARCH_FILTERS,
+  });
+  const [searchActiveIndex, setSearchActiveIndex] = useState(-1);
+  const [searchPulseNodeId, setSearchPulseNodeId] = useState<string | null>(null);
+  const [searchPulseTick, setSearchPulseTick] = useState(0);
 
   const applyEditorAction = useCallback(
     (
@@ -629,6 +640,13 @@ function StateProEditorInner({
     () => computeCanvasSize(contentBounds, MIN_CANVAS_SIZE, CANVAS_EDGE_PADDING),
     [contentBounds],
   );
+  const searchResults = useMemo(
+    () =>
+      searchCanvasNodes(nodes, searchQuery, {
+        filters: searchFilters,
+      }),
+    [nodes, searchFilters, searchQuery],
+  );
 
   const getViewportSize = () => {
     const container = containerRef.current;
@@ -680,6 +698,67 @@ function StateProEditorInner({
       VIEWPORT_ANIMATION_TYPE,
     );
   };
+
+  const focusNodeInCanvas = useCallback(
+    (nodeId: string, behavior: ScrollBehavior = "smooth") => {
+      const node = nodes.find(
+        (candidate): candidate is Extract<EditorNode, { type: "universe" | "reality" }> =>
+          (candidate.type === "universe" || candidate.type === "reality") && candidate.id === nodeId,
+      );
+      if (!node) {
+        return;
+      }
+
+      if (node.type === "universe") {
+        centerAt(node.x + node.w / 2, node.y + node.h / 2, getTransformState().scale, behavior);
+      } else {
+        const width = nodeSizes[node.id]?.w || DEFAULT_REALITY_WIDTH;
+        const height = nodeSizes[node.id]?.h || DEFAULT_REALITY_HEIGHT;
+        centerAt(node.x + width / 2, node.y + height / 2, getTransformState().scale, behavior);
+      }
+
+      setSelectedElement(node);
+      setSearchPulseNodeId(node.id);
+      setSearchPulseTick((previous) => previous + 1);
+    },
+    [nodeSizes, nodes],
+  );
+
+  const moveSearchSelection = useCallback(
+    (direction: "up" | "down") => {
+      if (searchResults.length === 0) {
+        return;
+      }
+
+      let nextIndex = 0;
+      if (searchActiveIndex < 0) {
+        nextIndex = direction === "down" ? 0 : searchResults.length - 1;
+      } else {
+        nextIndex =
+          direction === "down"
+            ? (searchActiveIndex + 1) % searchResults.length
+            : (searchActiveIndex - 1 + searchResults.length) % searchResults.length;
+      }
+
+      setSearchActiveIndex(nextIndex);
+      const nextResult = searchResults[nextIndex];
+      if (nextResult) {
+        focusNodeInCanvas(nextResult.nodeId, "smooth");
+      }
+    },
+    [focusNodeInCanvas, searchActiveIndex, searchResults],
+  );
+
+  const selectSearchResult = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= searchResults.length) {
+        return;
+      }
+      setSearchActiveIndex(index);
+      focusNodeInCanvas(searchResults[index].nodeId, "smooth");
+    },
+    [focusNodeInCanvas, searchResults],
+  );
 
   const handleCenterContent = useCallback(
     (behavior: ScrollBehavior = "smooth") => {
@@ -857,6 +936,33 @@ function StateProEditorInner({
     lastAutoFitImportRef.current = lastImportedMachine;
     scheduleAutoFit("auto");
   }, [lastImportedMachine, scheduleAutoFit]);
+
+  useEffect(() => {
+    if (!searchQuery.trim() || searchResults.length === 0) {
+      if (searchActiveIndex !== -1) {
+        setSearchActiveIndex(-1);
+      }
+      return;
+    }
+
+    if (searchActiveIndex >= searchResults.length || searchActiveIndex < 0) {
+      setSearchActiveIndex(0);
+    }
+  }, [searchActiveIndex, searchQuery, searchResults]);
+
+  useEffect(() => {
+    if (!searchPulseNodeId) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSearchPulseNodeId(null);
+    }, SEARCH_PULSE_DURATION_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [searchPulseNodeId, searchPulseTick]);
 
   useEffect(() => {
     const isEditableTarget = (target: EventTarget | null): boolean => {
@@ -3469,7 +3575,13 @@ function StateProEditorInner({
                     selectedElement?.type === "universe" && selectedElement.id === node.id
                       ? `${hasUniverseErrors ? "border-red-500" : "border-blue-500"} bg-slate-900/40 z-0`
                       : `${hasUniverseErrors ? "border-red-700" : "border-slate-600"} bg-slate-900/20 z-0`
-                  } transition-colors`}
+                  } transition-colors ${
+                    searchPulseNodeId === node.id
+                      ? searchPulseTick % 2 === 0
+                        ? "studio-search-pulse-a"
+                        : "studio-search-pulse-b"
+                      : ""
+                  }`}
                   onMouseDown={(e) => handleNodeMouseDown(e, node)}
                   onDoubleClick={(event) => {
                     event.preventDefault();
@@ -3549,6 +3661,13 @@ function StateProEditorInner({
                 <RealityNode
                   node={node}
                   selected={selectedElement?.type === "reality" && selectedElement.id === node.id}
+                  searchPulseClassName={
+                    searchPulseNodeId === node.id
+                      ? searchPulseTick % 2 === 0
+                        ? "studio-search-pulse-a"
+                        : "studio-search-pulse-b"
+                      : undefined
+                  }
                   issueCount={issueIndex.realities.get(node.id)?.length || 0}
                   onMouseDown={handleNodeMouseDown}
                   onPortMouseDown={(e, nodeId) => startConnectionFromRealitySource(e, nodeId)}
@@ -3969,6 +4088,19 @@ function StateProEditorInner({
         onFit={() => handleFitToContent("smooth")}
         onCenter={() => handleCenterContent("smooth")}
         zoom={zoom}
+        searchQuery={searchQuery}
+        searchResults={searchResults}
+        searchFilters={searchFilters}
+        searchActiveIndex={searchActiveIndex}
+        onSearchQueryChange={(query) => {
+          setSearchQuery(query);
+          if (!query.trim()) {
+            setSearchActiveIndex(-1);
+          }
+        }}
+        onSearchFiltersChange={setSearchFilters}
+        onSearchMoveSelection={moveSearchSelection}
+        onSearchSelect={selectSearchResult}
       />
 
       {isModalOpen && propertiesModalElement && (

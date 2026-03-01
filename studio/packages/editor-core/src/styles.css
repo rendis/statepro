@@ -52,3 +52,48 @@ body {
   border: 2px solid transparent;
   background-clip: padding-box;
 }
+
+@keyframes studioSearchPulseA {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    transform: scale(1);
+  }
+  35% {
+    box-shadow: 0 0 0 9px rgba(59, 130, 246, 0.18);
+    transform: scale(1.012);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    transform: scale(1);
+  }
+}
+
+@keyframes studioSearchPulseB {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    transform: scale(1);
+  }
+  35% {
+    box-shadow: 0 0 0 9px rgba(59, 130, 246, 0.18);
+    transform: scale(1.012);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    transform: scale(1);
+  }
+}
+
+.studio-search-pulse-a {
+  animation: studioSearchPulseA 900ms cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+
+.studio-search-pulse-b {
+  animation: studioSearchPulseB 900ms cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-search-pulse-a,
+  .studio-search-pulse-b {
+    animation: none;
+  }
+}
