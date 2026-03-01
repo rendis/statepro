@@ -90,6 +90,7 @@ import {
   replacePackIdInBindings,
   removePackBindingsByPackId,
   removeBehaviorReferences,
+  resolveVisualFocus,
   renameRealityId,
   renameUniverseId,
 } from "./utils";
@@ -124,6 +125,7 @@ type TransitionDragStart = {
   startOffsetX: number;
   startOffsetY: number;
 };
+type VisualizationMode = "off" | "hide" | "dim";
 
 const DEFAULT_REALITY_WIDTH = 192;
 const DEFAULT_REALITY_HEIGHT = 150;
@@ -312,6 +314,8 @@ function StateProEditorInner({
   const lastLibraryBehaviorsSignatureRef = useRef<string | null>(null);
 
   const [selectedElement, setSelectedElement] = useState<SelectedEditorElement | null>(null);
+  const [multiSelectedNodeIds, setMultiSelectedNodeIds] = useState<string[]>([]);
+  const [visualizationMode, setVisualizationMode] = useState<VisualizationMode>("off");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFilters, setSearchFilters] = useState<CanvasSearchFilters>({
     ...DEFAULT_CANVAS_SEARCH_FILTERS,
@@ -563,6 +567,21 @@ function StateProEditorInner({
   const gestureBaseSnapshotRef = useRef<EditorHistorySnapshot | null>(null);
   const panStartedRef = useRef(false);
   const panMovedRef = useRef(false);
+  const clearMultiSelection = useCallback(() => {
+    setMultiSelectedNodeIds((previous) => (previous.length === 0 ? previous : []));
+  }, []);
+
+  const selectTransitionElement = useCallback(
+    (transition: EditorTransition) => {
+      clearMultiSelection();
+      setSelectedElement({
+        type: "transition",
+        id: transition.id,
+        data: transition,
+      });
+    },
+    [clearMultiSelection],
+  );
 
   useEffect(() => {
     if (!isControlled || !value) {
@@ -590,9 +609,11 @@ function StateProEditorInner({
     changeSourceRef.current = "external-sync";
     resetHistoryWith(nextState);
     gestureBaseSnapshotRef.current = null;
+    clearMultiSelection();
+    setVisualizationMode("off");
     setSelectedElement(null);
     setIsModalOpen(false);
-  }, [isControlled, libraryBehaviors, resetHistoryWith, value]);
+  }, [clearMultiSelection, isControlled, libraryBehaviors, resetHistoryWith, value]);
 
   useEffect(() => {
     if (isControlled || !libraryBehaviors) {
@@ -647,6 +668,77 @@ function StateProEditorInner({
       }),
     [nodes, searchFilters, searchQuery],
   );
+  const selectableNodeIds = useMemo(
+    () =>
+      new Set(
+        nodes
+          .filter((node) => node.type === "universe" || node.type === "reality")
+          .map((node) => node.id),
+      ),
+    [nodes],
+  );
+  const validMultiSelectedNodeIds = useMemo(
+    () =>
+      multiSelectedNodeIds.filter(
+        (nodeId, index, source) =>
+          selectableNodeIds.has(nodeId) && source.indexOf(nodeId) === index,
+      ),
+    [multiSelectedNodeIds, selectableNodeIds],
+  );
+  const effectiveSelectedNodeIds = useMemo(() => {
+    if (validMultiSelectedNodeIds.length > 0) {
+      return validMultiSelectedNodeIds;
+    }
+
+    if (
+      selectedElement &&
+      selectedElement.type !== "transition" &&
+      selectedElement.type !== "note"
+    ) {
+      return [selectedElement.id];
+    }
+
+    return [];
+  }, [selectedElement, validMultiSelectedNodeIds]);
+  const hasMultiNodeSelection = effectiveSelectedNodeIds.length > 1;
+  const visualFocus = useMemo(
+    () => resolveVisualFocus(nodes, transitions, effectiveSelectedNodeIds),
+    [effectiveSelectedNodeIds, nodes, transitions],
+  );
+  const isFilterActive =
+    visualizationMode !== "off" && effectiveSelectedNodeIds.length > 0;
+  const isNodeFocusedBySelection = (nodeId: string): boolean =>
+    !isFilterActive || visualFocus.focusedNodeIds.has(nodeId);
+  const isTransitionFocusedBySelection = (transitionId: string): boolean =>
+    !isFilterActive || visualFocus.focusedTransitionIds.has(transitionId);
+  const handleVisualizationModeChange = useCallback(
+    (mode: VisualizationMode) => {
+      setVisualizationMode(mode);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    setMultiSelectedNodeIds((previous) => {
+      const next = previous.filter((nodeId) => selectableNodeIds.has(nodeId));
+      if (next.length === previous.length) {
+        return previous;
+      }
+      return next;
+    });
+  }, [selectableNodeIds]);
+
+  useEffect(() => {
+    if (
+      selectedElement &&
+      selectedElement.type !== "transition" &&
+      selectedElement.type !== "note"
+    ) {
+      return;
+    }
+
+    clearMultiSelection();
+  }, [clearMultiSelection, selectedElement]);
 
   const getViewportSize = () => {
     const container = containerRef.current;
@@ -717,11 +809,12 @@ function StateProEditorInner({
         centerAt(node.x + width / 2, node.y + height / 2, getTransformState().scale, behavior);
       }
 
+      clearMultiSelection();
       setSelectedElement(node);
       setSearchPulseNodeId(node.id);
       setSearchPulseTick((previous) => previous + 1);
     },
-    [nodeSizes, nodes],
+    [clearMultiSelection, nodeSizes, nodes],
   );
 
   const moveSearchSelection = useCallback(
@@ -1263,6 +1356,7 @@ function StateProEditorInner({
     };
 
     setNodes((prev) => [...prev, newUniverse]);
+    clearMultiSelection();
     setSelectedElement(newUniverse);
   };
 
@@ -1386,6 +1480,7 @@ function StateProEditorInner({
       mode: "coalesce",
       group: historyGroup,
     });
+    clearMultiSelection();
     setSelectedElement(nextUniverseNode);
   };
 
@@ -1415,6 +1510,7 @@ function StateProEditorInner({
     setNodes((prev) => [...prev, newNote], {
       markDirtyFromImport: false,
     });
+    clearMultiSelection();
     setSelectedElement(newNote);
   };
 
@@ -1499,12 +1595,55 @@ function StateProEditorInner({
       ];
     });
 
+    clearMultiSelection();
     setSelectedElement(newReality);
   };
 
   const handleNodeMouseDown = (e: React.MouseEvent<HTMLDivElement>, node: EditorNode) => {
     e.stopPropagation();
+
+    if ((node.type === "universe" || node.type === "reality") && e.shiftKey) {
+      e.preventDefault();
+      setDraggingNode(null);
+      setDragStartInfo(null);
+      setResizingStart(null);
+      setIsModalOpen(false);
+
+      const baseSelection =
+        multiSelectedNodeIds.length > 0
+          ? multiSelectedNodeIds
+          : selectedElement && selectedElement.type !== "transition" && selectedElement.type !== "note"
+            ? [selectedElement.id]
+            : [];
+      const normalizedBase = baseSelection.filter((nodeId, index, source) => {
+        return selectableNodeIds.has(nodeId) && source.indexOf(nodeId) === index;
+      });
+      const alreadySelected = normalizedBase.includes(node.id);
+      const nextSelection = alreadySelected
+        ? normalizedBase.filter((nodeId) => nodeId !== node.id)
+        : [...normalizedBase, node.id];
+
+      setMultiSelectedNodeIds(nextSelection);
+
+      if (nextSelection.length === 0) {
+        setSelectedElement(null);
+        return;
+      }
+
+      const activeNodeId = nextSelection.includes(node.id)
+        ? node.id
+        : nextSelection[nextSelection.length - 1] || "";
+      const activeNode = nodes.find(
+        (candidate): candidate is Extract<EditorNode, { type: "universe" | "reality" }> =>
+          (candidate.type === "universe" || candidate.type === "reality") &&
+          candidate.id === activeNodeId,
+      );
+      setSelectedElement(activeNode || null);
+      return;
+    }
+
     captureGestureBaseSnapshot();
+    clearMultiSelection();
     setSelectedElement(node);
     setDraggingNode(node.id);
 
@@ -1552,6 +1691,7 @@ function StateProEditorInner({
     transition: EditorTransition,
   ) => {
     captureGestureBaseSnapshot();
+    clearMultiSelection();
     setSelectedElement({
       type: "transition",
       id: transition.id,
@@ -1569,6 +1709,7 @@ function StateProEditorInner({
   const handleResizeMouseDown = (e: React.MouseEvent<HTMLDivElement>, node: Extract<EditorNode, { type: "universe" }>) => {
     e.stopPropagation();
     captureGestureBaseSnapshot();
+    clearMultiSelection();
     setSelectedElement(node);
     setResizingStart({
       id: node.id,
@@ -1688,11 +1829,7 @@ function StateProEditorInner({
             : transition,
         ),
       );
-      setSelectedElement({
-        type: "transition",
-        id: updatedTransition.id,
-        data: updatedTransition,
-      });
+      selectTransitionElement(updatedTransition);
       setConnectingStart(null);
       return;
     }
@@ -1723,11 +1860,7 @@ function StateProEditorInner({
             : transition,
         ),
       );
-      setSelectedElement({
-        type: "transition",
-        id: updatedTransition.id,
-        data: updatedTransition,
-      });
+      selectTransitionElement(updatedTransition);
       setConnectingStart(null);
       return;
     }
@@ -1758,7 +1891,7 @@ function StateProEditorInner({
     };
 
     setTransitions((prev) => [...prev, newTransition]);
-    setSelectedElement({ type: "transition", id: newTransition.id, data: newTransition });
+    selectTransitionElement(newTransition);
     setConnectingStart(null);
   };
 
@@ -2075,6 +2208,7 @@ function StateProEditorInner({
       return;
     }
 
+    clearMultiSelection();
     setSelectedElement(null);
     setIsModalOpen(false);
   };
@@ -2770,6 +2904,7 @@ function StateProEditorInner({
       const transitionId = elementToDelete.id;
       setTransitions((prev) => prev.filter((transition) => transition.id !== transitionId));
       if (selectedElement?.id === transitionId) {
+        clearMultiSelection();
         setSelectedElement(null);
         setIsModalOpen(false);
       }
@@ -2812,6 +2947,7 @@ function StateProEditorInner({
         selectedElement.type !== "transition" &&
         nodesToDelete.includes(selectedElement.id)
       ) {
+        clearMultiSelection();
         setSelectedElement(null);
         setIsModalOpen(false);
       }
@@ -2942,6 +3078,7 @@ function StateProEditorInner({
       });
     }
 
+    clearMultiSelection();
     setSelectedElement(newReality);
   };
 
@@ -3075,6 +3212,7 @@ function StateProEditorInner({
       mode: "coalesce",
       group: historyGroup,
     });
+    clearMultiSelection();
     setSelectedElement(newUniverse);
   };
 
@@ -3211,6 +3349,8 @@ function StateProEditorInner({
     changeSourceRef.current = "user";
     resetHistoryWithRef.current(nextState);
     gestureBaseSnapshotRef.current = null;
+    clearMultiSelection();
+    setVisualizationMode("off");
     setSelectedElement(null);
     setIsModalOpen(false);
     setShowJsonModal(false);
@@ -3228,6 +3368,8 @@ function StateProEditorInner({
     changeSourceRef.current = "user";
     resetHistoryWith(applied.state);
     gestureBaseSnapshotRef.current = null;
+    clearMultiSelection();
+    setVisualizationMode("off");
     setSelectedElement(null);
     setIsModalOpen(false);
     setShowJsonModal(false);
@@ -3464,78 +3606,104 @@ function StateProEditorInner({
               </marker>
             </defs>
             {transitions.map((transition) => {
+              const isFocusedByFilter = isTransitionFocusedBySelection(transition.id);
+              const shouldHide =
+                isFilterActive &&
+                visualizationMode === "hide" &&
+                !isFocusedByFilter;
+              if (shouldHide) {
+                return null;
+              }
+
+              const isMuted =
+                isFilterActive &&
+                visualizationMode === "dim" &&
+                !isFocusedByFilter;
               const legs = transitionLegsByTransitionId.get(transition.id) || [];
               const routeGeometry = transitionRouteGeometryByTransitionId.get(transition.id) || null;
               return (
-                <TransitionRoute
+                <g
                   key={`route-${transition.id}`}
-                  transition={transition}
-                  legs={legs}
-                  nodes={nodes}
-                  nodeSizes={nodeSizes}
-                  routeGeometry={routeGeometry}
-                  selected={selectedElement?.type === "transition" && selectedElement.id === transition.id}
-                  invalidNotify={isInvalidNotifyTransition(transition, nodes)}
-                  onSelect={() =>
-                    setSelectedElement({
-                      type: "transition",
-                      id: transition.id,
-                      data: transition,
-                    })
-                  }
-                  onHover={(isHovered) =>
-                    setHoveredTransitionId((prev) =>
-                      isHovered ? transition.id : prev === transition.id ? null : prev,
-                    )
-                  }
-                  onOutputPortMouseDown={(event) =>
-                    startConnectionFromTransitionOutput(event, transition.id)
-                  }
-                />
+                  className={isMuted ? "studio-visual-muted pointer-events-none" : undefined}
+                >
+                  <TransitionRoute
+                    transition={transition}
+                    legs={legs}
+                    nodes={nodes}
+                    nodeSizes={nodeSizes}
+                    routeGeometry={routeGeometry}
+                    selected={selectedElement?.type === "transition" && selectedElement.id === transition.id}
+                    invalidNotify={isInvalidNotifyTransition(transition, nodes)}
+                    onSelect={() =>
+                      selectTransitionElement(transition)
+                    }
+                    onHover={(isHovered) =>
+                      setHoveredTransitionId((prev) =>
+                        isHovered ? transition.id : prev === transition.id ? null : prev,
+                      )
+                    }
+                    onOutputPortMouseDown={(event) =>
+                      startConnectionFromTransitionOutput(event, transition.id)
+                    }
+                  />
+                </g>
               );
             })}
 
             {transitions.map((transition) => {
+              const isFocusedByFilter = isTransitionFocusedBySelection(transition.id);
+              const shouldHide =
+                isFilterActive &&
+                visualizationMode === "hide" &&
+                !isFocusedByFilter;
+              if (shouldHide) {
+                return null;
+              }
+
               const anchor = transitionBadgeAnchors.get(transition.id);
               if (!anchor) {
                 return null;
               }
 
+              const isMuted =
+                isFilterActive &&
+                visualizationMode === "dim" &&
+                !isFocusedByFilter;
               const transitionIssueCount = issueIndex.transitions.get(transition.id)?.length || 0;
               const transitionOrderSummary = transitionOrderSummaryById.get(transition.id);
 
               return (
-                <TransitionBadge
+                <g
                   key={`badge-${transition.id}`}
-                  x={anchor.x}
-                  y={anchor.y}
-                  transition={transition}
-                  selected={selectedElement?.type === "transition" && selectedElement.id === transition.id}
-                  alwaysOrderSummary={
-                    transition.triggerKind === "always" && transitionOrderSummary
-                      ? `${transitionOrderSummary.position} / ${transitionOrderSummary.total}`
-                      : undefined
-                  }
-                  invalidNotify={isInvalidNotifyTransition(transition, nodes)}
-                  issueCount={transitionIssueCount}
-                  onSelect={() =>
-                    setSelectedElement({
-                      type: "transition",
-                      id: transition.id,
-                      data: transition,
-                    })
-                  }
-                  onEdit={() => setIsModalOpen(true)}
-                  onMouseDown={(event) => handleTransitionMouseDown(event, transition)}
-                  onOutputPortMouseDown={(event) =>
-                    startConnectionFromTransitionOutput(event, transition.id)
-                  }
-                  onHover={(isHovered) =>
-                    setHoveredTransitionId((prev) =>
-                      isHovered ? transition.id : prev === transition.id ? null : prev,
-                    )
-                  }
-                />
+                  className={isMuted ? "studio-visual-muted pointer-events-none" : undefined}
+                >
+                  <TransitionBadge
+                    x={anchor.x}
+                    y={anchor.y}
+                    transition={transition}
+                    selected={selectedElement?.type === "transition" && selectedElement.id === transition.id}
+                    alwaysOrderSummary={
+                      transition.triggerKind === "always" && transitionOrderSummary
+                        ? `${transitionOrderSummary.position} / ${transitionOrderSummary.total}`
+                        : undefined
+                    }
+                    invalidNotify={isInvalidNotifyTransition(transition, nodes)}
+                    issueCount={transitionIssueCount}
+                    onSelect={() =>
+                      selectTransitionElement(transition)
+                    }
+                    onEdit={() => setIsModalOpen(true)}
+                    onMouseDown={(event) => handleTransitionMouseDown(event, transition)}
+                    onOutputPortMouseDown={(event) =>
+                      startConnectionFromTransitionOutput(event, transition.id)
+                    }
+                    onHover={(isHovered) =>
+                      setHoveredTransitionId((prev) =>
+                        isHovered ? transition.id : prev === transition.id ? null : prev,
+                      )
+                    }
+                  />
+                </g>
               );
             })}
 
@@ -3562,6 +3730,26 @@ function StateProEditorInner({
           </svg>
 
           {nodes.map((node) => {
+            const isVisualFilterCandidate =
+              node.type === "universe" || node.type === "reality";
+            const isFocusedByFilter = isVisualFilterCandidate
+              ? isNodeFocusedBySelection(node.id)
+              : true;
+            const shouldHide =
+              isVisualFilterCandidate &&
+              isFilterActive &&
+              visualizationMode === "hide" &&
+              !isFocusedByFilter;
+            if (shouldHide) {
+              return null;
+            }
+
+            const isMuted =
+              isVisualFilterCandidate &&
+              isFilterActive &&
+              visualizationMode === "dim" &&
+              !isFocusedByFilter;
+
             if (node.type === "universe") {
               const universeIssueCount = issueIndex.universes.get(node.id)?.length || 0;
               const hasUniverseErrors = universeIssueCount > 0;
@@ -3581,11 +3769,12 @@ function StateProEditorInner({
                         ? "studio-search-pulse-a"
                         : "studio-search-pulse-b"
                       : ""
-                  }`}
+                  } ${isMuted ? "studio-visual-muted pointer-events-none" : ""}`}
                   onMouseDown={(e) => handleNodeMouseDown(e, node)}
                   onDoubleClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
+                    clearMultiSelection();
                     setSelectedElement(node);
                     setIsModalOpen(true);
                   }}
@@ -3651,16 +3840,19 @@ function StateProEditorInner({
               <div
                 key={node.id}
                 data-testid={`reality-node-wrapper-${node.id}`}
+                className={isMuted ? "studio-visual-muted pointer-events-none" : ""}
                 onDoubleClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  clearMultiSelection();
                   setSelectedElement(node);
                   setIsModalOpen(true);
                 }}
               >
                 <RealityNode
                   node={node}
-                  selected={selectedElement?.type === "reality" && selectedElement.id === node.id}
+                  selected={effectiveSelectedNodeIds.includes(node.id)}
+                  showContextMenu={!hasMultiNodeSelection}
                   searchPulseClassName={
                     searchPulseNodeId === node.id
                       ? searchPulseTick % 2 === 0
@@ -3696,6 +3888,7 @@ function StateProEditorInner({
           {nodes.map((node) => {
             if (
               node.type === "universe" &&
+              !hasMultiNodeSelection &&
               selectedElement?.type === "universe" &&
               selectedElement.id === node.id
             ) {
@@ -3812,6 +4005,9 @@ function StateProEditorInner({
           })}
 
           {selectedElement?.type === "transition" &&
+            (!isFilterActive ||
+              visualizationMode !== "hide" ||
+              isTransitionFocusedBySelection(selectedElement.id)) &&
             (() => {
               const anchor = transitionBadgeAnchors.get(selectedElement.id);
               if (!anchor) return null;
@@ -3871,6 +4067,14 @@ function StateProEditorInner({
               return null;
             }
 
+            const ownerFocused = isNodeFocusedBySelection(node.id);
+            const shouldHideOwnerNote =
+              isFilterActive && visualizationMode === "hide" && !ownerFocused;
+            if (shouldHideOwnerNote) {
+              return null;
+            }
+            const isOwnerMuted =
+              isFilterActive && visualizationMode === "dim" && !ownerFocused;
             const isFocused =
               selectedElement?.type !== "transition" && selectedElement?.id === node.id;
 
@@ -3889,13 +4093,18 @@ function StateProEditorInner({
             return (
               <div
                 key={`note-node-${node.id}`}
-                className="absolute z-[80] pointer-events-auto"
+                className={`absolute z-[80] pointer-events-auto ${
+                  isOwnerMuted ? "studio-visual-muted pointer-events-none" : ""
+                }`}
                 style={{ left: x, top: y }}
               >
                 <AnchoredNote
                   note={node.data.note}
                   isFocused={Boolean(isFocused)}
-                  onRequestFocus={() => setSelectedElement(node)}
+                  onRequestFocus={() => {
+                    clearMultiSelection();
+                    setSelectedElement(node);
+                  }}
                   onUpdate={(nextNote) => updateNodeAnchoredNote(node.id, nextNote)}
                   onDelete={() => updateNodeAnchoredNote(node.id, null)}
                 />
@@ -3908,29 +4117,36 @@ function StateProEditorInner({
               return null;
             }
 
+            const transitionFocused = isTransitionFocusedBySelection(transition.id);
+            const shouldHideTransitionNote =
+              isFilterActive && visualizationMode === "hide" && !transitionFocused;
+            if (shouldHideTransitionNote) {
+              return null;
+            }
+
             const anchor = transitionBadgeAnchors.get(transition.id);
             if (!anchor) {
               return null;
             }
 
+            const isTransitionMuted =
+              isFilterActive && visualizationMode === "dim" && !transitionFocused;
             const isFocused =
               selectedElement?.type === "transition" && selectedElement.id === transition.id;
 
             return (
               <div
                 key={`note-transition-${transition.id}`}
-                className="absolute z-[80] pointer-events-auto"
+                className={`absolute z-[80] pointer-events-auto ${
+                  isTransitionMuted ? "studio-visual-muted pointer-events-none" : ""
+                }`}
                 style={{ left: anchor.x + 60, top: anchor.y - 20 }}
               >
                 <AnchoredNote
                   note={transition.note}
                   isFocused={isFocused}
                   onRequestFocus={() =>
-                    setSelectedElement({
-                      type: "transition",
-                      id: transition.id,
-                      data: transition,
-                    })
+                    selectTransitionElement(transition)
                   }
                   onUpdate={(nextNote) => updateTransitionNote(transition.id, nextNote)}
                   onDelete={() => updateTransitionNote(transition.id, null)}
@@ -3943,6 +4159,9 @@ function StateProEditorInner({
             const transition = transitionsById.get(hoveredTransitionId);
             const anchor = transition ? transitionBadgeAnchors.get(transition.id) : null;
             if (!transition || !anchor) return null;
+            if (isFilterActive && !isTransitionFocusedBySelection(transition.id)) {
+              return null;
+            }
 
             const isAlways = transition.triggerKind === "always";
             const triggerName = isAlways
@@ -4101,6 +4320,9 @@ function StateProEditorInner({
         onSearchFiltersChange={setSearchFilters}
         onSearchMoveSelection={moveSearchSelection}
         onSearchSelect={selectSearchResult}
+        selectedNodeCount={effectiveSelectedNodeIds.length}
+        visualizationMode={visualizationMode}
+        onVisualizationModeChange={handleVisualizationModeChange}
       />
 
       {isModalOpen && propertiesModalElement && (

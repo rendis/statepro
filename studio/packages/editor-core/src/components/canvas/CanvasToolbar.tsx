@@ -1,5 +1,8 @@
 import {
   ChevronUp,
+  Eye,
+  EyeOff,
+  Info,
   Maximize,
   Minus,
   Plus,
@@ -11,7 +14,13 @@ import {
   Undo2,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from "react";
 
 import { STUDIO_ICON_REGISTRY, STUDIO_ICONS } from "../../constants";
 import { useI18n } from "../../i18n";
@@ -42,7 +51,71 @@ export interface CanvasToolbarProps {
   onSearchFiltersChange?: (next: CanvasSearchFilters) => void;
   onSearchMoveSelection?: (direction: "up" | "down") => void;
   onSearchSelect?: (index: number) => void;
+  selectedNodeCount?: number;
+  visualizationMode?: "off" | "hide" | "dim";
+  onVisualizationModeChange?: (mode: "off" | "hide" | "dim") => void;
 }
+
+interface ToolbarTooltipProps {
+  label: string;
+  side?: "top" | "bottom";
+  children: ReactNode;
+}
+
+interface VisualModePreviewInfoProps {
+  imageSrc: string;
+  alt: string;
+}
+
+const VISUALIZATION_HIDE_PREVIEW_SRC = "/assets/visualization_hide_unrelated.svg";
+const VISUALIZATION_DIM_PREVIEW_SRC = "/assets/visualization_dim_unrelated.svg";
+
+const ToolbarTooltip = ({ label, side = "top", children }: ToolbarTooltipProps) => {
+  const sideClasses =
+    side === "bottom"
+      ? "top-full left-1/2 -translate-x-1/2 mt-2"
+      : "bottom-full left-1/2 -translate-x-1/2 mb-2";
+
+  return (
+    <div className="relative inline-flex group/tooltip">
+      {children}
+      <div
+        role="tooltip"
+        className={`pointer-events-none absolute z-[90] whitespace-nowrap ${sideClasses} opacity-0 translate-y-0.5 group-hover/tooltip:opacity-100 group-focus-within/tooltip:opacity-100 transition-all duration-150 ease-out`}
+      >
+        <div className="px-2 py-1 rounded-md text-[11px] font-medium text-slate-100 bg-slate-900 border border-slate-700 shadow-xl">
+          {label}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const VisualModePreviewInfo = ({ imageSrc, alt }: VisualModePreviewInfoProps) => {
+  return (
+    <div className="relative inline-flex group/visual-preview">
+      <button
+        type="button"
+        className="h-6 w-6 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+        aria-label={alt}
+      >
+        <Info size={12} />
+      </button>
+      <div
+        role="tooltip"
+        className="pointer-events-none absolute left-full top-1/2 ml-2 -translate-y-1/2 opacity-0 translate-x-1 group-hover/visual-preview:opacity-100 group-focus-within/visual-preview:opacity-100 transition-all duration-150 ease-out z-[90]"
+      >
+        <div className="w-72 overflow-hidden rounded-md border border-slate-700 bg-slate-950 shadow-2xl">
+          <img src={imageSrc} alt={alt} className="block w-full h-auto" />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const CanvasToolbar = ({
   onAddUniverse,
@@ -72,12 +145,17 @@ export const CanvasToolbar = ({
   onSearchFiltersChange,
   onSearchMoveSelection,
   onSearchSelect,
+  selectedNodeCount = 0,
+  visualizationMode = "off",
+  onVisualizationModeChange,
 }: CanvasToolbarProps) => {
   const { t } = useI18n();
   const [templatesMenuOpen, setTemplatesMenuOpen] = useState(false);
+  const [visualMenuOpen, setVisualMenuOpen] = useState(false);
   const [isSearchFocusWithin, setIsSearchFocusWithin] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const templateMenuRef = useRef<HTMLDivElement | null>(null);
+  const visualMenuRef = useRef<HTMLDivElement | null>(null);
   const searchRootRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const resultsViewportRef = useRef<HTMLDivElement | null>(null);
@@ -163,6 +241,25 @@ export const CanvasToolbar = ({
   }, []);
 
   useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      const container = visualMenuRef.current;
+      if (!container) {
+        return;
+      }
+
+      const path = event.composedPath();
+      if (!path.includes(container)) {
+        setVisualMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!canUseTemplates && templatesMenuOpen) {
       setTemplatesMenuOpen(false);
     }
@@ -229,6 +326,13 @@ export const CanvasToolbar = ({
     }
   };
 
+  const setVisualizationMode = (mode: "off" | "hide" | "dim") => {
+    onVisualizationModeChange?.(mode);
+    setVisualMenuOpen(false);
+  };
+  const centerToolbarIconButtonBase =
+    "h-9 w-9 inline-flex items-center justify-center rounded-lg transition-colors";
+
   return (
     <>
       <div
@@ -259,19 +363,20 @@ export const CanvasToolbar = ({
           }`}
         >
           {!showExpandedSearch ? (
-            <button
-              type="button"
-              data-testid="toolbar-search-toggle"
-              onMouseDown={(event) => {
-                event.preventDefault();
-              }}
-              onClick={openSearchInput}
-              className="w-11 h-11 flex items-center justify-center text-slate-300 hover:text-slate-100 transition-colors"
-              title={t("toolbar.searchAria")}
-              aria-label={t("toolbar.searchAria")}
-            >
-              <Search size={14} />
-            </button>
+            <ToolbarTooltip label={t("toolbar.searchAria")} side="bottom">
+              <button
+                type="button"
+                data-testid="toolbar-search-toggle"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                }}
+                onClick={openSearchInput}
+                className="w-11 h-11 flex items-center justify-center text-slate-300 hover:text-slate-100 transition-colors"
+                aria-label={t("toolbar.searchAria")}
+              >
+                <Search size={14} />
+              </button>
+            </ToolbarTooltip>
           ) : (
             <div className="flex items-center gap-2">
               <Search size={14} className="text-slate-400 shrink-0" />
@@ -287,59 +392,63 @@ export const CanvasToolbar = ({
               />
 
               <div className="flex items-center gap-1 pl-2 border-l border-slate-700">
-                <button
-                  type="button"
-                  data-testid="toolbar-search-filter-universe"
-                  title={t("toolbar.searchFilter.universe")}
-                  aria-label={t("toolbar.searchFilter.universe")}
-                  onClick={() => toggleSearchFilter("universe")}
-                  className={`p-1.5 rounded transition-colors border ${
-                    searchFilters.universe
-                      ? "text-blue-300 border-blue-500/60 bg-blue-500/20"
-                      : "text-slate-500 border-slate-700 hover:border-slate-600"
-                  }`}
-                >
-                  <STUDIO_ICONS.entity.universe size={13} />
-                </button>
-                <button
-                  type="button"
-                  data-testid="toolbar-search-filter-tag"
-                  title={t("toolbar.searchFilter.tag")}
-                  aria-label={t("toolbar.searchFilter.tag")}
-                  onClick={() => toggleSearchFilter("tag")}
-                  className={`p-1.5 rounded transition-colors border ${
-                    searchFilters.tag
-                      ? "text-cyan-300 border-cyan-500/60 bg-cyan-500/20"
-                      : "text-slate-500 border-slate-700 hover:border-slate-600"
-                  }`}
-                >
-                  <Tag size={13} />
-                </button>
-                <button
-                  type="button"
-                  data-testid="toolbar-search-filter-reality"
-                  title={t("toolbar.searchFilter.reality")}
-                  aria-label={t("toolbar.searchFilter.reality")}
-                  onClick={() => toggleSearchFilter("reality")}
-                  className={`p-1.5 rounded transition-colors border ${
-                    searchFilters.reality
-                      ? "text-green-300 border-green-500/60 bg-green-500/20"
-                      : "text-slate-500 border-slate-700 hover:border-slate-600"
-                  }`}
-                >
-                  <STUDIO_ICONS.entity.reality size={13} />
-                </button>
-                {searchQuery && (
+                <ToolbarTooltip label={t("toolbar.searchFilter.universe")} side="bottom">
                   <button
                     type="button"
-                    data-testid="toolbar-search-clear"
-                    onClick={() => onSearchQueryChange?.("")}
-                    className="p-1 text-slate-400 hover:text-slate-200 rounded transition-colors"
-                    title={t("toolbar.searchClear")}
-                    aria-label={t("toolbar.searchClear")}
+                    data-testid="toolbar-search-filter-universe"
+                    aria-label={t("toolbar.searchFilter.universe")}
+                    onClick={() => toggleSearchFilter("universe")}
+                    className={`p-1.5 rounded transition-colors border ${
+                      searchFilters.universe
+                        ? "text-blue-300 border-blue-500/60 bg-blue-500/20"
+                        : "text-slate-500 border-slate-700 hover:border-slate-600"
+                    }`}
                   >
-                    <X size={14} />
+                    <STUDIO_ICONS.entity.universe size={13} />
                   </button>
+                </ToolbarTooltip>
+                <ToolbarTooltip label={t("toolbar.searchFilter.tag")} side="bottom">
+                  <button
+                    type="button"
+                    data-testid="toolbar-search-filter-tag"
+                    aria-label={t("toolbar.searchFilter.tag")}
+                    onClick={() => toggleSearchFilter("tag")}
+                    className={`p-1.5 rounded transition-colors border ${
+                      searchFilters.tag
+                        ? "text-cyan-300 border-cyan-500/60 bg-cyan-500/20"
+                        : "text-slate-500 border-slate-700 hover:border-slate-600"
+                    }`}
+                  >
+                    <Tag size={13} />
+                  </button>
+                </ToolbarTooltip>
+                <ToolbarTooltip label={t("toolbar.searchFilter.reality")} side="bottom">
+                  <button
+                    type="button"
+                    data-testid="toolbar-search-filter-reality"
+                    aria-label={t("toolbar.searchFilter.reality")}
+                    onClick={() => toggleSearchFilter("reality")}
+                    className={`p-1.5 rounded transition-colors border ${
+                      searchFilters.reality
+                        ? "text-green-300 border-green-500/60 bg-green-500/20"
+                        : "text-slate-500 border-slate-700 hover:border-slate-600"
+                    }`}
+                  >
+                    <STUDIO_ICONS.entity.reality size={13} />
+                  </button>
+                </ToolbarTooltip>
+                {searchQuery && (
+                  <ToolbarTooltip label={t("toolbar.searchClear")} side="bottom">
+                    <button
+                      type="button"
+                      data-testid="toolbar-search-clear"
+                      onClick={() => onSearchQueryChange?.("")}
+                      className="p-1 text-slate-400 hover:text-slate-200 rounded transition-colors"
+                      aria-label={t("toolbar.searchClear")}
+                    >
+                      <X size={14} />
+                    </button>
+                  </ToolbarTooltip>
                 )}
               </div>
             </div>
@@ -420,44 +529,61 @@ export const CanvasToolbar = ({
         )}
       </div>
 
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 rounded-full p-1.5 shadow-2xl flex items-center gap-1 z-[60] animate-in slide-in-from-bottom-5">
-        <button
-          onClick={onAddUniverse}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-full text-white font-medium text-sm transition-colors shadow-inner"
-        >
-          <Plus size={16} /> {t("toolbar.addBlankUniverse")}
-        </button>
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-xl p-1.5 shadow-2xl flex items-center gap-1 z-[60] animate-in slide-in-from-bottom-5">
+        <ToolbarTooltip label={t("toolbar.addBlankUniverse")}>
+          <button
+            onClick={onAddUniverse}
+            className={`${centerToolbarIconButtonBase} text-slate-200 hover:text-white hover:bg-slate-700`}
+            aria-label={t("toolbar.addBlankUniverse")}
+          >
+            <span className="relative inline-flex items-center justify-center">
+              <STUDIO_ICONS.entity.universe
+                size={16}
+                className={STUDIO_ICON_REGISTRY.entity.universe.colors.base}
+              />
+              <Plus
+                size={13}
+                className="absolute -right-2 -bottom-2 text-emerald-300 drop-shadow-[0_0_4px_rgba(16,185,129,0.45)]"
+              />
+            </span>
+          </button>
+        </ToolbarTooltip>
         {onAddGlobalNote && (
           <>
-            <div className="w-px h-6 bg-slate-700 mx-1" />
-            <button
-              onClick={onAddGlobalNote}
-              className="flex items-center gap-2 px-4 py-2 bg-yellow-600/20 text-yellow-500 hover:bg-yellow-600/30 border border-yellow-500/30 hover:border-yellow-500/50 rounded-full font-medium text-sm transition-colors"
-              title={t("toolbar.addGlobalNote")}
-            >
-              <StickyNote size={16} /> {t("editor.context.addNote")}
-            </button>
+            <div className="w-px h-5 bg-slate-700 mx-0.5" />
+            <ToolbarTooltip label={t("toolbar.addGlobalNote")}>
+              <button
+                onClick={onAddGlobalNote}
+                className={`${centerToolbarIconButtonBase} text-yellow-500 hover:text-yellow-400 hover:bg-yellow-900/30`}
+                aria-label={t("toolbar.addGlobalNote")}
+              >
+                <StickyNote size={16} />
+              </button>
+            </ToolbarTooltip>
           </>
         )}
+        <div className="w-px h-5 bg-slate-700 mx-0.5" />
         <div className="relative" ref={templateMenuRef}>
-          <button
-            type="button"
-            onClick={() => {
-              if (!canUseTemplates) {
-                return;
-              }
-              setTemplatesMenuOpen((previous) => !previous);
-            }}
-            disabled={!canUseTemplates}
-            className={`p-2 rounded-full transition-colors ${
-              canUseTemplates
-                ? "text-slate-300 hover:text-white hover:bg-slate-700"
-                : "text-slate-400 cursor-not-allowed"
-            }`}
-            title={t("toolbar.prebuiltUniverses")}
-          >
-            <ChevronUp size={16} />
-          </button>
+          <ToolbarTooltip label={t("toolbar.prebuiltUniverses")}>
+            <button
+              type="button"
+              onClick={() => {
+                if (!canUseTemplates) {
+                  return;
+                }
+                setTemplatesMenuOpen((previous) => !previous);
+              }}
+              disabled={!canUseTemplates}
+              className={`${centerToolbarIconButtonBase} ${
+                canUseTemplates
+                  ? "text-slate-300 hover:text-white hover:bg-slate-700"
+                  : "text-slate-400 cursor-not-allowed"
+              }`}
+              aria-label={t("toolbar.prebuiltUniverses")}
+            >
+              <ChevronUp size={16} />
+            </button>
+          </ToolbarTooltip>
 
           {templatesMenuOpen && canUseTemplates && (
             <div className="absolute bottom-14 left-1/2 -translate-x-1/2 w-72 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl p-2 z-[80] max-h-72 overflow-y-auto custom-scrollbar">
@@ -485,60 +611,164 @@ export const CanvasToolbar = ({
             </div>
           )}
         </div>
+
+        <div className="w-px h-5 bg-slate-700 mx-0.5" />
+        <div className="relative" ref={visualMenuRef}>
+          <ToolbarTooltip label={t("toolbar.visual.mode")}>
+            <button
+              type="button"
+              data-testid="toolbar-visual-mode-trigger"
+              onClick={() => {
+                setVisualMenuOpen((previous) => !previous);
+              }}
+              aria-label={t("toolbar.visual.mode")}
+              aria-haspopup="menu"
+              aria-expanded={visualMenuOpen}
+              className={`${centerToolbarIconButtonBase} ${
+                visualizationMode === "hide"
+                  ? "text-rose-200 bg-rose-500/20 hover:bg-rose-500/30"
+                  : visualizationMode === "dim"
+                    ? "text-amber-100 bg-amber-500/20 hover:bg-amber-500/30"
+                    : "text-slate-300 hover:text-white hover:bg-slate-700"
+              }`}
+            >
+              {visualizationMode === "hide" ? (
+                <EyeOff size={16} />
+              ) : visualizationMode === "dim" ? (
+                <Target size={16} />
+              ) : (
+                <Eye size={16} />
+              )}
+            </button>
+          </ToolbarTooltip>
+
+          {visualMenuOpen && (
+            <div
+              data-testid="toolbar-visual-mode-menu"
+              role="menu"
+              className="absolute bottom-14 left-1/2 -translate-x-1/2 w-52 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl p-2 z-[80]"
+            >
+              <button
+                type="button"
+                role="menuitemradio"
+                data-testid="toolbar-visual-mode-off"
+                aria-checked={visualizationMode === "off"}
+                onClick={() => setVisualizationMode("off")}
+                className={`w-full text-left rounded-md px-2.5 py-2 transition-colors flex items-center gap-2 ${
+                  visualizationMode === "off"
+                    ? "bg-slate-700/80 text-slate-100"
+                    : "text-slate-300 hover:bg-slate-800"
+                }`}
+              >
+                <Eye size={14} />
+                <span className="text-xs">{t("toolbar.visual.off")}</span>
+              </button>
+              <div className="w-full flex items-center gap-1">
+                <button
+                  type="button"
+                  role="menuitemradio"
+                  data-testid="toolbar-visual-mode-hide"
+                  aria-checked={visualizationMode === "hide"}
+                  onClick={() => setVisualizationMode("hide")}
+                  className={`flex-1 text-left rounded-md px-2.5 py-2 transition-colors flex items-center gap-2 ${
+                    visualizationMode === "hide"
+                      ? "bg-rose-500/20 text-rose-100"
+                      : "text-slate-300 hover:bg-slate-800"
+                  }`}
+                >
+                  <EyeOff size={14} />
+                  <span className="text-xs">{t("toolbar.visual.hide")}</span>
+                </button>
+                <VisualModePreviewInfo
+                  imageSrc={VISUALIZATION_HIDE_PREVIEW_SRC}
+                  alt={t("toolbar.visual.hidePreview")}
+                />
+              </div>
+              <div className="w-full flex items-center gap-1">
+                <button
+                  type="button"
+                  role="menuitemradio"
+                  data-testid="toolbar-visual-mode-dim"
+                  aria-checked={visualizationMode === "dim"}
+                  onClick={() => setVisualizationMode("dim")}
+                  className={`flex-1 text-left rounded-md px-2.5 py-2 transition-colors flex items-center gap-2 ${
+                    visualizationMode === "dim"
+                      ? "bg-amber-500/20 text-amber-100"
+                      : "text-slate-300 hover:bg-slate-800"
+                  }`}
+                >
+                  <Target size={14} />
+                  <span className="text-xs">{t("toolbar.visual.dim")}</span>
+                </button>
+                <VisualModePreviewInfo
+                  imageSrc={VISUALIZATION_DIM_PREVIEW_SRC}
+                  alt={t("toolbar.visual.dimPreview")}
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="fixed bottom-6 right-8 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-xl p-1.5 shadow-2xl flex items-center gap-1 z-[60] animate-in slide-in-from-bottom-4">
-        <button
-          onClick={onAutoLayout}
-          disabled={!onAutoLayout || isAutoLayouting}
-          className="px-3 py-2 text-xs font-semibold text-emerald-300 hover:text-emerald-200 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          title={t("toolbar.autoLayout")}
-          aria-label={t("toolbar.autoLayout")}
+        <ToolbarTooltip
+          label={isAutoLayouting ? t("toolbar.autoLayoutRunning") : t("toolbar.autoLayout")}
         >
-          {isAutoLayouting ? t("toolbar.autoLayoutRunning") : t("toolbar.autoLayout")}
-        </button>
+          <button
+            onClick={onAutoLayout}
+            disabled={!onAutoLayout || isAutoLayouting}
+            className="px-3 py-2 text-xs font-semibold text-emerald-300 hover:text-emerald-200 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label={t("toolbar.autoLayout")}
+          >
+            {isAutoLayouting ? t("toolbar.autoLayoutRunning") : t("toolbar.autoLayout")}
+          </button>
+        </ToolbarTooltip>
 
         <div className="w-px h-5 bg-slate-700 mx-0.5" />
 
-        <button
-          onClick={onUndo}
-          disabled={!onUndo || !canUndo}
-          className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          title={t("toolbar.undo")}
-          aria-label={t("toolbar.undo")}
-        >
-          <Undo2 size={16} />
-        </button>
+        <ToolbarTooltip label={t("toolbar.undo")}>
+          <button
+            onClick={onUndo}
+            disabled={!onUndo || !canUndo}
+            className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label={t("toolbar.undo")}
+          >
+            <Undo2 size={16} />
+          </button>
+        </ToolbarTooltip>
 
-        <button
-          onClick={onRedo}
-          disabled={!onRedo || !canRedo}
-          className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          title={t("toolbar.redo")}
-          aria-label={t("toolbar.redo")}
-        >
-          <Redo2 size={16} />
-        </button>
+        <ToolbarTooltip label={t("toolbar.redo")}>
+          <button
+            onClick={onRedo}
+            disabled={!onRedo || !canRedo}
+            className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label={t("toolbar.redo")}
+          >
+            <Redo2 size={16} />
+          </button>
+        </ToolbarTooltip>
 
         <div className="w-px h-5 bg-slate-700 mx-0.5" />
 
-        <button
-          onClick={onZoomOut}
-          className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-          title={t("toolbar.zoomOut")}
-          aria-label={t("toolbar.zoomOut")}
-        >
-          <Minus size={16} />
-        </button>
+        <ToolbarTooltip label={t("toolbar.zoomOut")}>
+          <button
+            onClick={onZoomOut}
+            className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+            aria-label={t("toolbar.zoomOut")}
+          >
+            <Minus size={16} />
+          </button>
+        </ToolbarTooltip>
 
-        <button
-          onClick={onZoomIn}
-          className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-          title={t("toolbar.zoomIn")}
-          aria-label={t("toolbar.zoomIn")}
-        >
-          <Plus size={16} />
-        </button>
+        <ToolbarTooltip label={t("toolbar.zoomIn")}>
+          <button
+            onClick={onZoomIn}
+            className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+            aria-label={t("toolbar.zoomIn")}
+          >
+            <Plus size={16} />
+          </button>
+        </ToolbarTooltip>
 
         <span className="px-2 py-1 text-[11px] font-mono font-semibold text-slate-300 min-w-[52px] text-center border border-slate-700 rounded-md bg-slate-950/70">
           {Math.round(zoom * 100)}%
@@ -546,23 +776,25 @@ export const CanvasToolbar = ({
 
         <div className="w-px h-5 bg-slate-700 mx-0.5" />
 
-        <button
-          onClick={onFit}
-          className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-          title={t("toolbar.fitContent")}
-          aria-label={t("toolbar.fitContent")}
-        >
-          <Maximize size={16} />
-        </button>
+        <ToolbarTooltip label={t("toolbar.fitContent")}>
+          <button
+            onClick={onFit}
+            className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+            aria-label={t("toolbar.fitContent")}
+          >
+            <Maximize size={16} />
+          </button>
+        </ToolbarTooltip>
 
-        <button
-          onClick={onCenter}
-          className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-          title={t("toolbar.centerContent")}
-          aria-label={t("toolbar.centerContent")}
-        >
-          <Target size={16} />
-        </button>
+        <ToolbarTooltip label={t("toolbar.centerContent")}>
+          <button
+            onClick={onCenter}
+            className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+            aria-label={t("toolbar.centerContent")}
+          >
+            <Target size={16} />
+          </button>
+        </ToolbarTooltip>
       </div>
     </>
   );

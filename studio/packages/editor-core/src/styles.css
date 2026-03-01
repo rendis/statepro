@@ -116,11 +116,21 @@ body {
   animation: studioNodePulseB 1000ms ease-in-out 1;
 }
 
+.studio-visual-muted {
+  opacity: 0.24;
+  filter: saturate(0.55);
+  transition: opacity 180ms ease, filter 180ms ease;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .studio-search-pulse-a,
   .studio-search-pulse-b {
     outline: 2px solid rgba(56, 189, 248, 0.65);
     outline-offset: 1px;
     filter: none;
+  }
+
+  .studio-visual-muted {
+    transition: none;
   }
 }

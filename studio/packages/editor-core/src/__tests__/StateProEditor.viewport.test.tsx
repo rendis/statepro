@@ -163,20 +163,27 @@ describe("StateProEditor viewport toolbar", () => {
     const user = userEvent.setup();
     render(<StateProEditor locale="es" />);
 
+    await waitFor(
+      () => {
+        expect(screen.queryByText(/ordenando/i)).not.toBeInTheDocument();
+      },
+      {
+        timeout: 6000,
+      },
+    );
+
     const zoomOutButton = screen.getByRole("button", { name: /alejar/i });
     const zoomLabel = () => screen.getByText(/^\d+%$/).textContent ?? "";
     const parseZoom = (label: string) => Number.parseInt(label.replace("%", ""), 10);
 
-    for (let i = 0; i < 20; i += 1) {
+    for (let i = 0; i < 24 && parseZoom(zoomLabel()) > 20; i += 1) {
       await user.click(zoomOutButton);
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, 220));
       });
     }
 
-    await waitFor(() => {
-      expect(parseZoom(zoomLabel())).toBe(20);
-    });
+    expect(parseZoom(zoomLabel())).toBe(20);
 
     const zoomAtLimit = zoomLabel();
     await user.click(zoomOutButton);
@@ -184,7 +191,7 @@ describe("StateProEditor viewport toolbar", () => {
     await waitFor(() => {
       expect(zoomLabel()).toBe(zoomAtLimit);
     });
-  });
+  }, 12000);
 
   it("aplica autolayout al presionar el boton", async () => {
     const user = userEvent.setup();
@@ -226,12 +233,15 @@ describe("StateProEditor viewport toolbar", () => {
     expect(within(universeResult).getByTestId("toolbar-search-icon-universe")).toBeInTheDocument();
 
     expect(screen.getByTestId("toolbar-search-filter-universe")).toHaveAttribute(
-      "title",
+      "aria-label",
       "Buscar universos",
     );
-    expect(screen.getByTestId("toolbar-search-filter-tag")).toHaveAttribute("title", "Buscar tags");
+    expect(screen.getByTestId("toolbar-search-filter-tag")).toHaveAttribute(
+      "aria-label",
+      "Buscar tags",
+    );
     expect(screen.getByTestId("toolbar-search-filter-reality")).toHaveAttribute(
-      "title",
+      "aria-label",
       "Buscar realidades",
     );
   });

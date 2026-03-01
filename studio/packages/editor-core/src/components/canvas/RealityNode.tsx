@@ -14,6 +14,7 @@ import type { NodeSizeMap, RealityType } from "../../types";
 interface RealityNodeProps {
   node: Extract<import("../../types").EditorNode, { type: "reality" }>;
   selected: boolean;
+  showContextMenu?: boolean;
   searchPulseClassName?: string;
   issueCount?: number;
   onMouseDown: (
@@ -42,6 +43,7 @@ interface RealityNodeProps {
 export const RealityNode = ({
   node,
   selected,
+  showContextMenu = true,
   searchPulseClassName,
   issueCount = 0,
   onMouseDown,
@@ -134,7 +136,7 @@ export const RealityNode = ({
         </div>
       )}
 
-      {selected && (
+      {selected && showContextMenu && (
         <div className="absolute -top-12 left-0 bg-slate-800 border border-slate-700 rounded-lg shadow-xl flex items-center p-1 gap-1 z-50 animate-in slide-in-from-bottom-2 fade-in duration-200">
           <button
             onMouseDown={(event) => {

@@ -13,3 +13,4 @@ export * from "./transitionBadgeLayout";
 export * from "./behaviorScriptContract";
 export * from "./canvasSearch";
 export * from "./idReferencePropagation";
+export * from "./canvasVisualFilter";

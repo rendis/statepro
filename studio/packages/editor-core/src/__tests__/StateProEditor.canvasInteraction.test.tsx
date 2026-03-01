@@ -500,7 +500,7 @@ describe("StateProEditor canvas interaction", () => {
   it("crea nota global desde toolbar", () => {
     render(<StateProEditor locale="es" />);
 
-    fireEvent.click(screen.getByTitle(/anadir nota global/i));
+    fireEvent.click(screen.getByRole("button", { name: /anadir nota global/i }));
 
     expect(document.querySelectorAll('[data-testid^="global-note-node-"]')).toHaveLength(1);
   });
@@ -508,7 +508,7 @@ describe("StateProEditor canvas interaction", () => {
   it("mueve nota global dentro del canvas", () => {
     render(<StateProEditor locale="es" />);
 
-    fireEvent.click(screen.getByTitle(/anadir nota global/i));
+    fireEvent.click(screen.getByRole("button", { name: /anadir nota global/i }));
 
     const canvas = screen.getByTestId("editor-canvas");
     const initialNode = getGlobalNoteNode();
@@ -530,7 +530,7 @@ describe("StateProEditor canvas interaction", () => {
   it("colapsa y expande nota global", async () => {
     render(<StateProEditor locale="es" />);
 
-    fireEvent.click(screen.getByTitle(/anadir nota global/i));
+    fireEvent.click(screen.getByRole("button", { name: /anadir nota global/i }));
     expect(screen.getByPlaceholderText("Nota global flotante...")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle("Colapsar"));
