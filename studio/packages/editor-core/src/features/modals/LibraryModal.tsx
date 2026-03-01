@@ -18,9 +18,14 @@ import {
   STUDIO_ICON_REGISTRY,
   STUDIO_ICONS,
 } from "../../constants";
-import { TooltipIconButton, TruncatedWithTooltip } from "../../components/shared";
+import {
+  StudioTooltip,
+  TooltipIconButton,
+  TruncatedWithTooltip,
+} from "../../components/shared";
 import { useI18n } from "../../i18n";
 import type { StudioTranslate } from "../../i18n";
+import type { BehaviorRegistrySource } from "../../model";
 import type {
   BehaviorRegistryItem,
   BehaviorType,
@@ -45,6 +50,7 @@ interface LibraryModalProps {
   canManageBehaviors?: boolean;
   canCreateMetadataPacks?: boolean;
   registry: BehaviorRegistryItem[];
+  behaviorSourceIndex?: Record<string, BehaviorRegistrySource>;
   setRegistry: (registry: BehaviorRegistryItem[]) => void;
   resolveUsage: (src: string) => UsageSummary;
   onDeleteBehavior: (src: string) => void;
@@ -59,6 +65,7 @@ interface BehaviorLibraryForm {
   type: BehaviorType;
   description: string;
   simScript: string;
+  origin: BehaviorRegistrySource;
   simScriptCustomized: boolean;
   isNew: boolean;
   originalSrc?: string;
@@ -157,6 +164,12 @@ const ARRAY_ITEM_TYPES: Array<{ id: VisualArrayItemType; label: string }> = [
   { id: "boolean", label: "boolean" },
   { id: "json", label: "json" },
 ];
+
+const BEHAVIOR_ORIGIN_BADGE_CLASS: Record<BehaviorRegistrySource, string> = {
+  builtin: "border-blue-700/70 bg-blue-900/30 text-blue-200",
+  external: "border-emerald-700/70 bg-emerald-900/25 text-emerald-200",
+  user: "border-slate-700 bg-slate-900 text-slate-300",
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -857,6 +870,7 @@ export const LibraryModal = ({
   canManageBehaviors = true,
   canCreateMetadataPacks = true,
   registry,
+  behaviorSourceIndex = {},
   setRegistry,
   resolveUsage,
   onDeleteBehavior,
@@ -884,6 +898,10 @@ export const LibraryModal = ({
   const [packSearchQuery, setPackSearchQuery] = useState("");
   const [pendingDeletePackId, setPendingDeletePackId] = useState<string | null>(null);
   const [showPackGeneratedPreview, setShowPackGeneratedPreview] = useState(false);
+  const resolveBehaviorOrigin = (src: string): BehaviorRegistrySource =>
+    behaviorSourceIndex[src] || "user";
+  const isBuiltinBehavior = (src: string): boolean =>
+    resolveBehaviorOrigin(src) === "builtin";
   const packFieldValidation = useMemo(
     () => buildVisualFieldValidation(packForm?.fields || [], t),
     [packForm?.fields, t],
@@ -983,6 +1001,7 @@ export const LibraryModal = ({
       type: "action",
       description: "",
       simScript: actionContract.defaultScript,
+      origin: "user",
       simScriptCustomized: false,
       isNew: true,
     });
@@ -995,9 +1014,11 @@ export const LibraryModal = ({
     }
 
     setPendingDeleteSrc(null);
+    const origin = resolveBehaviorOrigin(item.src);
     setForm({
       ...item,
       description: item.description || "",
+      origin,
       simScriptCustomized: true,
       originalSrc: item.src,
       isNew: false,
@@ -1011,7 +1032,7 @@ export const LibraryModal = ({
     }
 
     setForm((previous) => {
-      if (!previous || previous.type === type) {
+      if (!previous || previous.type === type || previous.origin === "builtin") {
         return previous;
       }
 
@@ -1032,7 +1053,7 @@ export const LibraryModal = ({
     }
 
     setForm((previous) => {
-      if (!previous) {
+      if (!previous || previous.origin === "builtin") {
         return previous;
       }
       return {
@@ -1049,6 +1070,10 @@ export const LibraryModal = ({
     }
 
     if (!form) return;
+
+    if (!form.isNew && form.origin === "builtin") {
+      return;
+    }
 
     if (!form.src.trim()) {
       setError(t("library.behavior.validation.sourceRequired"));
@@ -1276,106 +1301,145 @@ export const LibraryModal = ({
           {filteredRegistry.map((item) => {
             const config = BEHAVIOR_TYPES[item.type] || BEHAVIOR_TYPES.action;
             const Icon = config.icon;
-            const usage = pendingDeleteSrc === item.src ? resolveUsage(item.src) : null;
+            const origin = resolveBehaviorOrigin(item.src);
+            const originLabel = t(
+              `library.behavior.origin.${origin}`,
+              undefined,
+              origin,
+            );
+            const isBuiltin = origin === "builtin";
+            const usage =
+              !isBuiltin && pendingDeleteSrc === item.src
+                ? resolveUsage(item.src)
+                : null;
             const isPendingDelete = pendingDeleteSrc === item.src;
-
-            return (
-              <div
-                key={item.src}
-                onClick={() => {
-                  if (!canManageBehaviors) {
-                    return;
-                  }
-                  handleEditBehavior(item);
-                }}
-                className={`p-3 rounded-lg border hover:border-slate-600 cursor-pointer group transition-colors ${form?.originalSrc === item.src ? `ring-1 ${config.border} bg-slate-800 border-transparent` : "border-slate-800 bg-slate-900"} ${isPendingDelete ? "border-red-900/80 bg-red-950/20" : ""}`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="overflow-hidden flex-1 min-w-0">
-                    <div className={`flex items-center gap-1.5 text-[10px] font-bold ${config.color} mb-1 uppercase tracking-wider`}>
-                      <Icon size={12} />{" "}
-                      {t(BEHAVIOR_TYPE_LABEL_KEYS[item.type], undefined, config.label)}
-                    </div>
-                    <TruncatedWithTooltip
-                      text={item.src}
-                      className="text-xs font-mono text-slate-200 truncate"
-                    />
-                  </div>
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (!canManageBehaviors) {
-                        return;
-                      }
-                      setPendingDeleteSrc((previous) => (previous === item.src ? null : item.src));
-                    }}
-                    disabled={!canManageBehaviors}
-                    aria-label={t("library.item.deleteAria", { label: item.src })}
-                    className={`p-1 self-center shrink-0 transition-colors ${isPendingDelete ? "text-red-400" : "text-slate-400 hover:text-red-400"}`}
-                  >
-                    <Trash2 size={14} />
-                  </button>
+            const tooltipLabel = (
+              <div className="flex max-w-[28rem] flex-col gap-1.5">
+                <div className="font-mono text-[11px] leading-snug text-slate-100 break-all">
+                  {item.src}
                 </div>
-
-                {usage && (
-                  <div
-                    onClick={(event) => event.stopPropagation()}
-                    className="mt-3 rounded-lg border border-red-900/60 bg-slate-950/70 p-2.5 text-[10px] text-slate-300 space-y-2"
-                  >
-                    <div className="font-semibold text-red-300 uppercase tracking-wider">
-                      {t("library.behavior.deleteConfirm")}
-                    </div>
-
-                  {usage.total > 0 ? (
-                    <p className="leading-snug">
-                        {t("library.behavior.deleteInUse", { count: usage.total })}
-                    </p>
-                  ) : (
-                    <p className="leading-snug text-slate-400">
-                        {t("library.behavior.deleteNoRefs")}
-                    </p>
-                  )}
-
-                    {usage.total > 0 && (
-                      <div className="max-h-24 overflow-y-auto custom-scrollbar space-y-1 border border-slate-800 rounded p-2 bg-slate-900/80">
-                        {usage.locations.map((location, locationIndex) => (
-                          <div key={`${location.label}-${locationIndex}`} className="font-mono text-[10px] text-slate-300">
-                            {location.label}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="flex justify-end gap-2 pt-1">
-                      <button
-                        onClick={() => setPendingDeleteSrc(null)}
-                        className="px-2.5 py-1 text-slate-400 hover:text-white transition-colors"
-                      >
-                        {t("common.cancel")}
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (!canManageBehaviors) {
-                            return;
-                          }
-                          onDeleteBehavior(item.src);
-                          if (form && form.originalSrc === item.src) {
-                            setForm(null);
-                          }
-                          setPendingDeleteSrc(null);
-                        }}
-                        className="px-2.5 py-1 rounded bg-red-600/90 hover:bg-red-500 text-white font-medium transition-colors"
-                      >
-                        {usage.total > 0
-                          ? t("library.behavior.deleteAndClean", {
-                              count: usage.total,
-                            })
-                          : t("common.delete")}
-                      </button>
-                    </div>
+                {item.description && (
+                  <div className="text-[11px] text-slate-300 leading-snug">
+                    {item.description}
                   </div>
                 )}
               </div>
+            );
+
+            return (
+              <StudioTooltip
+                key={item.src}
+                label={tooltipLabel}
+                side="right"
+                width="wrap"
+                portal
+                containerClassName="flex w-full"
+                bubbleClassName="rounded-lg border-slate-700 bg-slate-950/95 px-3 py-2 shadow-2xl"
+              >
+                <div
+                  onClick={() => {
+                    if (!canManageBehaviors) {
+                      return;
+                    }
+                    handleEditBehavior(item);
+                  }}
+                  className={`w-full p-3 rounded-lg border hover:border-slate-600 cursor-pointer group transition-colors ${form?.originalSrc === item.src ? `ring-1 ${config.border} bg-slate-800 border-transparent` : "border-slate-800 bg-slate-900"} ${isPendingDelete ? "border-red-900/80 bg-red-950/20" : ""}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className={`flex items-center gap-1.5 text-[10px] font-bold ${config.color} mb-1 uppercase tracking-wider`}>
+                        <Icon size={12} />{" "}
+                        {t(BEHAVIOR_TYPE_LABEL_KEYS[item.type], undefined, config.label)}
+                      </div>
+                      <div className="text-xs font-mono text-slate-200 truncate">
+                        {item.src}
+                      </div>
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <span
+                          className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wider ${BEHAVIOR_ORIGIN_BADGE_CLASS[origin]}`}
+                        >
+                          {originLabel}
+                        </span>
+                      </div>
+                    </div>
+                    {!isBuiltin && (
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (!canManageBehaviors) {
+                            return;
+                          }
+                          setPendingDeleteSrc((previous) => (previous === item.src ? null : item.src));
+                        }}
+                        disabled={!canManageBehaviors}
+                        aria-label={t("library.item.deleteAria", { label: item.src })}
+                        className={`p-1 self-center shrink-0 transition-colors ${isPendingDelete ? "text-red-400" : "text-slate-400 hover:text-red-400"}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  {usage && (
+                    <div
+                      onClick={(event) => event.stopPropagation()}
+                      className="mt-3 rounded-lg border border-red-900/60 bg-slate-950/70 p-2.5 text-[10px] text-slate-300 space-y-2"
+                    >
+                      <div className="font-semibold text-red-300 uppercase tracking-wider">
+                        {t("library.behavior.deleteConfirm")}
+                      </div>
+
+                      {usage.total > 0 ? (
+                        <p className="leading-snug">
+                          {t("library.behavior.deleteInUse", { count: usage.total })}
+                        </p>
+                      ) : (
+                        <p className="leading-snug text-slate-400">
+                          {t("library.behavior.deleteNoRefs")}
+                        </p>
+                      )}
+
+                      {usage.total > 0 && (
+                        <div className="max-h-24 overflow-y-auto custom-scrollbar space-y-1 border border-slate-800 rounded p-2 bg-slate-900/80">
+                          {usage.locations.map((location, locationIndex) => (
+                            <div key={`${location.label}-${locationIndex}`} className="font-mono text-[10px] text-slate-300">
+                              {location.label}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button
+                          onClick={() => setPendingDeleteSrc(null)}
+                          className="px-2.5 py-1 text-slate-400 hover:text-white transition-colors"
+                        >
+                          {t("common.cancel")}
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (!canManageBehaviors) {
+                              return;
+                            }
+                            onDeleteBehavior(item.src);
+                            if (form && form.originalSrc === item.src) {
+                              setForm(null);
+                            }
+                            setPendingDeleteSrc(null);
+                          }}
+                          className="px-2.5 py-1 rounded bg-red-600/90 hover:bg-red-500 text-white font-medium transition-colors"
+                        >
+                          {usage.total > 0
+                            ? t("library.behavior.deleteAndClean", {
+                                count: usage.total,
+                              })
+                            : t("common.delete")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </StudioTooltip>
             );
           })}
         </div>
@@ -1391,6 +1455,11 @@ export const LibraryModal = ({
           </div>
         ) : (
           <div className="p-6 space-y-5 animate-in fade-in duration-200">
+            {form.origin === "builtin" && (
+              <div className="rounded border border-blue-900/60 bg-blue-950/40 p-3 text-xs text-blue-200">
+                {t("library.behavior.builtinProtected")}
+              </div>
+            )}
             {error && (
               <div className="bg-red-950/50 text-red-400 p-3 rounded border border-red-900/50 text-xs flex items-center gap-2">
                 <AlertTriangle size={14} /> {error}
@@ -1412,7 +1481,7 @@ export const LibraryModal = ({
                         <button
                           key={typeKey}
                           onClick={() => handleBehaviorTypeChange(typeKey)}
-                          disabled={!canManageBehaviors}
+                          disabled={!canManageBehaviors || form.origin === "builtin"}
                           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border text-xs font-medium transition-all ${isSelected ? `${config.bg} ${config.border} ${config.color}` : "bg-slate-950 border-slate-800 text-slate-500 hover:bg-slate-800 hover:text-slate-300"}`}
                         >
                           <Icon size={14} />{" "}
@@ -1431,7 +1500,7 @@ export const LibraryModal = ({
                 <input
                   type="text"
                   value={form.src}
-                  disabled={!canManageBehaviors}
+                  disabled={!canManageBehaviors || form.origin === "builtin"}
                   onChange={(event) => setForm({ ...form, src: event.target.value })}
                   placeholder={t("library.behavior.sourcePlaceholder")}
                   className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500 font-mono text-sm"
@@ -1446,7 +1515,7 @@ export const LibraryModal = ({
               <input
                 type="text"
                 value={form.description}
-                disabled={!canManageBehaviors}
+                disabled={!canManageBehaviors || form.origin === "builtin"}
                 onChange={(event) => setForm({ ...form, description: event.target.value })}
                 placeholder={t("library.behavior.descriptionPlaceholder")}
                 className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500 text-sm"
@@ -1469,7 +1538,7 @@ export const LibraryModal = ({
                 </div>
                 <textarea
                   value={form.simScript}
-                  disabled={!canManageBehaviors}
+                  disabled={!canManageBehaviors || form.origin === "builtin"}
                   onChange={(event) => handleBehaviorScriptChange(event.target.value)}
                   spellCheck="false"
                   className="w-full flex-1 bg-transparent text-green-400 p-3 font-mono text-[12px] focus:outline-none resize-none leading-relaxed custom-scrollbar"
@@ -1489,7 +1558,7 @@ export const LibraryModal = ({
               </button>
               <button
                 onClick={handleSaveBehavior}
-                disabled={!canManageBehaviors}
+                disabled={!canManageBehaviors || form.origin === "builtin"}
                 className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-xs font-medium shadow-md transition-colors"
               >
                 <Save size={14} /> {t("library.behavior.save")}

@@ -4,6 +4,7 @@ import {
   translateStudioMessage,
   type StudioLocale,
 } from "../i18n";
+import { buildBuiltinBehaviorRegistry } from "./behaviorRegistry";
 import type {
   EditorState,
   MachineConfig,
@@ -106,49 +107,7 @@ export const initialTransitions: EditorTransition[] = [
 
 export const buildDefaultRegistry = (
   locale: StudioLocale = STUDIO_DEFAULT_LOCALE,
-): BehaviorRegistryItem[] => [
-  {
-    src: "builtin:action:logArgs",
-    type: "action",
-    description: tDefaults(
-      locale,
-      "defaults.registry.logArgs.description",
-      "Logs arguments to console",
-    ),
-    simScript: 'console.log("LogArgs Action:", args);\nreturn true;',
-  },
-  {
-    src: "builtin:invoke:emitEvent",
-    type: "invoke",
-    description: tDefaults(
-      locale,
-      "defaults.registry.emitEvent.description",
-      "Emits an async event",
-    ),
-    simScript:
-      'console.log("Emitting async event...", args);\nsetTimeout(() => resolve(), 1000);',
-  },
-  {
-    src: "builtin:observer:containsAllEvents",
-    type: "observer",
-    description: tDefaults(
-      locale,
-      "defaults.registry.containsAllEvents.description",
-      "Evaluates if all required events have arrived",
-    ),
-    simScript: "return true;",
-  },
-  {
-    src: "condition:isAdult",
-    type: "condition",
-    description: tDefaults(
-      locale,
-      "defaults.registry.isAdult.description",
-      "Checks if age is >= 18",
-    ),
-    simScript: "return args.age >= 18;",
-  },
-];
+): BehaviorRegistryItem[] => buildBuiltinBehaviorRegistry(locale);
 
 export const defaultRegistry: BehaviorRegistryItem[] = buildDefaultRegistry();
 

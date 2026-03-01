@@ -517,13 +517,21 @@ If your Vue build complains about unknown custom elements, configure compiler cu
 | `onChange`           | `(payload: StudioChangePayload) => void` | `undefined`                | Called after debounced serialization/validation updates. |
 | `changeDebounceMs`   | `number`                                 | `250`                      | Debounce window for `onChange`.                          |
 | `universeTemplates`  | `StudioUniverseTemplate[]`               | `[]`                       | Enables template-based universe creation in toolbar.     |
-| `libraryBehaviors`   | `BehaviorRegistryItem[]`                 | `undefined`                | External behavior registry input.                        |
+| `libraryBehaviors`   | `BehaviorRegistryItem[]`                 | `undefined`                | External behavior catalog merged with built-ins and user entries. |
 | `features`           | `StudioFeatureFlags`                     | JSON/library enabled + performance `auto` | Enables/disables capabilities and configures adaptive performance mode. |
 | `locale`             | `"en"                                    | "es"`                      | `undefined`                                              | Controlled locale value. |
 | `defaultLocale`      | `"en"                                    | "es"`                      | `"en"`                                                   | Initial/fallback locale. |
 | `onLocaleChange`     | `(locale: StudioLocale) => void`         | `undefined`                | Notified when locale changes in UI/provider.             |
 | `persistLocale`      | `boolean`                                | `true`                     | Writes/reads locale from localStorage.                   |
 | `showLocaleSwitcher` | `boolean`                                | `true`                     | Shows/hides header language toggle button.               |
+
+### Behavior Registry Rules
+
+- Studio always registers runtime built-ins (`builtin:*`) in the library.
+- `libraryBehaviors` does **not** replace the registry; it is merged as: `built-ins + external + user`.
+- Built-ins cannot be deleted and keep official `src`, `type`, and `description`.
+- Built-ins are fully read-only in Library modal (including `simScript`).
+- If an external entry uses the same `src` as a built-in, Studio keeps built-in identity/description and only takes external `simScript`.
 
 ## Feature Flags (Enable/Disable Capabilities)
 

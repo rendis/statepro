@@ -1,8 +1,10 @@
 import {
   createInitialMetadataPackBindingMap,
 } from "./defaults";
+import { composeBehaviorRegistry } from "./behaviorRegistry";
 import { applyStudioLayoutDocument } from "./studioLayout";
 import { deserializeStatePro } from "./deserializeStatePro";
+import type { StudioLocale } from "../i18n";
 import type {
   BehaviorRegistryItem,
   EditorState,
@@ -11,12 +13,14 @@ import type {
 
 type BuildEditorStateFromExternalValueOptions = {
   libraryBehaviors?: BehaviorRegistryItem[];
+  locale?: StudioLocale;
 };
 
 export const buildEditorStateFromExternalValue = (
   value: StudioExternalValue,
   options: BuildEditorStateFromExternalValueOptions = {},
 ): EditorState => {
+  const locale = options.locale;
   let state = deserializeStatePro(value.definition);
 
   if (value.layout) {
@@ -37,7 +41,12 @@ export const buildEditorStateFromExternalValue = (
   if (options.libraryBehaviors) {
     state = {
       ...state,
-      registry: structuredClone(options.libraryBehaviors),
+      registry: composeBehaviorRegistry({
+        locale,
+        currentRegistry: state.registry,
+        externalRegistry: structuredClone(options.libraryBehaviors),
+        preferExternalForExternalSources: true,
+      }),
     };
   }
 

@@ -22,9 +22,10 @@
     "access": "public"
   },
   "scripts": {
+    "generate:builtin-catalog": "node ../../scripts/generate-builtin-behaviors.mjs",
     "dev": "tsup src/index.ts --format esm,cjs --dts --sourcemap --watch",
-    "build": "tsup src/index.ts --format esm,cjs --dts --sourcemap --clean",
-    "test": "vitest run",
+    "build": "pnpm run generate:builtin-catalog && tsup src/index.ts --format esm,cjs --dts --sourcemap --clean",
+    "test": "pnpm run generate:builtin-catalog && vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'lint: pendiente de reglas'"
   },
@@ -33,6 +34,7 @@
     "react-dom": "^19.2.4"
   },
   "dependencies": {
+    "@floating-ui/react": "^0.27.18",
     "ajv": "^8.17.1",
     "elkjs": "^0.11.0",
     "lucide-react": "^0.468.0",

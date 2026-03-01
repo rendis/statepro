@@ -35,7 +35,11 @@ import {
 import { StudioTooltip, TooltipIconButton, TruncatedWithTooltip } from "./components/shared";
 import {
   applyStudioLayoutDocument,
+  buildBehaviorSourceIndex,
   buildEditorStateFromExternalValue,
+  isBuiltinBehaviorSource,
+  mergeBehaviorRegistryWithExternal,
+  normalizeBehaviorRegistry,
   createInitialEditorState,
   deserializeStatePro,
   serializeStatePro,
@@ -160,6 +164,15 @@ const MAX_SKELETON_TRANSITIONS_AGGRESSIVE = 220;
 const MAX_SKELETON_TRANSITIONS_DEFAULT = 320;
 const EDITING_GESTURE_ACTIVATION_PX = 4;
 const NOOP = () => {};
+
+const collectRegistrySources = (
+  registryItems: BehaviorRegistryItem[] | undefined,
+): Set<string> =>
+  new Set(
+    (registryItems || [])
+      .filter((entry) => entry && typeof entry.src === "string")
+      .map((entry) => entry.src),
+  );
 
 type HistoryTrackingOptions = {
   mode?: HistoryApplyMode;
@@ -329,22 +342,27 @@ function StateProEditorInner({
 
   const buildInitialState = useCallback((): EditorState => {
     if (value) {
-      return buildEditorStateFromExternalValue(value, { libraryBehaviors });
+      return buildEditorStateFromExternalValue(value, {
+        libraryBehaviors,
+        locale: initialLocale,
+      });
     }
 
     if (defaultValue) {
-      return buildEditorStateFromExternalValue(defaultValue, { libraryBehaviors });
+      return buildEditorStateFromExternalValue(defaultValue, {
+        libraryBehaviors,
+        locale: initialLocale,
+      });
     }
 
     const initialState = createInitialEditorState(initialLocale);
-    if (libraryBehaviors) {
-      return {
-        ...initialState,
-        registry: structuredClone(libraryBehaviors),
-      };
-    }
-
-    return initialState;
+    return {
+      ...initialState,
+      registry: mergeBehaviorRegistryWithExternal(initialState.registry, {
+        locale: initialLocale,
+        externalRegistry: libraryBehaviors || [],
+      }),
+    };
   }, [defaultValue, initialLocale, libraryBehaviors, value]);
 
   const [historyState, dispatchHistory] = useReducer(
@@ -371,6 +389,9 @@ function StateProEditorInner({
   const canRedo = historyState.future.length > 0;
   const lastControlledValueSignatureRef = useRef<string | null>(null);
   const lastLibraryBehaviorsSignatureRef = useRef<string | null>(null);
+  const lastExternalBehaviorSourcesRef = useRef<Set<string>>(
+    collectRegistrySources(libraryBehaviors),
+  );
 
   const [selectedElement, setSelectedElement] = useState<SelectedEditorElement | null>(null);
   const [multiSelectedNodeIds, setMultiSelectedNodeIds] = useState<string[]>([]);
@@ -502,10 +523,25 @@ function StateProEditorInner({
     const mode = options.mode || "record";
     const group = options.group || "registry";
     const markDirty = options.markDirtyFromImport ?? true;
+
+    const normalizeRegistryValue = (
+      nextRegistry: EditorState["registry"],
+    ): EditorState["registry"] =>
+      normalizeBehaviorRegistry(nextRegistry, {
+        locale,
+        externalRegistry: libraryBehaviors || [],
+      });
+
     const action: EditorAction =
       typeof value === "function"
-        ? { type: "update-registry", payload: value }
-        : { type: "set-registry", payload: value };
+        ? {
+            type: "update-registry",
+            payload: (previous) => normalizeRegistryValue(value(previous)),
+          }
+        : {
+            type: "set-registry",
+            payload: normalizeRegistryValue(value),
+          };
 
     if (mode === "coalesce") {
       applyCoalesced(action, group, markDirty);
@@ -737,40 +773,54 @@ function StateProEditorInner({
     lastControlledValueSignatureRef.current = nextSignature;
     const nextState = buildEditorStateFromExternalValue(value, {
       libraryBehaviors,
+      locale,
     });
     changeSourceRef.current = "external-sync";
     resetHistoryWith(nextState);
+    lastExternalBehaviorSourcesRef.current = collectRegistrySources(
+      libraryBehaviors || [],
+    );
     gestureBaseSnapshotRef.current = null;
     clearMultiSelection();
     setVisualizationMode("off");
     setSelectedElement(null);
     setIsModalOpen(false);
-  }, [clearMultiSelection, isControlled, libraryBehaviors, resetHistoryWith, value]);
+  }, [clearMultiSelection, isControlled, libraryBehaviors, locale, resetHistoryWith, value]);
 
   useEffect(() => {
-    if (isControlled || !libraryBehaviors) {
+    if (isControlled) {
       return;
     }
 
-    const nextSignature = JSON.stringify(libraryBehaviors);
+    const nextExternalRegistry = libraryBehaviors || [];
+    const nextSignature = JSON.stringify(nextExternalRegistry);
     if (lastLibraryBehaviorsSignatureRef.current === null) {
       lastLibraryBehaviorsSignatureRef.current = nextSignature;
-      if (JSON.stringify(registry) === nextSignature) {
-        return;
-      }
+      return;
     }
-
     if (lastLibraryBehaviorsSignatureRef.current === nextSignature) {
       return;
     }
 
+    const previousExternalSources = lastExternalBehaviorSourcesRef.current;
     lastLibraryBehaviorsSignatureRef.current = nextSignature;
+    lastExternalBehaviorSourcesRef.current = collectRegistrySources(
+      nextExternalRegistry,
+    );
     changeSourceRef.current = "external-sync";
-    setRegistry(structuredClone(libraryBehaviors), {
-      mode: "silent",
-      markDirtyFromImport: false,
-    });
-  }, [isControlled, libraryBehaviors, registry]);
+    setRegistry(
+      (previous) =>
+        mergeBehaviorRegistryWithExternal(previous, {
+          locale,
+          externalRegistry: nextExternalRegistry,
+          previousExternalSources,
+        }),
+      {
+        mode: "silent",
+        markDirtyFromImport: false,
+      },
+    );
+  }, [isControlled, libraryBehaviors, locale]);
 
   const captureGestureBaseSnapshot = useCallback(() => {
     gestureBaseSnapshotRef.current = createHistorySnapshot(editorState);
@@ -1774,6 +1824,10 @@ function StateProEditorInner({
   ]);
   const isSkeletonConnectionMode = connectionRenderMode === "skeleton";
   const shouldRenderTransitionBadges = connectionRenderMode === "full";
+  const behaviorSourceIndex = useMemo(
+    () => buildBehaviorSourceIndex(registry, libraryBehaviors || []),
+    [libraryBehaviors, registry],
+  );
 
   const resolveRegistryBehaviorUsage = (src: string) =>
     collectBehaviorUsages(src, {
@@ -1783,7 +1837,7 @@ function StateProEditorInner({
     });
 
   const handleDeleteRegistryBehavior = (src: string) => {
-    if (!features.library.behaviors.manage) {
+    if (!features.library.behaviors.manage || isBuiltinBehaviorSource(src)) {
       return;
     }
 
@@ -5257,6 +5311,7 @@ function StateProEditorInner({
         canManageBehaviors={features.library.behaviors.manage}
         canCreateMetadataPacks={features.library.metadataPacks.create}
         registry={registry}
+        behaviorSourceIndex={behaviorSourceIndex}
         setRegistry={setRegistry}
         resolveUsage={resolveRegistryBehaviorUsage}
         onDeleteBehavior={handleDeleteRegistryBehavior}

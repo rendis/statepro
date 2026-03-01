@@ -6,3 +6,4 @@ export * from "./deserializeStatePro";
 export * from "./validateStatePro";
 export * from "./stickyNotesMetadata";
 export * from "./externalValue";
+export * from "./behaviorRegistry";

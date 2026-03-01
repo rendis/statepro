@@ -230,4 +230,106 @@ describe("LibraryModal", () => {
     expect(onDeleteBehavior).toHaveBeenCalledWith("custom:action:target");
     expect(setRegistry).not.toHaveBeenCalled();
   });
+
+  it("protege built-ins: sin delete y en modo solo lectura", async () => {
+    const user = userEvent.setup();
+    const setRegistry = vi.fn();
+
+    const { container } = render(
+      <LibraryModal
+        isOpen
+        onClose={vi.fn()}
+        registry={[
+          {
+            src: "builtin:action:logArgs",
+            type: "action",
+            description: "Official built-in description",
+            simScript: "console.log(args);",
+          },
+        ]}
+        behaviorSourceIndex={{
+          "builtin:action:logArgs": "builtin",
+        }}
+        setRegistry={setRegistry}
+        resolveUsage={() => ({ total: 0, locations: [] })}
+        onDeleteBehavior={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /delete builtin:action:logargs/i }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByText("builtin:action:logArgs"));
+
+    const sourceInput = screen.getByDisplayValue("builtin:action:logArgs");
+    expect(sourceInput).toBeDisabled();
+
+    const descriptionInput = screen.getByDisplayValue("Official built-in description");
+    expect(descriptionInput).toBeDisabled();
+
+    const scriptArea = container.querySelector("textarea");
+    expect(scriptArea).toBeInTheDocument();
+    if (!scriptArea) {
+      throw new Error("Script textarea not found");
+    }
+    expect(scriptArea).toBeDisabled();
+    expect(
+      screen.getByText(
+        /built-in behavior: source, type, description and simulation script are managed/i,
+      ),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("button", { name: /save to library/i }),
+    ).toBeDisabled();
+    expect(setRegistry).not.toHaveBeenCalled();
+  });
+
+  it("muestra badge de origen para built-in, external y user", async () => {
+    const user = userEvent.setup();
+    render(
+      <LibraryModal
+        isOpen
+        onClose={vi.fn()}
+        registry={[
+          {
+            src: "builtin:action:logArgs",
+            type: "action",
+            description: "Built-in",
+            simScript: "return true;",
+          },
+          {
+            src: "external:action:notify",
+            type: "action",
+            description: "External behavior from app args",
+            simScript: "return true;",
+          },
+          {
+            src: "user:action:custom",
+            type: "action",
+            description: "User",
+            simScript: "return true;",
+          },
+        ]}
+        behaviorSourceIndex={{
+          "builtin:action:logArgs": "builtin",
+          "external:action:notify": "external",
+          "user:action:custom": "user",
+        }}
+        setRegistry={vi.fn()}
+        resolveUsage={() => ({ total: 0, locations: [] })}
+        onDeleteBehavior={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Built-in")).toBeInTheDocument();
+    expect(screen.getByText("External")).toBeInTheDocument();
+    expect(screen.getByText("User")).toBeInTheDocument();
+
+    await user.hover(screen.getByText("External"));
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("external:action:notify");
+    expect(tooltip).toHaveTextContent("External behavior from app args");
+  });
 });

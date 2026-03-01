@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { StudioTooltip } from "../components/shared";
 
 describe("StudioTooltip", () => {
-  it("usa side top por defecto y aparece en hover/focus", async () => {
+  it("aparece en hover/focus y se oculta al salir", async () => {
     const user = userEvent.setup();
     render(
       <StudioTooltip label="Default tooltip">
@@ -20,8 +20,7 @@ describe("StudioTooltip", () => {
     await user.hover(trigger);
 
     const tooltip = await screen.findByRole("tooltip");
-    expect(tooltip.className).toContain("bottom-full left-1/2 -translate-x-1/2 mb-2");
-
+    expect(tooltip).toHaveAttribute("data-side", "top");
     const bubble = screen.getByText("Default tooltip");
     expect(bubble.className).toContain("whitespace-nowrap");
 
@@ -32,7 +31,7 @@ describe("StudioTooltip", () => {
     expect(await screen.findByRole("tooltip")).toBeInTheDocument();
   });
 
-  it("permite side right", async () => {
+  it("respeta side right", async () => {
     const user = userEvent.setup();
     render(
       <StudioTooltip label="Right tooltip" side="right">
@@ -42,7 +41,7 @@ describe("StudioTooltip", () => {
 
     await user.hover(screen.getByRole("button", { name: "trigger" }));
     const tooltip = await screen.findByRole("tooltip");
-    expect(tooltip.className).toContain("left-full top-1/2 -translate-y-1/2 ml-2");
+    expect(tooltip).toHaveAttribute("data-side", "right");
   });
 
   it("permite width wrap para textos largos", async () => {
@@ -57,5 +56,21 @@ describe("StudioTooltip", () => {
     const bubble = await screen.findByText("Wrap tooltip");
     expect(bubble.className).toContain("max-w-96");
     expect(bubble.className).toContain("whitespace-normal");
+  });
+
+  it("usa portal cuando portal=true", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <StudioTooltip label="Portal tooltip" portal>
+        <button type="button">trigger</button>
+      </StudioTooltip>,
+    );
+
+    await user.hover(screen.getByRole("button", { name: "trigger" }));
+    const tooltip = await screen.findByRole("tooltip");
+
+    expect(tooltip).toBeInTheDocument();
+    expect(container.contains(tooltip)).toBe(false);
+    expect(tooltip.className).toContain("pointer-events-none");
   });
 });
