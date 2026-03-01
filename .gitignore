@@ -17,3 +17,11 @@ coverage.html
 *.iws
 *.iml
 *.ipr
+
+# JavaScript workspace cache/store
+.pnpm-store/
+
+# Dependencies and build output
+node_modules/
+dist/
+tmp/

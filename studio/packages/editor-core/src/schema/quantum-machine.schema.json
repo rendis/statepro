@@ -1,0 +1,626 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.statepro.dev/quantum-machine.schema.json",
+  "title": "StatePro Quantum Machine Schema",
+  "description": "Official schema to validate StatePro quantum state machine JSON definitions (QuantumMachineModel). This schema documents shape, syntactic constraints, and runtime-oriented rules expected by the experimental engine.",
+  "$comment": "Scope: validates structure and local rules. Global semantic constraints such as 'target must exist in universes/realities' or 'map key must match .id' cannot be fully guaranteed by standard JSON Schema without an additional semantic validation pass.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "canonicalName",
+    "version",
+    "universes",
+    "initials"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "#/$defs/identifier",
+      "title": "Machine ID",
+      "description": "Technical machine identifier. It should remain stable at runtime and must follow the StatePro ID pattern."
+    },
+    "canonicalName": {
+      "$ref": "#/$defs/identifier",
+      "title": "Machine Canonical Name",
+      "description": "Canonical identifier used to group different versions of the same conceptual machine."
+    },
+    "version": {
+      "$ref": "#/$defs/version",
+      "title": "Machine Version",
+      "description": "Model version string used for traceability, migrations, and definition compatibility."
+    },
+    "universes": {
+      "title": "Universes Map",
+      "description": "Map of universes that compose the machine. Each universe is a sub-state-machine with its own realities and transitions. Must contain at least one universe.",
+      "$comment": "Recommended rule (not enforceable by JSON Schema alone): map key should match universes.<key>.id.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "#/$defs/identifier"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/universeModel"
+      }
+    },
+    "initials": {
+      "title": "Machine Initial References",
+      "description": "List of machine bootstrap references. Each reference initializes a universe, or a universe at a specific reality.",
+      "$comment": "The experimental runtime processes refs in U:<universe> or U:<universe>:<reality> format. Do not use internal (non-U:) refs here.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/externalReference"
+      },
+      "examples": [
+        [
+          "U:admission-process"
+        ],
+        [
+          "U:admission-process:WAITING_CONFIRMATION",
+          "U:document-process"
+        ]
+      ]
+    },
+    "universalConstants": {
+      "$ref": "#/$defs/universalConstantsModel",
+      "title": "Machine Universal Constants",
+      "description": "Machine-level universal hooks executed around entry/exit/transition phases for active universes."
+    },
+    "description": {
+      "type": "string",
+      "title": "Machine Description",
+      "description": "Human-readable functional description of the machine purpose."
+    },
+    "metadata": {
+      "$ref": "#/$defs/metadata",
+      "title": "Machine Metadata",
+      "description": "Arbitrary machine metadata. Useful for UI, auditing, business flags, or external integrations."
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "title": "StatePro Identifier",
+      "description": "Base identifier format for machine, universe, and reality IDs. Must start with a letter. Letters, digits, underscore, and hyphen are allowed. Whitespace is not allowed.",
+      "$comment": "Pattern aligned with experimental/helper.go and comments in theoretical/*.go.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z](?:[A-Za-z0-9_-]*[A-Za-z0-9])?$",
+      "examples": [
+        "admission",
+        "admission_process",
+        "admission-process",
+        "A",
+        "WAITING_CONFIRMATION"
+      ]
+    },
+
+    "version": {
+      "title": "Version String",
+      "description": "Flexible version string without spaces. Allowed characters: letters, digits, dot, hyphen, underscore.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "examples": [
+        "1.0.0",
+        "v1",
+        "v1.0.2",
+        "1.0.0-alpha.1"
+      ]
+    },
+
+    "metadata": {
+      "title": "Metadata Object",
+      "description": "Flexible object for additional information. It does not directly drive transitions unless custom executors consume it.",
+      "type": "object",
+      "additionalProperties": true
+    },
+
+    "argumentValue": {
+      "title": "Behavior Argument Value",
+      "description": "Allowed value type for action/condition/invoke/observer arguments. Scalars, objects, arrays, and null are accepted for compatibility with existing models.",
+      "$comment": "Although early docs suggested string/number/boolean only, real examples include nested objects; this schema supports recursive structures.",
+      "anyOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" },
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/argumentValue" }
+        },
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/argumentValue" }
+        },
+        { "type": "null" }
+      ]
+    },
+
+    "args": {
+      "title": "Behavior Arguments",
+      "description": "Argument map passed to executors. Keys follow StatePro naming convention (must start with a letter, then alphanumeric/_/-).",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+      },
+      "additionalProperties": { "$ref": "#/$defs/argumentValue" }
+    },
+
+    "behaviorSource": {
+      "title": "Behavior Source",
+      "description": "Logical executor identifier (for example builtin:action:log).",
+      "$comment": "Runtime defaults when source is missing/not found: observer src empty => true, condition src empty => true but missing registration => false, action/invoke missing registration => no-op with warning.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\S+$",
+      "examples": [
+        "builtin:observer:containsAllEvents",
+        "builtin:action:logArgs",
+        "condition:ifTemplate",
+        "invoke:sendWebhook"
+      ]
+    },
+
+    "behaviorModel": {
+      "title": "Behavior Model",
+      "description": "Base contract shared by ObserverModel, ConditionModel, ActionModel, and InvokeModel.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["src"],
+      "properties": {
+        "src": {
+          "$ref": "#/$defs/behaviorSource",
+          "description": "Reference to the registered executor for this behavior."
+        },
+        "args": {
+          "$ref": "#/$defs/args",
+          "description": "Executor input parameters."
+        },
+        "description": {
+          "type": "string",
+          "description": "Functional documentation for this behavior."
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata",
+          "description": "Additional behavior metadata."
+        }
+      },
+      "examples": [
+        {
+          "src": "builtin:observer:containsAllEvents",
+          "args": {
+            "p1": "fill-form",
+            "p2": "sign"
+          },
+          "description": "Approves when both required events are present"
+        }
+      ]
+    },
+
+    "actionModel": {
+      "$ref": "#/$defs/behaviorModel",
+      "title": "Action Model",
+      "description": "Synchronous action. If it fails, the current transition or entry/exit phase fails."
+    },
+
+    "invokeModel": {
+      "$ref": "#/$defs/behaviorModel",
+      "title": "Invoke Model",
+      "description": "Asynchronous fire-and-forget invocation. Return value does not change control flow."
+    },
+
+    "observerModel": {
+      "$ref": "#/$defs/behaviorModel",
+      "title": "Observer Model",
+      "description": "Observer used during superposition to decide when a reality can be established."
+    },
+
+    "conditionModel": {
+      "$ref": "#/$defs/behaviorModel",
+      "title": "Condition Model",
+      "description": "Transition guard. Must evaluate to true for a transition to fire."
+    },
+
+    "transitionType": {
+      "title": "Transition Type",
+      "description": "Transition mode. 'default' abandons current reality. 'notify' dispatches to external targets while keeping the current reality active.",
+      "type": "string",
+      "enum": ["default", "notify"],
+      "default": "default"
+    },
+
+    "realityType": {
+      "title": "Reality Type",
+      "description": "Reality classification: intermediate transition state or final state (successful/unsuccessful).",
+      "type": "string",
+      "enum": ["transition", "final", "unsuccessfulFinal"]
+    },
+
+    "targetReference": {
+      "title": "Transition Target Reference",
+      "description": "Transition destination reference. Valid forms: <reality>, U:<universe>, U:<universe>:<reality>.",
+      "$comment": "Pattern is compatible with processReference() in the experimental runtime.",
+      "type": "string",
+      "pattern": "^(?:U:[A-Za-z](?:[A-Za-z0-9_-]*[A-Za-z0-9])?(?::[A-Za-z](?:[A-Za-z0-9_-]*[A-Za-z0-9])?)?|[A-Za-z](?:[A-Za-z0-9_-]*[A-Za-z0-9])?)$",
+      "examples": [
+        "WAITING_CONFIRMATION",
+        "U:admission-cancelled",
+        "U:admission-process:CONFIRMED"
+      ]
+    },
+
+    "externalReference": {
+      "title": "External Universe Reference",
+      "description": "External reference with U: prefix. Used by machine.initials and by external transition targets.",
+      "type": "string",
+      "pattern": "^U:[A-Za-z](?:[A-Za-z0-9_-]*[A-Za-z0-9])?(?::[A-Za-z](?:[A-Za-z0-9_-]*[A-Za-z0-9])?)?$",
+      "examples": [
+        "U:main",
+        "U:main:START"
+      ]
+    },
+
+    "transitionArray": {
+      "title": "Transition Array",
+      "description": "Ordered transition list. Evaluation stops at the first approved transition.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/transitionModel" }
+    },
+
+    "nonEmptyTransitionArray": {
+      "title": "Non-Empty Transition Array",
+      "description": "Transition list that must contain at least one item. Used when field presence implies effective flow definition.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/transitionModel" }
+    },
+
+    "onTransitionsObject": {
+      "title": "Event Transition Map (on)",
+      "description": "Map from event name to transition list. Each key is an event name received by SendEvent.",
+      "$comment": "Empty arrays are allowed for compatibility with existing models; in that case, the event key exists but has no effective transition.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1
+      },
+      "additionalProperties": { "$ref": "#/$defs/transitionArray" }
+    },
+
+    "transitionModel": {
+      "title": "Transition Model",
+      "description": "Defines a conditional transition between realities/universes. Includes guards, synchronous/asynchronous side effects, and destinations.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["targets"],
+      "properties": {
+        "condition": {
+          "$ref": "#/$defs/conditionModel",
+          "description": "Optional single condition. If present, it is included in the full condition set to evaluate."
+        },
+        "conditions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/conditionModel" },
+          "description": "Additional condition list. All conditions must evaluate to true (logical AND)."
+        },
+        "type": {
+          "$ref": "#/$defs/transitionType",
+          "description": "Operational transition mode."
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/targetReference" },
+          "description": "Transition destinations. Multiple targets create superposition behavior in runtime."
+        },
+        "actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/actionModel" },
+          "description": "Synchronous actions executed when the transition is approved. Any action error aborts transition execution."
+        },
+        "invokes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invokeModel" },
+          "description": "Asynchronous invokes executed when the transition is approved."
+        },
+        "description": {
+          "type": "string",
+          "description": "Functional transition description."
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata",
+          "description": "Auxiliary metadata for tooling, auditing, or presentation rules."
+        }
+      },
+      "$comment": "Execution order in doCyclicTransition(): constants actions -> transition actions -> constants invokes -> transition invokes -> apply type/targets effect.",
+      "allOf": [
+        {
+          "if": {
+            "required": ["type"],
+            "properties": {
+              "type": { "const": "notify" }
+            }
+          },
+          "then": {
+            "properties": {
+              "targets": {
+                "items": { "$ref": "#/$defs/externalReference" }
+              }
+            },
+            "$comment": "notify transitions cannot target internal realities. Only external universe or universe:reality refs are allowed."
+          }
+        }
+      ],
+      "examples": [
+        {
+          "targets": ["NEXT"]
+        },
+        {
+          "type": "notify",
+          "targets": ["U:billing"],
+          "invokes": [
+            {
+              "src": "invoke:emitEvent"
+            }
+          ]
+        },
+        {
+          "condition": {
+            "src": "condition:isValid"
+          },
+          "conditions": [
+            {
+              "src": "condition:hasStock"
+            }
+          ],
+          "targets": ["APPROVED"],
+          "actions": [
+            {
+              "src": "action:reserveStock"
+            }
+          ]
+        }
+      ]
+    },
+
+    "universalConstantsModel": {
+      "title": "Universal Constants",
+      "description": "Global action/invoke hooks for entry, exit, and transition phases.",
+      "$comment": "In current experimental runtime, machine.universalConstants is actively executed. universe.universalConstants exists in model types but is not explicitly applied in experimental/*.go.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entryInvokes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invokeModel" },
+          "description": "Asynchronous invokes executed on every reality entry."
+        },
+        "exitInvokes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invokeModel" },
+          "description": "Asynchronous invokes executed on every reality exit."
+        },
+        "entryActions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/actionModel" },
+          "description": "Synchronous actions executed on every reality entry."
+        },
+        "exitActions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/actionModel" },
+          "description": "Synchronous actions executed on every reality exit."
+        },
+        "invokesOnTransition": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invokeModel" },
+          "description": "Asynchronous invokes executed on every transition execution."
+        },
+        "actionsOnTransition": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/actionModel" },
+          "description": "Synchronous actions executed on every transition execution."
+        }
+      }
+    },
+
+    "realityModel": {
+      "title": "Reality Model",
+      "description": "State node inside a universe. Defines reality type, event transitions, automatic transitions, and entry/exit side effects.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier",
+          "description": "Reality unique identifier within the universe."
+        },
+        "type": {
+          "$ref": "#/$defs/realityType",
+          "description": "Reality type: transition/final/unsuccessfulFinal."
+        },
+        "on": {
+          "description": "Event-driven transition map. In runtime, if event key is absent, this reality has no transition for that event.",
+          "oneOf": [
+            { "$ref": "#/$defs/onTransitionsObject" },
+            { "type": "null" }
+          ]
+        },
+        "observers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/observerModel" },
+          "description": "Observers used during superposition to approve establishment of this reality.",
+          "$comment": "Current implementation evaluates observers sequentially in array order; first true wins."
+        },
+        "always": {
+          "$ref": "#/$defs/transitionArray",
+          "description": "Transitions evaluated automatically when this reality is established."
+        },
+        "entryActions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/actionModel" },
+          "description": "Synchronous actions executed on reality entry."
+        },
+        "exitActions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/actionModel" },
+          "description": "Synchronous actions executed on reality exit."
+        },
+        "entryInvokes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invokeModel" },
+          "description": "Asynchronous invokes executed on reality entry."
+        },
+        "exitInvokes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invokeModel" },
+          "description": "Asynchronous invokes executed on reality exit."
+        },
+        "description": {
+          "type": "string",
+          "description": "Functional reality description."
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata",
+          "description": "Reality-specific metadata."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["type"],
+            "properties": {
+              "type": { "const": "transition" }
+            }
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": ["on"],
+                "properties": {
+                  "on": { "$ref": "#/$defs/onTransitionsObject" }
+                }
+              },
+              {
+                "required": ["always"],
+                "properties": {
+                  "always": { "$ref": "#/$defs/nonEmptyTransitionArray" }
+                }
+              }
+            ],
+            "$comment": "Practical rule: transition realities should define event-driven flow (on) or automatic flow (always)."
+          }
+        }
+      ],
+      "examples": [
+        {
+          "id": "WAITING_CONFIRMATION",
+          "type": "transition",
+          "on": {
+            "confirm": [
+              { "targets": ["CONFIRMED"] }
+            ],
+            "reject": [
+              { "targets": ["U:admission-rejected"] }
+            ]
+          }
+        },
+        {
+          "id": "CONFIRMED",
+          "type": "final",
+          "always": [
+            {
+              "targets": ["U:post-process"]
+            }
+          ]
+        }
+      ]
+    },
+
+    "universeModel": {
+      "title": "Universe Model",
+      "description": "State machine subgraph inside the quantum machine. It maintains independent current reality, mutable metadata, and tracking history.",
+      "$comment": "If initial is not defined, the runtime initializes the universe in superposition until observers/flow establish a concrete reality.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "canonicalName", "version", "realities"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier",
+          "description": "Technical universe identifier."
+        },
+        "canonicalName": {
+          "$ref": "#/$defs/identifier",
+          "description": "Canonical universe identifier used for logical grouping/versioning."
+        },
+        "version": {
+          "$ref": "#/$defs/version",
+          "description": "Universe version."
+        },
+        "initial": {
+          "$ref": "#/$defs/identifier",
+          "description": "Universe initial reality ID. Should exist in realities (additional semantic validation recommended)."
+        },
+        "realities": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "$ref": "#/$defs/identifier" },
+          "additionalProperties": { "$ref": "#/$defs/realityModel" },
+          "description": "Universe reality map."
+        },
+        "universalConstants": {
+          "$ref": "#/$defs/universalConstantsModel",
+          "description": "Universe-level universal constants.",
+          "$comment": "Field is defined by theoretical.UniverseModel; current experimental runtime does not explicitly execute it."
+        },
+        "description": {
+          "type": "string",
+          "description": "Functional universe description."
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata",
+          "description": "Mutable universe metadata that executors can read/write at runtime."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Free-form tags for classification, search, or tooling."
+        }
+      },
+      "examples": [
+        {
+          "id": "admission-in-waiting-confirmation",
+          "canonicalName": "admission-in-waiting-confirmation",
+          "version": "0.1.0",
+          "initial": "CREATED",
+          "realities": {
+            "CREATED": {
+              "id": "CREATED",
+              "type": "transition",
+              "always": [
+                { "targets": ["WAITING_CONFIRMATION"] }
+              ]
+            },
+            "WAITING_CONFIRMATION": {
+              "id": "WAITING_CONFIRMATION",
+              "type": "transition",
+              "on": {
+                "confirm": [
+                  { "targets": ["CONFIRMED"] }
+                ],
+                "reject": [
+                  { "targets": ["U:admission-rejected"] }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

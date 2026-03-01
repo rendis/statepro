@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif;
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #0f172a;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #334155;
+  border-radius: 999px;
+  border: 2px solid #0f172a;
+}
+
+.note-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--note-scrollbar-thumb, rgba(30, 41, 59, 0.55)) transparent;
+}
+
+.note-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.note-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.note-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--note-scrollbar-thumb, rgba(30, 41, 59, 0.55));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}

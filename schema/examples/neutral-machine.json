@@ -1,0 +1,35 @@
+{
+  "id": "neutral-machine",
+  "canonicalName": "neutral-machine",
+  "version": "1.0.0",
+  "initials": [
+    "U:main"
+  ],
+  "universes": {
+    "main": {
+      "id": "main",
+      "canonicalName": "main",
+      "version": "1.0.0",
+      "initial": "START",
+      "realities": {
+        "START": {
+          "id": "START",
+          "type": "transition",
+          "on": {
+            "go": [
+              {
+                "targets": [
+                  "END"
+                ]
+              }
+            ]
+          }
+        },
+        "END": {
+          "id": "END",
+          "type": "final"
+        }
+      }
+    }
+  }
+}

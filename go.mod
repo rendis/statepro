@@ -12,6 +12,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/rendis/abslog/v3 v3.0.1
 	github.com/rendis/devtoolkit v1.4.1-0.20240801211308-9ec844fb2dd2
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 )
 
 require (
