@@ -338,6 +338,28 @@ describe("StateProEditor viewport toolbar", () => {
     });
   });
 
+  it("double click en coincidencia cierra buscador y mantiene nodo seleccionado", async () => {
+    const user = userEvent.setup();
+    render(<StateProEditor locale="es" />);
+
+    const searchInput = await openSearchInput(user);
+    await user.type(searchInput, "processing");
+
+    const realityResult = await screen.findByTestId("toolbar-search-result-real-2");
+    await user.dblClick(realityResult);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("textbox", { name: /buscar nodos/i })).not.toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTitle(/eliminar realidad/i)).toBeInTheDocument();
+    });
+
+    const reopenedInput = await openSearchInput(user);
+    expect(reopenedInput).toHaveValue("processing");
+  });
+
   it("aplica pulse temporal en nodo de canvas al navegar resultados", async () => {
     const user = userEvent.setup();
     render(<StateProEditor locale="es" />);

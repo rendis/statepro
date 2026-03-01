@@ -220,6 +220,15 @@ export const CanvasToolbar = ({
     setIsSearchExpanded(true);
   };
 
+  const closeSearchPanel = () => {
+    setIsSearchFocusWithin(false);
+    setIsSearchExpanded(false);
+
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  };
+
   return (
     <>
       <div
@@ -366,6 +375,11 @@ export const CanvasToolbar = ({
                     onMouseDown={(event) => {
                       event.preventDefault();
                       onSearchSelect?.(index);
+                    }}
+                    onDoubleClick={(event) => {
+                      event.preventDefault();
+                      onSearchSelect?.(index);
+                      closeSearchPanel();
                     }}
                     className={`w-full text-left px-3 py-2.5 border-b border-slate-800/70 last:border-b-0 transition-colors ${
                       isActive ? "bg-blue-600/20" : "hover:bg-slate-800/70"
