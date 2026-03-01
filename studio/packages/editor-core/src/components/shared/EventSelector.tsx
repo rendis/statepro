@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { STUDIO_ICON_REGISTRY, STUDIO_ICONS } from "../../constants";
 import { useI18n } from "../../i18n";
+import { StudioTooltip } from "./tooltip";
 
 interface EventSelectorProps {
   value?: string;
@@ -72,20 +73,22 @@ export const EventSelector = ({ value, onChange, availableEvents = [] }: EventSe
 
   if (!isEditing && value) {
     return (
-      <div
-        onClick={() => setIsEditing(true)}
-        className="group cursor-pointer flex items-center justify-between w-full bg-blue-900/20 border border-blue-500/50 hover:border-blue-500 hover:bg-blue-900/30 text-blue-300 px-3 py-2 rounded-lg font-mono text-sm transition-colors"
-        title={t("eventSelector.clickToChange")}
-      >
-        <div className="flex items-center gap-2">
-          <EventIcon size={14} className={triggerOnColors.base} />
-          <span className="font-bold tracking-wider">{value}</span>
+      <StudioTooltip label={t("eventSelector.clickToChange")}>
+        <div
+          onClick={() => setIsEditing(true)}
+          aria-label={t("eventSelector.clickToChange")}
+          className="group cursor-pointer flex items-center justify-between w-full bg-blue-900/20 border border-blue-500/50 hover:border-blue-500 hover:bg-blue-900/30 text-blue-300 px-3 py-2 rounded-lg font-mono text-sm transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <EventIcon size={14} className={triggerOnColors.base} />
+            <span className="font-bold tracking-wider">{value}</span>
+          </div>
+          <Edit3
+            size={14}
+            className="text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
+          />
         </div>
-        <Edit3
-          size={14}
-          className="text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
-        />
-      </div>
+      </StudioTooltip>
     );
   }
 
@@ -116,13 +119,13 @@ export const EventSelector = ({ value, onChange, availableEvents = [] }: EventSe
                 event.preventDefault();
                 handleSelect(pendingEvent);
               }}
-            className="w-full text-left px-3 py-2.5 hover:bg-slate-700 flex items-center gap-2 group transition-colors border-l-2 border-transparent hover:border-blue-500"
-          >
-            <Plus size={14} className="text-blue-400" />
-            <span className="text-xs text-white font-bold font-mono">
-              {t("eventSelector.create", { value: pendingEvent })}
-            </span>
-          </button>
+              className="w-full text-left px-3 py-2.5 hover:bg-slate-700 flex items-center gap-2 group transition-colors border-l-2 border-transparent hover:border-blue-500"
+            >
+              <Plus size={14} className="text-blue-400" />
+              <span className="text-xs text-white font-bold font-mono">
+                {t("eventSelector.create", { value: pendingEvent })}
+              </span>
+            </button>
           )}
           {filteredAvailable.map((eventName) => (
             <button

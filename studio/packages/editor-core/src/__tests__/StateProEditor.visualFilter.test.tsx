@@ -111,24 +111,24 @@ describe("StateProEditor visual filter", () => {
     render(<StateProEditor locale="es" />);
 
     selectUniverseNode("univ-1");
-    expect(screen.getByTitle(/eliminar universo/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /eliminar universo/i })).toBeInTheDocument();
 
     selectRealityNode("real-1", { shiftKey: true });
-    expect(screen.queryByTitle(/eliminar universo/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /eliminar universo/i })).not.toBeInTheDocument();
 
     selectRealityNode("real-1", { shiftKey: true });
-    expect(screen.getByTitle(/eliminar universo/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /eliminar universo/i })).toBeInTheDocument();
   });
 
   it("oculta menús contextuales por componente cuando hay multi-selección", () => {
     render(<StateProEditor locale="es" />);
 
     selectRealityNode("real-1");
-    expect(screen.getByTitle(/eliminar realidad/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /eliminar realidad/i })).toBeInTheDocument();
 
     selectUniverseNode("univ-1", { shiftKey: true });
-    expect(screen.queryByTitle(/eliminar realidad/i)).not.toBeInTheDocument();
-    expect(screen.queryByTitle(/eliminar universo/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /eliminar realidad/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /eliminar universo/i })).not.toBeInTheDocument();
   });
 
   it("control de visualización siempre visible y habilitado con o sin selección", () => {

@@ -370,7 +370,7 @@ describe("PropertiesModal transition behavior", () => {
     expect(screen.getByText(/validation errors/i)).toBeInTheDocument();
     expect(screen.getByText(/priority/i)).toBeInTheDocument();
 
-    await user.click(screen.getByTitle(/move down priority/i));
+    await user.click(screen.getByRole("button", { name: /move down priority/i }));
     expect(moveTransition).toHaveBeenCalledWith("down");
   });
 
@@ -414,7 +414,7 @@ describe("PropertiesModal transition behavior", () => {
     expect(screen.getByTestId("transition-target-selector")).toBeInTheDocument();
     expect(screen.getByText(/invalid/i)).toBeInTheDocument();
 
-    await user.click(screen.getByTitle(/delete target/i));
+    await user.click(screen.getByRole("button", { name: /delete target/i }));
     expect(updateTransitionData).toHaveBeenCalledWith("targets", []);
 
     updateTransitionData.mockClear();

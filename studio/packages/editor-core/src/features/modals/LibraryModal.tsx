@@ -18,6 +18,7 @@ import {
   STUDIO_ICON_REGISTRY,
   STUDIO_ICONS,
 } from "../../constants";
+import { TooltipIconButton, TruncatedWithTooltip } from "../../components/shared";
 import { useI18n } from "../../i18n";
 import type { StudioTranslate } from "../../i18n";
 import type {
@@ -1245,21 +1246,21 @@ export const LibraryModal = ({
             />
           </div>
 
-          <div className="flex items-center gap-1.5 justify-between">
+          <div className="flex items-center gap-0 justify-between px-6">
             {(Object.entries(BEHAVIOR_TYPES) as Array<[BehaviorType, (typeof BEHAVIOR_TYPES)[BehaviorType]]>).map(
               ([key, value]) => {
                 const IconComponent = value.icon;
+                const label = t(BEHAVIOR_TYPE_LABEL_KEYS[key], undefined, value.label);
                 return (
-                  <button
+                  <TooltipIconButton
                     key={key}
                     onClick={() => toggleFilter(key)}
+                    tooltip={t("library.behavior.filter", { label })}
+                    aria-label={t("library.behavior.filter", { label })}
                     className={`p-1.5 rounded-md border transition-all flex-1 flex justify-center items-center ${activeFilters[key] ? `${value.bg} ${value.border} ${value.color}` : "bg-slate-900 border-slate-800 text-slate-600 hover:border-slate-700"}`}
-                    title={t("library.behavior.filter", {
-                      label: t(BEHAVIOR_TYPE_LABEL_KEYS[key], undefined, value.label),
-                    })}
                   >
                     <IconComponent size={14} />
-                  </button>
+                  </TooltipIconButton>
                 );
               },
             )}
@@ -1295,9 +1296,10 @@ export const LibraryModal = ({
                       <Icon size={12} />{" "}
                       {t(BEHAVIOR_TYPE_LABEL_KEYS[item.type], undefined, config.label)}
                     </div>
-                    <div className="text-xs font-mono text-slate-200 truncate" title={item.src}>
-                      {item.src}
-                    </div>
+                    <TruncatedWithTooltip
+                      text={item.src}
+                      className="text-xs font-mono text-slate-200 truncate"
+                    />
                   </div>
                   <button
                     onClick={(event) => {
@@ -1540,12 +1542,14 @@ export const LibraryModal = ({
                   <div className="text-[10px] font-bold text-emerald-300 mb-1 uppercase tracking-wider">
                     {t("library.pack.tag")}
                   </div>
-                  <div className="text-xs font-mono text-slate-200 truncate" title={pack.id}>
-                    {pack.id}
-                  </div>
-                  <div className="text-[10px] text-slate-400 truncate" title={pack.label}>
-                    {pack.label}
-                  </div>
+                  <TruncatedWithTooltip
+                    text={pack.id}
+                    className="text-xs font-mono text-slate-200 truncate"
+                  />
+                  <TruncatedWithTooltip
+                    text={pack.label}
+                    className="text-[10px] text-slate-400 truncate"
+                  />
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {METADATA_SCOPE_ORDER.filter((scope) => pack.scopes.includes(scope)).map(
                       (scope) => {

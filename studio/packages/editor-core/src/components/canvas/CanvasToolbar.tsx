@@ -19,13 +19,13 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
-  type ReactNode,
 } from "react";
 
 import { STUDIO_ICON_REGISTRY, STUDIO_ICONS } from "../../constants";
 import { useI18n } from "../../i18n";
 import type { StudioUniverseTemplate } from "../../types";
 import type { CanvasSearchFilters, CanvasSearchResult } from "../../utils";
+import { StudioTooltip } from "../shared";
 
 export interface CanvasToolbarProps {
   onAddUniverse: () => void;
@@ -56,12 +56,6 @@ export interface CanvasToolbarProps {
   onVisualizationModeChange?: (mode: "off" | "hide" | "dim") => void;
 }
 
-interface ToolbarTooltipProps {
-  label: string;
-  side?: "top" | "bottom";
-  children: ReactNode;
-}
-
 interface VisualModePreviewInfoProps {
   imageSrc: string;
   alt: string;
@@ -70,30 +64,13 @@ interface VisualModePreviewInfoProps {
 const VISUALIZATION_HIDE_PREVIEW_SRC = "/assets/visualization_hide_unrelated.svg";
 const VISUALIZATION_DIM_PREVIEW_SRC = "/assets/visualization_dim_unrelated.svg";
 
-const ToolbarTooltip = ({ label, side = "top", children }: ToolbarTooltipProps) => {
-  const sideClasses =
-    side === "bottom"
-      ? "top-full left-1/2 -translate-x-1/2 mt-2"
-      : "bottom-full left-1/2 -translate-x-1/2 mb-2";
-
-  return (
-    <div className="relative inline-flex group/tooltip">
-      {children}
-      <div
-        role="tooltip"
-        className={`pointer-events-none absolute z-[90] whitespace-nowrap ${sideClasses} opacity-0 translate-y-0.5 group-hover/tooltip:opacity-100 group-focus-within/tooltip:opacity-100 transition-all duration-150 ease-out`}
-      >
-        <div className="px-2 py-1 rounded-md text-[11px] font-medium text-slate-100 bg-slate-900 border border-slate-700 shadow-xl">
-          {label}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const VisualModePreviewInfo = ({ imageSrc, alt }: VisualModePreviewInfoProps) => {
   return (
-    <div className="relative inline-flex group/visual-preview">
+    <StudioTooltip
+      label={<img src={imageSrc} alt={alt} className="block w-72 h-auto" />}
+      side="right"
+      bubbleClassName="p-0 overflow-hidden rounded-md border border-slate-700 bg-slate-950 shadow-2xl"
+    >
       <button
         type="button"
         className="h-6 w-6 inline-flex items-center justify-center rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
@@ -105,15 +82,7 @@ const VisualModePreviewInfo = ({ imageSrc, alt }: VisualModePreviewInfoProps) =>
       >
         <Info size={12} />
       </button>
-      <div
-        role="tooltip"
-        className="pointer-events-none absolute left-full top-1/2 ml-2 -translate-y-1/2 opacity-0 translate-x-1 group-hover/visual-preview:opacity-100 group-focus-within/visual-preview:opacity-100 transition-all duration-150 ease-out z-[90]"
-      >
-        <div className="w-72 overflow-hidden rounded-md border border-slate-700 bg-slate-950 shadow-2xl">
-          <img src={imageSrc} alt={alt} className="block w-full h-auto" />
-        </div>
-      </div>
-    </div>
+    </StudioTooltip>
   );
 };
 
@@ -356,14 +325,14 @@ export const CanvasToolbar = ({
         }}
       >
         <div
-          className={`h-11 overflow-hidden border rounded-full backdrop-blur transition-[padding,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`h-11 overflow-visible border rounded-full backdrop-blur transition-[padding,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             showExpandedSearch
               ? "bg-slate-900/95 border-slate-700 shadow-2xl px-3 py-2"
               : "bg-slate-900/90 border-slate-700/80 shadow-lg p-0"
           }`}
         >
           {!showExpandedSearch ? (
-            <ToolbarTooltip label={t("toolbar.searchAria")} side="bottom">
+            <StudioTooltip label={t("toolbar.searchAria")} side="bottom">
               <button
                 type="button"
                 data-testid="toolbar-search-toggle"
@@ -376,7 +345,7 @@ export const CanvasToolbar = ({
               >
                 <Search size={14} />
               </button>
-            </ToolbarTooltip>
+            </StudioTooltip>
           ) : (
             <div className="flex items-center gap-2">
               <Search size={14} className="text-slate-400 shrink-0" />
@@ -392,7 +361,7 @@ export const CanvasToolbar = ({
               />
 
               <div className="flex items-center gap-1 pl-2 border-l border-slate-700">
-                <ToolbarTooltip label={t("toolbar.searchFilter.universe")} side="bottom">
+                <StudioTooltip label={t("toolbar.searchFilter.universe")} side="bottom">
                   <button
                     type="button"
                     data-testid="toolbar-search-filter-universe"
@@ -406,8 +375,8 @@ export const CanvasToolbar = ({
                   >
                     <STUDIO_ICONS.entity.universe size={13} />
                   </button>
-                </ToolbarTooltip>
-                <ToolbarTooltip label={t("toolbar.searchFilter.tag")} side="bottom">
+                </StudioTooltip>
+                <StudioTooltip label={t("toolbar.searchFilter.tag")} side="bottom">
                   <button
                     type="button"
                     data-testid="toolbar-search-filter-tag"
@@ -421,8 +390,8 @@ export const CanvasToolbar = ({
                   >
                     <Tag size={13} />
                   </button>
-                </ToolbarTooltip>
-                <ToolbarTooltip label={t("toolbar.searchFilter.reality")} side="bottom">
+                </StudioTooltip>
+                <StudioTooltip label={t("toolbar.searchFilter.reality")} side="bottom">
                   <button
                     type="button"
                     data-testid="toolbar-search-filter-reality"
@@ -436,9 +405,9 @@ export const CanvasToolbar = ({
                   >
                     <STUDIO_ICONS.entity.reality size={13} />
                   </button>
-                </ToolbarTooltip>
+                </StudioTooltip>
                 {searchQuery && (
-                  <ToolbarTooltip label={t("toolbar.searchClear")} side="bottom">
+                  <StudioTooltip label={t("toolbar.searchClear")} side="bottom">
                     <button
                       type="button"
                       data-testid="toolbar-search-clear"
@@ -448,7 +417,7 @@ export const CanvasToolbar = ({
                     >
                       <X size={14} />
                     </button>
-                  </ToolbarTooltip>
+                  </StudioTooltip>
                 )}
               </div>
             </div>
@@ -530,7 +499,7 @@ export const CanvasToolbar = ({
       </div>
 
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-xl p-1.5 shadow-2xl flex items-center gap-1 z-[60] animate-in slide-in-from-bottom-5">
-        <ToolbarTooltip label={t("toolbar.addBlankUniverse")}>
+        <StudioTooltip label={t("toolbar.addBlankUniverse")}>
           <button
             onClick={onAddUniverse}
             className={`${centerToolbarIconButtonBase} text-slate-200 hover:text-white hover:bg-slate-700`}
@@ -547,11 +516,11 @@ export const CanvasToolbar = ({
               />
             </span>
           </button>
-        </ToolbarTooltip>
+        </StudioTooltip>
         {onAddGlobalNote && (
           <>
             <div className="w-px h-5 bg-slate-700 mx-0.5" />
-            <ToolbarTooltip label={t("toolbar.addGlobalNote")}>
+            <StudioTooltip label={t("toolbar.addGlobalNote")}>
               <button
                 onClick={onAddGlobalNote}
                 className={`${centerToolbarIconButtonBase} text-yellow-500 hover:text-yellow-400 hover:bg-yellow-900/30`}
@@ -559,12 +528,12 @@ export const CanvasToolbar = ({
               >
                 <StickyNote size={16} />
               </button>
-            </ToolbarTooltip>
+            </StudioTooltip>
           </>
         )}
         <div className="w-px h-5 bg-slate-700 mx-0.5" />
         <div className="relative" ref={templateMenuRef}>
-          <ToolbarTooltip label={t("toolbar.prebuiltUniverses")}>
+          <StudioTooltip label={t("toolbar.prebuiltUniverses")}>
             <button
               type="button"
               onClick={() => {
@@ -583,7 +552,7 @@ export const CanvasToolbar = ({
             >
               <ChevronUp size={16} />
             </button>
-          </ToolbarTooltip>
+          </StudioTooltip>
 
           {templatesMenuOpen && canUseTemplates && (
             <div className="absolute bottom-14 left-1/2 -translate-x-1/2 w-72 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl p-2 z-[80] max-h-72 overflow-y-auto custom-scrollbar">
@@ -614,7 +583,7 @@ export const CanvasToolbar = ({
 
         <div className="w-px h-5 bg-slate-700 mx-0.5" />
         <div className="relative" ref={visualMenuRef}>
-          <ToolbarTooltip label={t("toolbar.visual.mode")}>
+          <StudioTooltip label={t("toolbar.visual.mode")}>
             <button
               type="button"
               data-testid="toolbar-visual-mode-trigger"
@@ -640,7 +609,7 @@ export const CanvasToolbar = ({
                 <Eye size={16} />
               )}
             </button>
-          </ToolbarTooltip>
+          </StudioTooltip>
 
           {visualMenuOpen && (
             <div
@@ -711,7 +680,7 @@ export const CanvasToolbar = ({
       </div>
 
       <div className="fixed bottom-6 right-8 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-xl p-1.5 shadow-2xl flex items-center gap-1 z-[60] animate-in slide-in-from-bottom-4">
-        <ToolbarTooltip
+        <StudioTooltip
           label={isAutoLayouting ? t("toolbar.autoLayoutRunning") : t("toolbar.autoLayout")}
         >
           <button
@@ -722,11 +691,11 @@ export const CanvasToolbar = ({
           >
             {isAutoLayouting ? t("toolbar.autoLayoutRunning") : t("toolbar.autoLayout")}
           </button>
-        </ToolbarTooltip>
+        </StudioTooltip>
 
         <div className="w-px h-5 bg-slate-700 mx-0.5" />
 
-        <ToolbarTooltip label={t("toolbar.undo")}>
+        <StudioTooltip label={t("toolbar.undo")}>
           <button
             onClick={onUndo}
             disabled={!onUndo || !canUndo}
@@ -735,9 +704,9 @@ export const CanvasToolbar = ({
           >
             <Undo2 size={16} />
           </button>
-        </ToolbarTooltip>
+        </StudioTooltip>
 
-        <ToolbarTooltip label={t("toolbar.redo")}>
+        <StudioTooltip label={t("toolbar.redo")}>
           <button
             onClick={onRedo}
             disabled={!onRedo || !canRedo}
@@ -746,11 +715,11 @@ export const CanvasToolbar = ({
           >
             <Redo2 size={16} />
           </button>
-        </ToolbarTooltip>
+        </StudioTooltip>
 
         <div className="w-px h-5 bg-slate-700 mx-0.5" />
 
-        <ToolbarTooltip label={t("toolbar.zoomOut")}>
+        <StudioTooltip label={t("toolbar.zoomOut")}>
           <button
             onClick={onZoomOut}
             className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
@@ -758,9 +727,9 @@ export const CanvasToolbar = ({
           >
             <Minus size={16} />
           </button>
-        </ToolbarTooltip>
+        </StudioTooltip>
 
-        <ToolbarTooltip label={t("toolbar.zoomIn")}>
+        <StudioTooltip label={t("toolbar.zoomIn")}>
           <button
             onClick={onZoomIn}
             className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
@@ -768,7 +737,7 @@ export const CanvasToolbar = ({
           >
             <Plus size={16} />
           </button>
-        </ToolbarTooltip>
+        </StudioTooltip>
 
         <span className="px-2 py-1 text-[11px] font-mono font-semibold text-slate-300 min-w-[52px] text-center border border-slate-700 rounded-md bg-slate-950/70">
           {Math.round(zoom * 100)}%
@@ -776,7 +745,7 @@ export const CanvasToolbar = ({
 
         <div className="w-px h-5 bg-slate-700 mx-0.5" />
 
-        <ToolbarTooltip label={t("toolbar.fitContent")}>
+        <StudioTooltip label={t("toolbar.fitContent")}>
           <button
             onClick={onFit}
             className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
@@ -784,9 +753,9 @@ export const CanvasToolbar = ({
           >
             <Maximize size={16} />
           </button>
-        </ToolbarTooltip>
+        </StudioTooltip>
 
-        <ToolbarTooltip label={t("toolbar.centerContent")}>
+        <StudioTooltip label={t("toolbar.centerContent")}>
           <button
             onClick={onCenter}
             className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
@@ -794,7 +763,7 @@ export const CanvasToolbar = ({
           >
             <Target size={16} />
           </button>
-        </ToolbarTooltip>
+        </StudioTooltip>
       </div>
     </>
   );

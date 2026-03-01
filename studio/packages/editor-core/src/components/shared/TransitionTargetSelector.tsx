@@ -9,6 +9,7 @@ import {
   type TransitionTargetOption,
 } from "../../utils";
 import type { EditorNode } from "../../types";
+import { TooltipIconButton } from "./tooltip";
 
 interface TransitionTargetSelectorProps {
   sourceRealityNodeId: string;
@@ -152,16 +153,16 @@ export const TransitionTargetSelector = ({
               </span>
             )}
 
-            <button
+            <TooltipIconButton
               onClick={(event) => {
                 event.stopPropagation();
                 removeTarget(item.value, index);
               }}
+              tooltip={t("properties.transition.deleteTarget")}
               className="hover:text-white transition-colors"
-              title={t("properties.transition.deleteTarget")}
             >
               <X size={10} />
-            </button>
+            </TooltipIconButton>
           </span>
         ))}
       </div>

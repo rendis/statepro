@@ -332,16 +332,16 @@ describe("StateProEditor canvas interaction", () => {
     fireEvent.mouseDown(universeNode, { clientX: 520, clientY: 420, button: 0 });
     fireEvent.mouseUp(universeNode, { clientX: 520, clientY: 420, button: 0 });
     await waitFor(() => {
-      expect(screen.getByTitle(/eliminar universo/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /eliminar universo/i })).toBeInTheDocument();
     });
 
     fireEvent.click(canvas, { clientX: 200, clientY: 200 });
-    expect(screen.queryByTitle(/eliminar universo/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /eliminar universo/i })).not.toBeInTheDocument();
 
     fireEvent.mouseDown(universeNode, { clientX: 520, clientY: 420, button: 0 });
     fireEvent.mouseUp(universeNode, { clientX: 520, clientY: 420, button: 0 });
     await waitFor(() => {
-      expect(screen.getByTitle(/eliminar universo/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /eliminar universo/i })).toBeInTheDocument();
     });
 
     fireEvent.mouseDown(canvas, { clientX: 640, clientY: 360, button: 0 });
@@ -350,11 +350,11 @@ describe("StateProEditor canvas interaction", () => {
     fireEvent.click(canvas, { clientX: 740, clientY: 440 });
 
     await waitFor(() => {
-      expect(screen.getByTitle(/eliminar universo/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /eliminar universo/i })).toBeInTheDocument();
     });
 
     fireEvent.click(canvas, { clientX: 220, clientY: 220 });
-    expect(screen.queryByTitle(/eliminar universo/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /eliminar universo/i })).not.toBeInTheDocument();
   });
 
   it("muestra cursor grabbing mientras se arrastra el canvas", async () => {
@@ -675,14 +675,14 @@ describe("StateProEditor canvas interaction", () => {
     fireEvent.click(screen.getByRole("button", { name: /anadir nota global/i }));
     expect(screen.getByPlaceholderText("Nota global flotante...")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTitle("Colapsar"));
+    fireEvent.click(screen.getByRole("button", { name: "Colapsar" }));
 
     await waitFor(() => {
       expect(screen.queryByPlaceholderText("Nota global flotante...")).not.toBeInTheDocument();
     });
-    expect(screen.getByTitle("Expandir")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Expandir" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTitle("Expandir"));
+    fireEvent.click(screen.getByRole("button", { name: "Expandir" }));
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText("Nota global flotante...")).toBeInTheDocument();
@@ -697,13 +697,13 @@ describe("StateProEditor canvas interaction", () => {
     fireEvent.mouseDown(realityNode, { clientX: 1120, clientY: 1130, button: 0 });
     fireEvent.mouseUp(realityNode, { clientX: 1120, clientY: 1130, button: 0 });
 
-    fireEvent.mouseDown(await within(realityWrapper).findByTitle(/anadir nota/i), { button: 0 });
+    fireEvent.mouseDown(await within(realityWrapper).findByRole("button", { name: /anadir nota/i }), { button: 0 });
     expect(screen.getByPlaceholderText("Escribe una nota aqui...")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("editor-canvas"), { clientX: 220, clientY: 220 });
 
     await waitFor(() => {
-      expect(screen.getByTitle(/ver nota/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/ver nota/i)).toBeInTheDocument();
     });
     expect(screen.queryByPlaceholderText("Escribe una nota aqui...")).not.toBeInTheDocument();
   });

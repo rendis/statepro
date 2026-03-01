@@ -291,7 +291,7 @@ describe("StateProEditor viewport toolbar", () => {
     fireEvent.keyDown(searchInput, { key: "Enter" });
 
     await waitFor(() => {
-      expect(screen.getByTitle(/eliminar realidad/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /eliminar realidad/i })).toBeInTheDocument();
     });
   });
 
@@ -344,7 +344,7 @@ describe("StateProEditor viewport toolbar", () => {
     await user.click(universeResult);
 
     await waitFor(() => {
-      expect(screen.getByTitle(/eliminar universo/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /eliminar universo/i })).toBeInTheDocument();
     });
   });
 
@@ -363,7 +363,7 @@ describe("StateProEditor viewport toolbar", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTitle(/eliminar realidad/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /eliminar realidad/i })).toBeInTheDocument();
     });
 
     const reopenedInput = await openSearchInput(user);

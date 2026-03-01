@@ -111,7 +111,7 @@ describe("TransitionTargetSelector", () => {
 
     expect(screen.getByText("next")).toBeInTheDocument();
 
-    await user.click(screen.getByTitle(/delete target/i));
+    await user.click(screen.getByRole("button", { name: /delete target/i }));
     expect(screen.queryByText("next")).not.toBeInTheDocument();
   });
 
@@ -122,7 +122,7 @@ describe("TransitionTargetSelector", () => {
     expect(screen.getByText("BAD::REF")).toBeInTheDocument();
     expect(screen.getByText(/invalid/i)).toBeInTheDocument();
 
-    await user.click(screen.getByTitle(/delete target/i));
+    await user.click(screen.getByRole("button", { name: /delete target/i }));
     expect(screen.queryByText("BAD::REF")).not.toBeInTheDocument();
     expect(screen.getByText("Select targets...")).toBeInTheDocument();
   });

@@ -4,6 +4,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { BEHAVIOR_TYPE_LABEL_KEYS, BEHAVIOR_TYPES } from "../../constants";
 import { useI18n } from "../../i18n";
 import type { BehaviorRef, BehaviorType, BehaviorRegistryItem, BehaviorModalState } from "../../types";
+import { StudioTooltip } from "./tooltip";
 
 interface BehaviorArrayEditorProps {
   items?: BehaviorRef[];
@@ -61,26 +62,39 @@ export const BehaviorArrayEditor = ({
         const libraryDef = registry.find((entry) => entry.src === item.src);
 
         return (
-          <span
+          <StudioTooltip
             key={`${item.src}-${index}`}
-            onClick={() => handleEdit(index)}
-            className={`flex items-center gap-1.5 ${config.bg} ${config.border} border ${config.color} text-[10px] px-2 py-1 rounded font-mono shadow-sm cursor-pointer hover:brightness-125 transition-all`}
-            title={libraryDef?.description || item.src}
+            label={
+              libraryDef?.description ? (
+                <div className="space-y-1">
+                  <div className="font-mono">{item.src}</div>
+                  <div>{libraryDef.description}</div>
+                </div>
+              ) : (
+                item.src
+              )
+            }
+            width="wrap"
           >
-            <Icon size={10} /> {item.src}
-            {item.args && Object.keys(item.args).length > 0 && (
-              <span
-                className="w-1.5 h-1.5 bg-green-500 rounded-full"
-                title={t("behaviorArray.hasArgs")}
-              />
-            )}
-            <button
-              onClick={(event) => handleRemove(event, index)}
-              className="hover:text-white transition-colors ml-1"
+            <span
+              onClick={() => handleEdit(index)}
+              className={`flex items-center gap-1.5 ${config.bg} ${config.border} border ${config.color} text-[10px] px-2 py-1 rounded font-mono shadow-sm cursor-pointer hover:brightness-125 transition-all`}
             >
-              <X size={10} />
-            </button>
-          </span>
+              <Icon size={10} />
+              <span className="max-w-44 truncate">{item.src}</span>
+              {item.args && Object.keys(item.args).length > 0 && (
+                <StudioTooltip label={t("behaviorArray.hasArgs")}>
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                </StudioTooltip>
+              )}
+              <button
+                onClick={(event) => handleRemove(event, index)}
+                className="hover:text-white transition-colors ml-1"
+              >
+                <X size={10} />
+              </button>
+            </span>
+          </StudioTooltip>
         );
       })}
       <button

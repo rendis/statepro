@@ -32,6 +32,7 @@ import {
   TransitionBadge,
   TransitionRoute,
 } from "./components/canvas";
+import { StudioTooltip, TooltipIconButton, TruncatedWithTooltip } from "./components/shared";
 import {
   applyStudioLayoutDocument,
   buildEditorStateFromExternalValue,
@@ -4303,37 +4304,41 @@ function StateProEditorInner({
 
         <div className="flex items-center gap-2">
           {showLocaleSwitcher && (
-            <button
-              type="button"
-              onClick={() => setLocale(locale === "es" ? "en" : "es")}
-              aria-label={t("editor.header.languageAria")}
-              title={
+            <StudioTooltip
+              label={
                 locale === "es"
                   ? t("editor.header.switchToEnglish")
                   : t("editor.header.switchToSpanish")
               }
-              className="relative flex items-center bg-slate-900 p-0.5 rounded-md border border-slate-700 cursor-pointer shadow-inner"
+              side="bottom"
             >
-              <span
-                className={`absolute h-6 w-8 bg-slate-700 rounded shadow-sm transition-transform duration-300 ease-out ${
-                  locale === "en" ? "translate-x-8" : "translate-x-0"
-                }`}
-              />
-              <span
-                className={`relative z-10 flex items-center justify-center w-8 h-6 text-[10px] font-bold transition-colors duration-300 select-none ${
-                  locale === "es" ? "text-white" : "text-slate-500"
-                }`}
+              <button
+                type="button"
+                onClick={() => setLocale(locale === "es" ? "en" : "es")}
+                aria-label={t("editor.header.languageAria")}
+                className="relative flex items-center bg-slate-900 p-0.5 rounded-md border border-slate-700 cursor-pointer shadow-inner"
               >
-                ES
-              </span>
-              <span
-                className={`relative z-10 flex items-center justify-center w-8 h-6 text-[10px] font-bold transition-colors duration-300 select-none ${
-                  locale === "en" ? "text-white" : "text-slate-500"
-                }`}
-              >
-                EN
-              </span>
-            </button>
+                <span
+                  className={`absolute h-6 w-8 bg-slate-700 rounded shadow-sm transition-transform duration-300 ease-out ${
+                    locale === "en" ? "translate-x-8" : "translate-x-0"
+                  }`}
+                />
+                <span
+                  className={`relative z-10 flex items-center justify-center w-8 h-6 text-[10px] font-bold transition-colors duration-300 select-none ${
+                    locale === "es" ? "text-white" : "text-slate-500"
+                  }`}
+                >
+                  ES
+                </span>
+                <span
+                  className={`relative z-10 flex items-center justify-center w-8 h-6 text-[10px] font-bold transition-colors duration-300 select-none ${
+                    locale === "en" ? "text-white" : "text-slate-500"
+                  }`}
+                >
+                  EN
+                </span>
+              </button>
+            </StudioTooltip>
           )}
           {showLocaleSwitcher && <div className="w-px h-5 bg-slate-700" />}
           <button
@@ -4659,9 +4664,10 @@ function StateProEditorInner({
                       size={14}
                       className={STUDIO_ICON_REGISTRY.entity.universe.colors.base}
                     />
-                    <span className="font-mono font-semibold select-none" title={node.data.id || node.data.name}>
-                      {node.data.id || node.data.name}
-                    </span>
+                    <TruncatedWithTooltip
+                      text={node.data.id || node.data.name}
+                      className="font-mono font-semibold select-none"
+                    />
                   </div>
 
                   <div
@@ -4802,66 +4808,64 @@ function StateProEditorInner({
 
                     {!node.data.note && (
                       <>
-                        <button
+                        <TooltipIconButton
                           onMouseDown={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
                             updateNodeAnchoredNote(node.id, createAnchoredNote());
                           }}
+                          tooltip={t("editor.context.addNote")}
                           className="p-1.5 hover:bg-yellow-900/30 rounded text-yellow-500 hover:text-yellow-400 transition-colors"
-                          title={t("editor.context.addNote")}
                         >
                           <StickyNote size={14} />
-                        </button>
+                        </TooltipIconButton>
                         <div className="w-px h-4 bg-slate-700 mx-1"></div>
                       </>
                     )}
 
-                    <button
+                    <TooltipIconButton
                       onMouseDown={(e) => {
                         e.stopPropagation();
                         setIsModalOpen(true);
                       }}
+                      tooltip={t("editor.context.editProperties")}
                       className="p-1.5 hover:bg-slate-700 rounded text-slate-300 hover:text-white transition-colors"
-                      title={t("editor.context.editProperties")}
                     >
                       <Settings2 size={14} />
-                    </button>
+                    </TooltipIconButton>
                     <div className="w-px h-4 bg-slate-700 mx-1"></div>
-                    <button
+                    <TooltipIconButton
                       onMouseDown={(e) => {
                         e.stopPropagation();
                         fitUniverseContent(node.id);
                       }}
+                      tooltip={t("editor.context.fitContent")}
                       className="p-1.5 hover:bg-slate-700 rounded text-slate-300 hover:text-white transition-colors"
-                      aria-label={t("editor.context.fitContent")}
-                      title={t("editor.context.fitContent")}
                     >
                       <Maximize size={14} />
-                    </button>
+                    </TooltipIconButton>
                     <div className="w-px h-4 bg-slate-700 mx-1"></div>
-                    <button
+                    <TooltipIconButton
                       onMouseDown={(e) => {
                         e.stopPropagation();
                         cloneUniverse(node.id);
                       }}
+                      tooltip={t("editor.context.cloneUniverse")}
                       className="p-1.5 hover:bg-slate-700 rounded text-slate-300 hover:text-white transition-colors"
-                      aria-label={t("editor.context.cloneUniverse")}
-                      title={t("editor.context.cloneUniverse")}
                     >
                       <Copy size={14} />
-                    </button>
+                    </TooltipIconButton>
                     <div className="w-px h-4 bg-slate-700 mx-1"></div>
-                    <button
+                    <TooltipIconButton
                       onMouseDown={(e) => {
                         e.stopPropagation();
                         deleteElement(node);
                       }}
+                      tooltip={t("editor.context.deleteUniverse")}
                       className="p-1.5 hover:bg-red-900/50 rounded text-red-400 hover:text-red-300 transition-colors"
-                      title={t("editor.context.deleteUniverse")}
                     >
                       <Trash2 size={14} />
-                    </button>
+                    </TooltipIconButton>
                   </div>
                 </div>
               );
@@ -4886,42 +4890,42 @@ function StateProEditorInner({
                   <div className="canvas-interactive absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl flex items-center p-1 gap-1 animate-in slide-in-from-bottom-2 fade-in duration-200 pointer-events-auto">
                     {!selectedElement.data.note && (
                       <>
-                        <button
+                        <TooltipIconButton
                           onMouseDown={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
                             updateTransitionNote(selectedElement.id, createAnchoredNote());
                           }}
+                          tooltip={t("editor.context.addNote")}
                           className="p-1.5 hover:bg-yellow-900/30 rounded text-yellow-500 hover:text-yellow-400 transition-colors"
-                          title={t("editor.context.addNote")}
                         >
                           <StickyNote size={14} />
-                        </button>
+                        </TooltipIconButton>
                         <div className="w-px h-4 bg-slate-700 mx-1"></div>
                       </>
                     )}
 
-                    <button
+                    <TooltipIconButton
                       onMouseDown={(e) => {
                         e.stopPropagation();
                         setIsModalOpen(true);
                       }}
+                      tooltip={t("editor.context.editTransition")}
                       className="p-1.5 hover:bg-slate-700 rounded text-slate-300 hover:text-white transition-colors"
-                      title={t("editor.context.editTransition")}
                     >
                       <Settings2 size={14} />
-                    </button>
+                    </TooltipIconButton>
                     <div className="w-px h-4 bg-slate-700 mx-1"></div>
-                    <button
+                    <TooltipIconButton
                       onMouseDown={(e) => {
                         e.stopPropagation();
                         deleteElement(selectedElement);
                       }}
+                      tooltip={t("editor.context.deleteTransition")}
                       className="p-1.5 hover:bg-red-900/50 rounded text-red-400 hover:text-red-300 transition-colors"
-                      title={t("editor.context.deleteTransition")}
                     >
                       <Trash2 size={14} />
-                    </button>
+                    </TooltipIconButton>
                   </div>
                 </div>
               );

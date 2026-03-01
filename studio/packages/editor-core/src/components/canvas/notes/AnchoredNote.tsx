@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 
 import type { AnchoredNoteData } from "../../../types";
 import { useI18n } from "../../../i18n";
+import { StudioTooltip, TooltipIconButton } from "../../shared";
 import { clampNoteColorIndex, NOTE_COLORS } from "./noteColors";
 
 interface AnchoredNoteProps {
@@ -56,24 +57,26 @@ const AnchoredNoteComponent = ({
 
   if (!isExpanded) {
     return (
-      <div
-        onMouseDown={(event) => {
-          event.stopPropagation();
-          onRequestFocus?.();
-        }}
-        onClick={(event) => {
-          event.stopPropagation();
-          onRequestFocus?.();
-          setIsExpanded(true);
-        }}
-        className={`w-6 h-6 rounded shadow-md cursor-pointer flex items-center justify-center border-b border-r hover:scale-110 transition-transform ${color.bg} ${color.border} ${styleClass || ""}`}
-        title={t("note.view")}
-      >
-        <StickyNote size={12} className={color.text} />
-        {note.text && (
-          <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-slate-900" />
-        )}
-      </div>
+      <StudioTooltip label={t("note.view")}>
+        <div
+          onMouseDown={(event) => {
+            event.stopPropagation();
+            onRequestFocus?.();
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRequestFocus?.();
+            setIsExpanded(true);
+          }}
+          aria-label={t("note.view")}
+          className={`w-6 h-6 rounded shadow-md cursor-pointer flex items-center justify-center border-b border-r hover:scale-110 transition-transform ${color.bg} ${color.border} ${styleClass || ""}`}
+        >
+          <StickyNote size={12} className={color.text} />
+          {note.text && (
+            <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-slate-900" />
+          )}
+        </div>
+      </StudioTooltip>
     );
   }
 
@@ -89,7 +92,7 @@ const AnchoredNoteComponent = ({
       <div className="flex items-center justify-between px-2 py-1.5 border-b border-black/10">
         <div className="flex gap-1">
           {NOTE_COLORS.map((token, index) => (
-            <button
+            <TooltipIconButton
               key={token.bg}
               onClick={() =>
                 onUpdate({
@@ -97,27 +100,27 @@ const AnchoredNoteComponent = ({
                   colorIndex: index,
                 })
               }
+              tooltip={t("note.color", { index: index + 1 })}
               className={`w-3 h-3 rounded-full border border-black/20 hover:scale-110 ${token.bg} ${clampNoteColorIndex(note.colorIndex) === index ? "ring-1 ring-black ring-offset-1 ring-offset-transparent" : ""}`}
-              title={t("note.color", { index: index + 1 })}
             />
           ))}
         </div>
 
         <div className="flex items-center gap-1">
-          <button
+          <TooltipIconButton
             onClick={onDelete}
+            tooltip={t("note.deleteAnchored")}
             className="p-0.5 hover:bg-black/10 rounded text-black/50 hover:text-red-600 transition-colors"
-            title={t("note.deleteAnchored")}
           >
             <Trash2 size={12} />
-          </button>
-          <button
+          </TooltipIconButton>
+          <TooltipIconButton
             onClick={() => setIsExpanded(false)}
+            tooltip={t("note.collapseAnchored")}
             className="p-0.5 hover:bg-black/10 rounded text-black/50 hover:text-black transition-colors"
-            title={t("note.collapseAnchored")}
           >
             <X size={12} />
-          </button>
+          </TooltipIconButton>
         </div>
       </div>
 

@@ -6,7 +6,9 @@ import {
   BehaviorArrayEditor,
   EventSelector,
   MetadataPackBindingsEditor,
+  StudioTooltip,
   TagEditor,
+  TooltipIconButton,
   TransitionTargetSelector,
 } from "../../components/shared";
 import { STUDIO_DS, STUDIO_ICON_REGISTRY, STUDIO_ICONS, studioTabClass } from "../../constants";
@@ -337,6 +339,19 @@ const PropertiesModal = ({
       ? "default"
       : transitionElement.data.type || "default"
     : "default";
+  const transitionModeSelect = (
+    <select
+      value={effectiveTransitionType}
+      onChange={(event) => updateTransitionData("type", event.target.value as "default" | "notify")}
+      className={`${STUDIO_DS.input} disabled:opacity-50 disabled:cursor-not-allowed`}
+      disabled={transitionHasLocalTargets}
+    >
+      <option value="default">{t("properties.transition.default")}</option>
+      {!transitionHasLocalTargets && (
+        <option value="notify">{t("properties.transition.notify")}</option>
+      )}
+    </select>
+  );
 
   const TransitionDefaultIcon = STUDIO_ICONS.transition.type.default;
   const TransitionNotifyIcon = STUDIO_ICONS.transition.type.notify;
@@ -777,22 +792,17 @@ const PropertiesModal = ({
                   <label className="block text-[10px] text-slate-400 mb-1 font-mono uppercase tracking-wider">
                     {t("properties.transition.mode")}
                   </label>
-                  <select
-                    value={effectiveTransitionType}
-                    onChange={(event) => updateTransitionData("type", event.target.value as "default" | "notify")}
-                    className={`${STUDIO_DS.input} disabled:opacity-50 disabled:cursor-not-allowed`}
-                    disabled={transitionHasLocalTargets}
-                    title={
-                      transitionHasLocalTargets
-                        ? t("properties.transition.notifyDisabled")
-                        : ""
-                    }
-                  >
-                    <option value="default">{t("properties.transition.default")}</option>
-                    {!transitionHasLocalTargets && (
-                      <option value="notify">{t("properties.transition.notify")}</option>
-                    )}
-                  </select>
+                  {transitionHasLocalTargets ? (
+                    <StudioTooltip
+                      label={t("properties.transition.notifyDisabled")}
+                      width="wrap"
+                      containerClassName="w-full"
+                    >
+                      <div className="w-full">{transitionModeSelect}</div>
+                    </StudioTooltip>
+                  ) : (
+                    transitionModeSelect
+                  )}
                 </div>
               </div>
 
@@ -809,22 +819,22 @@ const PropertiesModal = ({
                     </span>
                   </span>
                   <div className="flex items-center gap-2">
-                    <button
+                    <TooltipIconButton
                       onClick={() => moveTransition("up")}
                       disabled={!canMoveTransitionUp}
+                      tooltip={t("properties.transition.up")}
                       className="px-2 py-1 rounded border border-slate-700 text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed hover:border-slate-500"
-                      title={t("properties.transition.up")}
                     >
                       <ArrowUp size={12} />
-                    </button>
-                    <button
+                    </TooltipIconButton>
+                    <TooltipIconButton
                       onClick={() => moveTransition("down")}
                       disabled={!canMoveTransitionDown}
+                      tooltip={t("properties.transition.down")}
                       className="px-2 py-1 rounded border border-slate-700 text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed hover:border-slate-500"
-                      title={t("properties.transition.down")}
                     >
                       <ArrowDown size={12} />
-                    </button>
+                    </TooltipIconButton>
                   </div>
                 </div>
               </div>

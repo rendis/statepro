@@ -10,6 +10,7 @@ import {
 } from "../../constants";
 import { useI18n } from "../../i18n";
 import type { NodeSizeMap, RealityType } from "../../types";
+import { TooltipIconButton, TruncatedWithTooltip } from "../shared";
 
 interface RealityNodeProps {
   node: Extract<import("../../types").EditorNode, { type: "reality" }>;
@@ -138,47 +139,47 @@ const RealityNodeComponent = ({
 
       {selected && showContextMenu && (
         <div className="absolute -top-12 left-0 bg-slate-800 border border-slate-700 rounded-lg shadow-xl flex items-center p-1 gap-1 z-50 animate-in slide-in-from-bottom-2 fade-in duration-200">
-          <button
+          <TooltipIconButton
             onMouseDown={(event) => {
               event.stopPropagation();
               onEdit();
             }}
+            tooltip={t("reality.editProperties")}
             className="p-1.5 hover:bg-slate-700 rounded text-slate-300 hover:text-white transition-colors"
-            title={t("reality.editProperties")}
           >
             <Settings2 size={14} />
-          </button>
+          </TooltipIconButton>
           <div className="w-px h-4 bg-slate-700 mx-1" />
           <div className="relative group flex items-center h-full">
-            <button
+            <TooltipIconButton
+              tooltip={t("reality.changeType")}
               className={`p-1.5 hover:bg-slate-700 rounded transition-colors ${typeConfig.color}`}
-              title={t("reality.changeType")}
             >
               <IconComponent size={14} />
-            </button>
+            </TooltipIconButton>
             <div className="absolute top-full left-0 pt-1 hidden group-hover:block z-50">
               <div className="bg-slate-800 border border-slate-700 rounded shadow-xl p-1 gap-1 flex">
                 {(Object.entries(REALITY_TYPES) as Array<[RealityType, (typeof REALITY_TYPES)[RealityType]]>).map(
                   ([typeKey, configType]) => {
                     const SubIcon = configType.icon;
                     return (
-                      <button
+                      <TooltipIconButton
                         key={typeKey}
                         onMouseDown={(event) => {
                           event.stopPropagation();
                           onTypeChange(node.id, typeKey);
                         }}
-                        className={`p-1.5 hover:bg-slate-700 rounded ${configType.color}`}
-                        title={t(
+                        tooltip={t(
                           REALITY_TYPE_LABEL_KEYS[
                             typeKey as keyof typeof REALITY_TYPE_LABEL_KEYS
                           ] as string,
                           undefined,
                           configType.label,
                         )}
+                        className={`p-1.5 hover:bg-slate-700 rounded ${configType.color}`}
                       >
                         <SubIcon size={14} />
-                      </button>
+                      </TooltipIconButton>
                     );
                   },
                 )}
@@ -188,41 +189,41 @@ const RealityNodeComponent = ({
           <div className="w-px h-4 bg-slate-700 mx-1" />
           {!hasNote && onCreateNote && (
             <>
-              <button
+              <TooltipIconButton
                 onMouseDown={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
                   onCreateNote?.(node.id);
                 }}
+                tooltip={t("reality.addNote")}
                 className="p-1.5 hover:bg-yellow-900/30 rounded text-yellow-500 hover:text-yellow-400 transition-colors"
-                title={t("reality.addNote")}
               >
                 <StickyNote size={14} />
-              </button>
+              </TooltipIconButton>
               <div className="w-px h-4 bg-slate-700 mx-1" />
             </>
           )}
-          <button
+          <TooltipIconButton
             onMouseDown={(event) => {
               event.stopPropagation();
               onClone(node.id);
             }}
+            tooltip={t("reality.clone")}
             className="p-1.5 hover:bg-slate-700 rounded text-slate-300 hover:text-white transition-colors"
-            title={t("reality.clone")}
           >
             <Copy size={14} />
-          </button>
+          </TooltipIconButton>
           <div className="w-px h-4 bg-slate-700 mx-1" />
-          <button
+          <TooltipIconButton
             onMouseDown={(event) => {
               event.stopPropagation();
               onDelete();
             }}
+            tooltip={t("reality.delete")}
             className="p-1.5 hover:bg-red-900/50 rounded text-red-400 hover:text-red-300 transition-colors"
-            title={t("reality.delete")}
           >
             <Trash2 size={14} />
-          </button>
+          </TooltipIconButton>
         </div>
       )}
 
@@ -243,9 +244,10 @@ const RealityNodeComponent = ({
         <div className={hasLifecycleSummary ? "" : "w-full"}>
           <div className={`flex items-center gap-2 ${hasLifecycleSummary ? "mb-2" : ""}`}>
             <IconComponent size={16} className={typeConfig.color} />
-            <div className="font-mono font-bold text-slate-100 truncate select-none" title={node.data.id || node.data.name}>
-              {node.data.id || node.data.name}
-            </div>
+            <TruncatedWithTooltip
+              text={node.data.id || node.data.name}
+              className="font-mono font-bold text-slate-100 truncate select-none"
+            />
           </div>
 
           {hasLifecycleSummary && (

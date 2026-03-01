@@ -113,7 +113,7 @@ describe("StateProEditor history", () => {
 
     fireEvent.mouseDown(sourceUniverseNode, { clientX: 520, clientY: 420, button: 0 });
     fireEvent.mouseUp(sourceUniverseNode, { clientX: 520, clientY: 420, button: 0 });
-    await user.click(screen.getByTitle(/clonar universo/i));
+    await user.click(screen.getByRole("button", { name: /clonar universo/i }));
 
     await waitFor(() => {
       expect(countUniverseNodes()).toBe(2);
@@ -122,7 +122,7 @@ describe("StateProEditor history", () => {
 
     fireEvent.mouseDown(sourceUniverseNode, { clientX: 520, clientY: 420, button: 0 });
     fireEvent.mouseUp(sourceUniverseNode, { clientX: 520, clientY: 420, button: 0 });
-    await user.click(screen.getByTitle(/clonar universo/i));
+    await user.click(screen.getByRole("button", { name: /clonar universo/i }));
 
     await waitFor(() => {
       expect(countUniverseNodes()).toBe(3);

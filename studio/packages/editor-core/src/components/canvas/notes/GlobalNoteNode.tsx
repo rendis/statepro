@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 
 import type { EditorNode, GlobalNoteData } from "../../../types";
 import { useI18n } from "../../../i18n";
+import { TooltipIconButton } from "../../shared";
 import { clampNoteColorIndex, NOTE_COLORS } from "./noteColors";
 
 interface GlobalNoteNodeProps {
@@ -45,7 +46,7 @@ const GlobalNoteNodeComponent = ({
       >
         <div className="flex gap-1.5 pointer-events-auto">
           {NOTE_COLORS.map((token, index) => (
-            <button
+            <TooltipIconButton
               key={token.bg}
               onMouseDown={(event) => event.stopPropagation()}
               onClick={() =>
@@ -54,14 +55,14 @@ const GlobalNoteNodeComponent = ({
                   colorIndex: index,
                 })
               }
+              tooltip={t("note.color", { index: index + 1 })}
               className={`w-3.5 h-3.5 rounded-full border border-black/20 hover:scale-110 ${token.bg} ${clampNoteColorIndex(node.data.colorIndex) === index ? "ring-2 ring-black/50 ring-offset-1 ring-offset-transparent" : ""}`}
-              title={t("note.color", { index: index + 1 })}
             />
           ))}
         </div>
 
         <div className="flex items-center gap-1 pointer-events-auto">
-          <button
+          <TooltipIconButton
             onMouseDown={(event) => event.stopPropagation()}
             onClick={() =>
               onUpdate(node.id, {
@@ -69,19 +70,19 @@ const GlobalNoteNodeComponent = ({
                 isCollapsed: !isCollapsed,
               })
             }
+            tooltip={isCollapsed ? t("note.expand") : t("note.collapse")}
             className="p-1 hover:bg-black/10 rounded text-black/50 hover:text-black transition-colors"
-            title={isCollapsed ? t("note.expand") : t("note.collapse")}
           >
             {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-          </button>
-          <button
+          </TooltipIconButton>
+          <TooltipIconButton
             onMouseDown={(event) => event.stopPropagation()}
             onClick={() => onDelete(node.id)}
+            tooltip={t("note.delete")}
             className="p-1 hover:bg-black/10 rounded text-black/50 hover:text-red-600 transition-colors"
-            title={t("note.delete")}
           >
             <X size={14} />
-          </button>
+          </TooltipIconButton>
         </div>
       </div>
 
