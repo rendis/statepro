@@ -22,6 +22,7 @@
     "access": "public"
   },
   "scripts": {
+    "dev": "tsup src/index.ts --format esm,cjs --dts --sourcemap --watch",
     "build": "tsup src/index.ts --format esm,cjs --dts --sourcemap --clean",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",

@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "predev": "pnpm --filter @rendis/statepro-studio-react build",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",

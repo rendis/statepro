@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "packageManager": "pnpm@10.11.0",
   "scripts": {
-    "dev": "pnpm --filter studio-app dev",
+    "dev": "pnpm --filter @rendis/statepro-studio-react build && pnpm --parallel --stream --filter @rendis/statepro-studio-react --filter studio-app run dev",
     "build": "pnpm -r --if-present build",
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",

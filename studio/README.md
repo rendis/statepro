@@ -265,10 +265,13 @@ export function FullEmbeddedStudio() {
 
 ### CSS + Tailwind Requirement
 
-`@rendis/statepro-studio-react/styles.css` contains Tailwind directives (`@tailwind base/components/utilities`).
-Your host app must process Tailwind/PostCSS and include Studio sources in Tailwind content scanning.
+Studio uses Tailwind utility classes from the **default color palette** (slate, blue, yellow, green, red, cyan, orange, purple, sky, etc.) hardcoded in its components. Your host app must ensure Tailwind generates these classes.
 
-Example `tailwind.config.ts`:
+`@rendis/statepro-studio-react/styles.css` exports custom scrollbar styles (`.custom-scrollbar`, `.note-scrollbar`). Import it or copy the scrollbar CSS into your host app.
+
+#### Tailwind v3
+
+Include Studio sources in Tailwind content scanning via `tailwind.config.ts`:
 
 ```ts
 import type { Config } from "tailwindcss";
@@ -283,6 +286,47 @@ export default {
   theme: { extend: {} },
   plugins: [],
 } satisfies Config;
+```
+
+#### Tailwind v4
+
+Use the `@source` directive in your CSS entry point to scan Studio dist files:
+
+```css
+@import "tailwindcss";
+@source "../node_modules/@rendis/statepro-studio-react/dist/**/*.js";
+```
+
+> **Important:** The `@source` path is relative to the CSS file, not the project root. Verify the path resolves to the actual `dist/` directory (check for symlinks in monorepo/workspace setups).
+
+#### Tailwind v4 — Preserving Default Colors
+
+Studio depends on Tailwind's default color palette. If your host app defines custom colors with `@theme`, you must use the correct syntax to avoid removing default colors:
+
+```css
+/* Static values (fonts, animations) — preserves default color palette */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --animate-fade-in: fade-in 0.2s ease-out;
+}
+
+/* Dynamic values referencing CSS variables — use @theme inline */
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-primary: hsl(var(--primary));
+}
+```
+
+Using `hsl(var(...))` or other dynamic values directly inside `@theme` (without `inline`) can break the generation of default Tailwind color variables (`--color-slate-*`, `--color-blue-*`, etc.), causing Studio to render with transparent/missing colors.
+
+#### Host App CSS Interference
+
+Global rules like `* { border-color: ... }` will override Studio borders. Wrap the editor in an isolation container to reset inherited styles:
+
+```css
+.studio-wrapper * {
+  border-color: currentColor;
+}
 ```
 
 Use the path(s) that match your setup (`node_modules` or workspace source path).
@@ -584,15 +628,20 @@ Issue interpretation:
 
 Cause:
 
-- `@rendis/statepro-studio-react/styles.css` not imported.
+- `@rendis/statepro-studio-react/styles.css` not imported (scrollbar styles missing).
 - Tailwind pipeline not active in host app.
-- Tailwind content globs missing Studio classes.
+- Tailwind v3: `content` globs missing Studio classes.
+- Tailwind v4: `@source` path incorrect or not resolving (check relative path from CSS file, verify symlinks in monorepos).
+- Tailwind v4: `@theme` block with dynamic values (`hsl(var(...))`) instead of `@theme inline` — removes default color palette.
+- Host app global CSS (`* { border-color: ... }`) overriding Studio borders.
 
 Fix:
 
-- Import `@rendis/statepro-studio-react/styles.css`.
+- Import `@rendis/statepro-studio-react/styles.css` or copy scrollbar CSS.
 - Ensure PostCSS + Tailwind are configured.
-- Add correct `content` globs (`node_modules/@rendis/statepro-studio-react` or workspace source paths).
+- Tailwind v3: add correct `content` globs (`node_modules/@rendis/statepro-studio-react` or workspace source paths).
+- Tailwind v4: verify `@source` path resolves to the actual `dist/` directory. Use `@theme inline` for dynamic color values.
+- Wrap Studio in an isolation container to reset inherited styles (see "Host App CSS Interference" above).
 
 ### 2) Controlled mode creates update loops
 
