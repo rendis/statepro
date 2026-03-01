@@ -55,7 +55,7 @@ graph TD
 Get up and running with StatePro in 5 simple steps:
 
 1. **📄 Create JSON Definition** - Define your workflow in JSON
-2. **🔧 Register Custom Logic** *(optional)* - Add business-specific actions and observers
+2. **🔧 Register Custom Logic** _(optional)_ - Add business-specific actions and observers
 3. **📥 Load and Parse** - Deserialize the JSON model
 4. **⚙️ Initialize Machine** - Create and start the quantum machine
 5. **🎯 Send Events** - Interact with your workflow by sending events
@@ -78,14 +78,14 @@ Create `workflow.json`:
         "COLLECTING_INFO": {
           "type": "transition",
           "on": {
-            "submit": [{"targets": ["VERIFYING_EMAIL"]}]
+            "submit": [{ "targets": ["VERIFYING_EMAIL"] }]
           }
         },
         "VERIFYING_EMAIL": {
           "type": "transition",
           "on": {
-            "verify": [{"targets": ["COMPLETED"]}],
-            "timeout": [{"targets": ["EXPIRED"]}]
+            "verify": [{ "targets": ["COMPLETED"] }],
+            "timeout": [{ "targets": ["EXPIRED"] }]
           }
         },
         "COMPLETED": {
@@ -191,6 +191,28 @@ Active workflows: map[signup-process:[VERIFYING_EMAIL]]
 
 Try sending more events like `verify` or `timeout` to see the workflow complete!
 
+## 🎨 StatePro Studio (Visual Editor)
+
+StatePro also includes a visual editor for designing and maintaining machine definitions.
+
+Studio supports three integration modes:
+
+- Local app (`studio/app`) for day-to-day modeling.
+- React component package (`editor-core`) to embed Studio in React projects.
+- Web component package (`studio-web-component`) for framework-agnostic embedding (Vue/vanilla/etc.).
+
+Quick local run:
+
+```bash
+cd studio
+pnpm install
+pnpm dev
+```
+
+Full usage guide (props, data contracts, feature flags, i18n, and integration examples):
+
+- 📘 [StatePro Studio README](studio/README.md)
+
 ## 🛠️ Examples & Tooling
 
 StatePro includes several example implementations to help you get started:
@@ -276,7 +298,9 @@ A multi-step process with parallel tasks and conditional logic:
         "COLLECTING_INFO": {
           "type": "transition",
           "on": {
-            "submit": [{"targets": ["U:email-verification", "U:account-setup"]}]
+            "submit": [
+              { "targets": ["U:email-verification", "U:account-setup"] }
+            ]
           }
         }
       }
@@ -286,27 +310,29 @@ A multi-step process with parallel tasks and conditional logic:
       "realities": {
         "SENDING_EMAIL": {
           "type": "transition",
-          "always": [{"targets": ["WAITING_VERIFICATION"]}],
-          "entryActions": [{"src": "action:sendVerificationEmail"}]
+          "always": [{ "targets": ["WAITING_VERIFICATION"] }],
+          "entryActions": [{ "src": "action:sendVerificationEmail" }]
         },
         "WAITING_VERIFICATION": {
           "type": "transition",
           "on": {
-            "verify": [{"targets": ["VERIFIED"]}],
-            "timeout": [{"targets": ["EXPIRED"]}]
+            "verify": [{ "targets": ["VERIFIED"] }],
+            "timeout": [{ "targets": ["EXPIRED"] }]
           }
         },
-        "VERIFIED": {"type": "final"},
-        "EXPIRED": {"type": "unsuccessfulFinal"}
+        "VERIFIED": { "type": "final" },
+        "EXPIRED": { "type": "unsuccessfulFinal" }
       }
     },
     "account-setup": {
       "realities": {
         "WAITING_COMPLETION": {
           "type": "final",
-          "observers": [{
-            "src": "observer:emailVerified"
-          }]
+          "observers": [
+            {
+              "src": "observer:emailVerified"
+            }
+          ]
         }
       }
     }
@@ -333,7 +359,9 @@ Handle distributed transactions with compensation:
       "realities": {
         "VALIDATING": {
           "type": "transition",
-          "always": [{"targets": ["U:payment-processing", "U:inventory-check"]}]
+          "always": [
+            { "targets": ["U:payment-processing", "U:inventory-check"] }
+          ]
         }
       }
     },
@@ -343,14 +371,14 @@ Handle distributed transactions with compensation:
         "PROCESSING_PAYMENT": {
           "type": "transition",
           "on": {
-            "payment.success": [{"targets": ["PAYMENT_COMPLETED"]}],
-            "payment.failed": [{"targets": ["PAYMENT_FAILED"]}]
+            "payment.success": [{ "targets": ["PAYMENT_COMPLETED"] }],
+            "payment.failed": [{ "targets": ["PAYMENT_FAILED"] }]
           }
         },
-        "PAYMENT_COMPLETED": {"type": "final"},
+        "PAYMENT_COMPLETED": { "type": "final" },
         "PAYMENT_FAILED": {
           "type": "unsuccessfulFinal",
-          "entryActions": [{"src": "action:initiateRefund"}]
+          "entryActions": [{ "src": "action:initiateRefund" }]
         }
       }
     },
@@ -358,9 +386,11 @@ Handle distributed transactions with compensation:
       "realities": {
         "CHECKING_STOCK": {
           "type": "final",
-          "observers": [{
-            "src": "observer:inventoryAvailable"
-          }]
+          "observers": [
+            {
+              "src": "observer:inventoryAvailable"
+            }
+          ]
         }
       }
     }
@@ -387,7 +417,9 @@ Coordinate multiple services through events:
       "realities": {
         "PROCESSING": {
           "type": "transition",
-          "always": [{"targets": ["U:user-service", "U:notification-service"]}]
+          "always": [
+            { "targets": ["U:user-service", "U:notification-service"] }
+          ]
         }
       }
     },
@@ -395,10 +427,12 @@ Coordinate multiple services through events:
       "realities": {
         "WAITING_RESPONSE": {
           "type": "final",
-          "observers": [{
-            "src": "observer:userEventReceived",
-            "args": {"expectedEvent": "user.updated"}
-          }]
+          "observers": [
+            {
+              "src": "observer:userEventReceived",
+              "args": { "expectedEvent": "user.updated" }
+            }
+          ]
         }
       }
     },
@@ -406,10 +440,12 @@ Coordinate multiple services through events:
       "realities": {
         "WAITING_RESPONSE": {
           "type": "final",
-          "observers": [{
-            "src": "observer:notificationEventReceived",
-            "args": {"expectedEvent": "notification.sent"}
-          }]
+          "observers": [
+            {
+              "src": "observer:notificationEventReceived",
+              "args": { "expectedEvent": "notification.sent" }
+            }
+          ]
         }
       }
     }
@@ -425,33 +461,42 @@ StatePro uses pure JSON to define quantum state machines. Here's a simplified ad
 
 ```jsonc
 {
-  "id": "admission",                                    // 🆔 Unique machine identifier
+  "id": "admission", // 🆔 Unique machine identifier
   "initials": ["U:admission-in-waiting-confirmation"], // 🚀 Starting universes
   "universes": {
-    "admission-in-waiting-confirmation": {              // 🌌 Universe definition
-      "initial": "CREATED",                             // 📍 Starting state
-      "realities": {                                    // 🎭 Available states
+    "admission-in-waiting-confirmation": {
+      // 🌌 Universe definition
+      "initial": "CREATED", // 📍 Starting state
+      "realities": {
+        // 🎭 Available states
         "CREATED": {
           "type": "transition",
-          "always": [{"targets": ["WAITING_CONFIRMATION"]}]
+          "always": [{ "targets": ["WAITING_CONFIRMATION"] }],
         },
-        "WAITING_CONFIRMATION": {                       // ⏳ Await decision
+        "WAITING_CONFIRMATION": {
+          // ⏳ Await decision
           "type": "transition",
           "on": {
-            "confirm": [{"targets": ["CONFIRMED"]}],    // ✅ Accept event
-            "reject":  [{"targets": ["U:admission-rejected"]}] // ❌ Reject to new universe
-          }
+            "confirm": [{ "targets": ["CONFIRMED"] }], // ✅ Accept event
+            "reject": [{ "targets": ["U:admission-rejected"] }], // ❌ Reject to new universe
+          },
         },
-        "CONFIRMED": {                                  // 🎉 Success state
+        "CONFIRMED": {
+          // 🎉 Success state
           "type": "final",
-          "always": [{"targets": [                      // 🔀 Split into parallel universes
-            "U:admission-form-process",
-            "U:admission-contract-process"
-          ]}]
-        }
-      }
-    }
-  }
+          "always": [
+            {
+              "targets": [
+                // 🔀 Split into parallel universes
+                "U:admission-form-process",
+                "U:admission-contract-process",
+              ],
+            },
+          ],
+        },
+      },
+    },
+  },
 }
 ```
 
@@ -471,16 +516,17 @@ Comprehensive guides and references are available in the [`docs/`](docs/README.m
 
 - ⚙️ [**Instrumentation Reference**](docs/instrumentation.md) - Public interfaces and executor contracts for custom extensions
 - 🔧 [**Debugging & Tooling**](docs/debugging.md) - Interactive CLI viewer, automation bot, and logging utilities
+- 🎨 [**StatePro Studio Guide**](studio/README.md) - Visual editor usage, embedding patterns, and full API/props reference
 - 🤝 [**Contributing Guide**](CONTRIBUTING.md) - How to contribute code, report issues, and help improve StatePro
 
 ### Quick Navigation
 
-| Topic | Description | Best For |
-|-------|-------------|----------|
-| New to StatePro? | Start with [Concepts](docs/concepts.md) | Understanding the fundamentals |
-| Building workflows? | Read [Modeling Guide](docs/modeling.md) | Creating JSON definitions |
-| Integrating? | Check [Instrumentation](docs/instrumentation.md) | Custom actions & observers |
-| Debugging issues? | Use [Debugging Tools](docs/debugging.md) | Troubleshooting workflows |
+| Topic               | Description                                     | Best For                       |
+| ------------------- | ----------------------------------------------- | ------------------------------ |
+| New to StatePro?    | Start with[Concepts](docs/concepts.md)          | Understanding the fundamentals |
+| Building workflows? | Read[Modeling Guide](docs/modeling.md)          | Creating JSON definitions      |
+| Integrating?        | Check[Instrumentation](docs/instrumentation.md) | Custom actions & observers     |
+| Debugging issues?   | Use[Debugging Tools](docs/debugging.md)         | Troubleshooting workflows      |
 
 ## 🔧 Development
 
