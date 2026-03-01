@@ -5,8 +5,8 @@ StatePro Studio is a visual editor for building and maintaining StatePro machine
 It can be used in three main ways:
 
 - As a local app for day-to-day authoring (`studio/app`).
-- As an embeddable editor (`editor-core`) inside your own product.
-- As a framework-agnostic custom element (`studio-web-component`) for React/Vue/other frameworks.
+- As an embeddable editor (`@rendis/statepro-studio-react`) inside your own product.
+- As a framework-agnostic custom element (`@rendis/statepro-studio-web-component`) for React/Vue/other frameworks.
 
 ## What It Is
 
@@ -26,6 +26,22 @@ pnpm install
 pnpm dev
 ```
 
+## Install from npm
+
+Install the package that matches your integration mode:
+
+### React integration package
+
+```bash
+pnpm add @rendis/statepro-studio-react react react-dom
+```
+
+### Web Component integration package
+
+```bash
+pnpm add @rendis/statepro-studio-web-component @rendis/statepro-studio-react
+```
+
 Additional workspace checks:
 
 ```bash
@@ -40,8 +56,8 @@ pnpm build
 | Package                | Purpose                                                     | Typical Consumer                                     |
 | ---------------------- | ----------------------------------------------------------- | ---------------------------------------------------- |
 | `studio/app`           | Local development shell for Studio                          | Studio contributors                                  |
-| `editor-core`          | React component package exposing `StateProEditor` and types | React applications                                   |
-| `studio-web-component` | Custom element wrapper around `StateProEditor`              | Framework-agnostic embedding (Vue, vanilla JS, etc.) |
+| `@rendis/statepro-studio-react`          | React component package exposing `StateProEditor` and types | React applications                                   |
+| `@rendis/statepro-studio-web-component` | Custom element wrapper around `StateProEditor`              | Framework-agnostic embedding (Vue, vanilla JS, etc.) |
 
 ## Data Contracts (Definition, Layout, Metadata Packs)
 
@@ -101,12 +117,12 @@ Field meaning:
 - `source`: whether change came from in-editor user actions or from controlled external synchronization.
 - `at`: event timestamp.
 
-## React Integration (editor-core)
+## React Integration (@rendis/statepro-studio-react)
 
 ### Install
 
 ```bash
-pnpm add editor-core react react-dom
+pnpm add @rendis/statepro-studio-react react react-dom
 ```
 
 ### Minimal Controlled Example (`value` + `onChange`)
@@ -117,8 +133,8 @@ import {
   StateProEditor,
   type StudioChangePayload,
   type StudioExternalValue,
-} from "editor-core";
-import "editor-core/styles.css";
+} from "@rendis/statepro-studio-react";
+import "@rendis/statepro-studio-react/styles.css";
 
 const initialValue: StudioExternalValue = {
   definition: {
@@ -163,8 +179,8 @@ import {
   type StudioFeatureFlags,
   type StudioLocale,
   type StudioUniverseTemplate,
-} from "editor-core";
-import "editor-core/styles.css";
+} from "@rendis/statepro-studio-react";
+import "@rendis/statepro-studio-react/styles.css";
 
 const templates: StudioUniverseTemplate[] = [
   {
@@ -249,7 +265,7 @@ export function FullEmbeddedStudio() {
 
 ### CSS + Tailwind Requirement
 
-`editor-core/styles.css` contains Tailwind directives (`@tailwind base/components/utilities`).
+`@rendis/statepro-studio-react/styles.css` contains Tailwind directives (`@tailwind base/components/utilities`).
 Your host app must process Tailwind/PostCSS and include Studio sources in Tailwind content scanning.
 
 Example `tailwind.config.ts`:
@@ -261,7 +277,7 @@ export default {
   content: [
     "./index.html",
     "./src/**/*.{ts,tsx}",
-    "./node_modules/editor-core/**/*.{js,ts,tsx}",
+    "./node_modules/@rendis/statepro-studio-react/**/*.{js,ts,tsx}",
     "../packages/editor-core/src/**/*.{ts,tsx}", // monorepo/workspace usage
   ],
   theme: { extend: {} },
@@ -271,7 +287,7 @@ export default {
 
 Use the path(s) that match your setup (`node_modules` or workspace source path).
 
-## Web Component Integration (studio-web-component)
+## Web Component Integration (@rendis/statepro-studio-web-component)
 
 ### Register and Use
 
@@ -280,9 +296,9 @@ import {
   defineStateProStudioElement,
   STUDIO_CHANGE_EVENT,
   STUDIO_LOCALE_EVENT,
-} from "studio-web-component";
-import type { StudioChangePayload, StudioExternalValue } from "editor-core";
-import "editor-core/styles.css";
+} from "@rendis/statepro-studio-web-component";
+import type { StudioChangePayload, StudioExternalValue } from "@rendis/statepro-studio-react";
+import "@rendis/statepro-studio-react/styles.css";
 
 defineStateProStudioElement();
 
@@ -365,9 +381,9 @@ import {
   defineStateProStudioElement,
   STUDIO_CHANGE_EVENT,
   STUDIO_LOCALE_EVENT,
-} from "studio-web-component";
-import type { StudioChangePayload, StudioExternalValue } from "editor-core";
-import "editor-core/styles.css";
+} from "@rendis/statepro-studio-web-component";
+import type { StudioChangePayload, StudioExternalValue } from "@rendis/statepro-studio-react";
+import "@rendis/statepro-studio-react/styles.css";
 
 defineStateProStudioElement();
 
@@ -568,15 +584,15 @@ Issue interpretation:
 
 Cause:
 
-- `editor-core/styles.css` not imported.
+- `@rendis/statepro-studio-react/styles.css` not imported.
 - Tailwind pipeline not active in host app.
 - Tailwind content globs missing Studio classes.
 
 Fix:
 
-- Import `editor-core/styles.css`.
+- Import `@rendis/statepro-studio-react/styles.css`.
 - Ensure PostCSS + Tailwind are configured.
-- Add correct `content` globs (`node_modules/editor-core` or workspace source paths).
+- Add correct `content` globs (`node_modules/@rendis/statepro-studio-react` or workspace source paths).
 
 ### 2) Controlled mode creates update loops
 

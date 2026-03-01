@@ -14,7 +14,7 @@ importers:
 
   app:
     dependencies:
-      editor-core:
+      '@rendis/statepro-studio-react':
         specifier: workspace:*
         version: link:../packages/editor-core
       react:
@@ -115,7 +115,7 @@ importers:
 
   packages/web-component:
     dependencies:
-      editor-core:
+      '@rendis/statepro-studio-react':
         specifier: workspace:*
         version: link:../editor-core
       react:

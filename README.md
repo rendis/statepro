@@ -198,8 +198,18 @@ StatePro also includes a visual editor for designing and maintaining machine def
 Studio supports three integration modes:
 
 - Local app (`studio/app`) for day-to-day modeling.
-- React component package (`editor-core`) to embed Studio in React projects.
-- Web component package (`studio-web-component`) for framework-agnostic embedding (Vue/vanilla/etc.).
+- React component package (`@rendis/statepro-studio-react`) to embed Studio in React projects.
+- Web component package (`@rendis/statepro-studio-web-component`) for framework-agnostic embedding (Vue/vanilla/etc.).
+
+Install from npm:
+
+```bash
+# React integration
+pnpm add @rendis/statepro-studio-react react react-dom
+
+# Web Component integration
+pnpm add @rendis/statepro-studio-web-component @rendis/statepro-studio-react
+```
 
 Quick local run:
 

@@ -12,8 +12,8 @@
     "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
-      "editor-core": ["packages/editor-core/src/index.ts"],
-      "editor-core/*": ["packages/editor-core/src/*"]
+      "@rendis/statepro-studio-react": ["packages/editor-core/src/index.ts"],
+      "@rendis/statepro-studio-react/*": ["packages/editor-core/src/*"]
     }
   }
 }

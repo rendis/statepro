@@ -1,5 +1,5 @@
 {
-  "name": "editor-core",
+  "name": "@rendis/statepro-studio-react",
   "version": "0.1.0",
   "private": false,
   "type": "module",
@@ -18,6 +18,9 @@
     "dist",
     "src/styles.css"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts --sourcemap --clean",
     "test": "vitest run",

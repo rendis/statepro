@@ -1,13 +1,13 @@
 import React from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-import "editor-core/styles.css";
+import "@rendis/statepro-studio-react/styles.css";
 import {
   StateProEditor,
   type StateProEditorProps,
   type StudioChangePayload,
   type StudioLocale,
-} from "editor-core";
+} from "@rendis/statepro-studio-react";
 
 export const STUDIO_WEB_COMPONENT_TAG = "statepro-studio";
 export const STUDIO_CHANGE_EVENT = "studio-change";

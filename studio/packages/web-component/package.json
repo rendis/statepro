@@ -1,5 +1,5 @@
 {
-  "name": "studio-web-component",
+  "name": "@rendis/statepro-studio-web-component",
   "version": "0.1.0",
   "private": false,
   "type": "module",
@@ -16,6 +16,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts --sourcemap --clean",
     "test": "vitest run --passWithNoTests",
@@ -23,7 +26,7 @@
     "lint": "echo 'lint: pendiente de reglas'"
   },
   "dependencies": {
-    "editor-core": "workspace:*",
+    "@rendis/statepro-studio-react": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

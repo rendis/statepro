@@ -12,7 +12,7 @@
     "lint": "echo 'lint: pendiente de reglas'"
   },
   "dependencies": {
-    "editor-core": "workspace:*",
+    "@rendis/statepro-studio-react": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
