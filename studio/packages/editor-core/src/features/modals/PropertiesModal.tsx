@@ -52,6 +52,7 @@ interface PropertiesModalProps {
   ) => { id: string; canonicalName: string };
   commitRealityIdRename: (realityNodeId: string, nextRealityIdDraft: string) => string;
   updateTransitionData: (field: string, value: unknown) => void;
+  updateTransitionPatch?: (patch: Partial<EditorTransition>) => void;
   moveTransition: (direction: "up" | "down") => void;
   openBehaviorModal: Dispatch<SetStateAction<BehaviorModalState>>;
   registry: BehaviorRegistryItem[];
@@ -79,6 +80,7 @@ const PropertiesModal = ({
   commitUniverseCanonicalRename,
   commitRealityIdRename,
   updateTransitionData,
+  updateTransitionPatch,
   moveTransition,
   openBehaviorModal,
   registry,
@@ -738,6 +740,25 @@ const PropertiesModal = ({
                     value={transitionElement.data.triggerKind}
                     onChange={(event) => {
                       const nextKind = event.target.value as TransitionTriggerKind;
+                      if (updateTransitionPatch) {
+                        if (nextKind === "always") {
+                          updateTransitionPatch({
+                            triggerKind: "always",
+                            eventName: undefined,
+                          });
+                        } else if (!transitionElement.data.eventName) {
+                          updateTransitionPatch({
+                            triggerKind: "on",
+                            eventName: "NEW_EVENT",
+                          });
+                        } else {
+                          updateTransitionPatch({
+                            triggerKind: "on",
+                          });
+                        }
+                        return;
+                      }
+
                       updateTransitionData("triggerKind", nextKind);
                       if (nextKind === "always") {
                         updateTransitionData("eventName", undefined);

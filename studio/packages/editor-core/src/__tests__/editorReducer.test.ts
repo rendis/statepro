@@ -178,4 +178,41 @@ describe("editorReducer", () => {
 
     expect(next.isDirtyFromImport).toBe(true);
   });
+
+  it("compone updates funcionales consecutivos en transiciones sin revertir trigger", () => {
+    const state = createInitialEditorState();
+
+    const next = editorReducer(
+      editorReducer(state, {
+        type: "update-transitions",
+        payload: (previous) =>
+          previous.map((transition) =>
+            transition.id === "tr-1"
+              ? {
+                  ...transition,
+                  triggerKind: "always",
+                  eventName: undefined,
+                }
+              : transition,
+          ),
+      }),
+      {
+        type: "update-transitions",
+        payload: (previous) =>
+          previous.map((transition) =>
+            transition.id === "tr-1"
+              ? {
+                  ...transition,
+                  description: "updated-after-trigger",
+                }
+              : transition,
+          ),
+      },
+    );
+
+    const transition = next.transitions.find((entry) => entry.id === "tr-1");
+    expect(transition?.triggerKind).toBe("always");
+    expect(transition?.eventName).toBeUndefined();
+    expect(transition?.description).toBe("updated-after-trigger");
+  });
 });

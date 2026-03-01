@@ -14,6 +14,7 @@ interface TransitionBadgeProps {
   y: number;
   transition: EditorTransition;
   selected: boolean;
+  alwaysOrderSummary?: string;
   invalidNotify?: boolean;
   issueCount?: number;
   onSelect: () => void;
@@ -28,6 +29,7 @@ export const TransitionBadge = ({
   y,
   transition,
   selected,
+  alwaysOrderSummary,
   invalidNotify = false,
   issueCount = 0,
   onSelect,
@@ -47,7 +49,11 @@ export const TransitionBadge = ({
   const triggerName = isAlways
     ? t("editor.transition.trigger.always")
     : transition.eventName || t("editor.transition.trigger.newEvent");
-  const triggerLabel = truncateTriggerLabel(triggerName);
+  const triggerLabel = truncateTriggerLabel(
+    isAlways && alwaysOrderSummary
+      ? `${triggerName} ${alwaysOrderSummary}`
+      : triggerName,
+  );
 
   const TypeIcon = isNotify ? STUDIO_ICONS.transition.type.notify : STUDIO_ICONS.transition.type.default;
   const TriggerIcon = isAlways ? STUDIO_ICONS.transition.trigger.always : STUDIO_ICONS.transition.trigger.on;

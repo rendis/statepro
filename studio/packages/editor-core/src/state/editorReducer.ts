@@ -1,5 +1,8 @@
 import { createInitialEditorState } from "../model/defaults";
-import { removeTransitionsReferencingDeletedNodes } from "../utils";
+import {
+  normalizeTransitionsOrder,
+  removeTransitionsReferencingDeletedNodes,
+} from "../utils";
 import type {
   BehaviorRegistryItem,
   EditorNode,
@@ -23,10 +26,30 @@ export type EditorAction =
       type: "update-node-sizes";
       payload: (prev: Record<string, NodeSize>) => Record<string, NodeSize>;
     }
+  | {
+      type: "update-nodes";
+      payload: (prev: EditorNode[]) => EditorNode[];
+    }
   | { type: "set-registry"; payload: BehaviorRegistryItem[] }
+  | {
+      type: "update-registry";
+      payload: (prev: BehaviorRegistryItem[]) => BehaviorRegistryItem[];
+    }
   | { type: "set-metadata-pack-registry"; payload: MetadataPackRegistry }
+  | {
+      type: "update-metadata-pack-registry";
+      payload: (prev: MetadataPackRegistry) => MetadataPackRegistry;
+    }
   | { type: "set-metadata-pack-bindings"; payload: MetadataPackBindingMap }
+  | {
+      type: "update-metadata-pack-bindings";
+      payload: (prev: MetadataPackBindingMap) => MetadataPackBindingMap;
+    }
   | { type: "set-machine-config"; payload: EditorState["machineConfig"] }
+  | {
+      type: "update-machine-config-fn";
+      payload: (prev: EditorState["machineConfig"]) => EditorState["machineConfig"];
+    }
   | {
       type: "update-machine-config";
       payload: {
@@ -62,6 +85,10 @@ export type EditorAction =
   | {
       type: "update-transition";
       payload: { transitionId: string; patch: Partial<EditorTransition> };
+    }
+  | {
+      type: "update-transitions";
+      payload: (prev: EditorTransition[]) => EditorTransition[];
     }
   | {
       type: "delete-element";
@@ -181,10 +208,24 @@ export const editorReducer = (state: EditorState, action: EditorAction): EditorS
       };
     }
 
+    case "update-registry": {
+      return {
+        ...state,
+        registry: action.payload(state.registry),
+      };
+    }
+
     case "set-metadata-pack-registry": {
       return {
         ...state,
         metadataPackRegistry: action.payload,
+      };
+    }
+
+    case "update-metadata-pack-registry": {
+      return {
+        ...state,
+        metadataPackRegistry: action.payload(state.metadataPackRegistry),
       };
     }
 
@@ -195,10 +236,24 @@ export const editorReducer = (state: EditorState, action: EditorAction): EditorS
       };
     }
 
+    case "update-metadata-pack-bindings": {
+      return {
+        ...state,
+        metadataPackBindings: action.payload(state.metadataPackBindings),
+      };
+    }
+
     case "set-machine-config": {
       return {
         ...state,
         machineConfig: action.payload,
+      };
+    }
+
+    case "update-machine-config-fn": {
+      return {
+        ...state,
+        machineConfig: action.payload(state.machineConfig),
       };
     }
 
@@ -232,10 +287,28 @@ export const editorReducer = (state: EditorState, action: EditorAction): EditorS
       });
     }
 
-    case "set-transitions": {
+    case "update-nodes": {
       return clearSelectionIfInvalid({
         ...state,
-        transitions: action.payload,
+        nodes: action.payload(state.nodes),
+      });
+    }
+
+    case "set-transitions": {
+      const normalizedTransitions = normalizeTransitionsOrder(action.payload);
+      return clearSelectionIfInvalid({
+        ...state,
+        transitions: normalizedTransitions,
+      });
+    }
+
+    case "update-transitions": {
+      const normalizedTransitions = normalizeTransitionsOrder(
+        action.payload(state.transitions),
+      );
+      return clearSelectionIfInvalid({
+        ...state,
+        transitions: normalizedTransitions,
       });
     }
 
@@ -309,9 +382,8 @@ export const editorReducer = (state: EditorState, action: EditorAction): EditorS
     }
 
     case "update-transition": {
-      return {
-        ...state,
-        transitions: state.transitions.map((transition) => {
+      const normalizedTransitions = normalizeTransitionsOrder(
+        state.transitions.map((transition) => {
           if (transition.id !== action.payload.transitionId) {
             return transition;
           }
@@ -320,6 +392,10 @@ export const editorReducer = (state: EditorState, action: EditorAction): EditorS
             ...action.payload.patch,
           };
         }),
+      );
+      return {
+        ...state,
+        transitions: normalizedTransitions,
       };
     }
 

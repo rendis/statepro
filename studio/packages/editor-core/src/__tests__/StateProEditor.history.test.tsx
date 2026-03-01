@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { StateProEditor } from "../StateProEditor";
+import type { StudioExternalValue } from "../types";
 
 class ResizeObserverMock {
   observe() {}
@@ -67,6 +68,41 @@ const sampleImportMachine = JSON.stringify(
   null,
   2,
 );
+
+const alwaysTransitionsValue: StudioExternalValue = {
+  definition: {
+    id: "always-order-machine",
+    canonicalName: "always-order-machine",
+    version: "1.0.0",
+    initials: ["U:main"],
+    universes: {
+      main: {
+        id: "main",
+        canonicalName: "main",
+        version: "1.0.0",
+        initial: "idle",
+        realities: {
+          idle: {
+            id: "idle",
+            type: "transition",
+            always: [
+              {
+                targets: ["done"],
+              },
+              {
+                targets: ["done"],
+              },
+            ],
+          },
+          done: {
+            id: "done",
+            type: "final",
+          },
+        },
+      },
+    },
+  },
+};
 
 describe("StateProEditor history", () => {
   it("clona el mismo universo con ids derivados únicos", async () => {
@@ -243,6 +279,40 @@ describe("StateProEditor history", () => {
     fireEvent.keyDown(machineIdInput, { key: "z", ctrlKey: true });
 
     expect(countUniverseNodes()).toBe(2);
+  });
+
+  it("persiste cambio de trigger a always desde el modal de transición", async () => {
+    const user = userEvent.setup();
+    render(<StateProEditor locale="es" />);
+
+    const transitionBadge = screen.getByTestId("transition-badge-tr-1");
+    fireEvent.doubleClick(transitionBadge, { clientX: 1120, clientY: 1120, button: 0 });
+
+    const triggerSelect = (await screen.findAllByRole("combobox"))[0] as HTMLSelectElement;
+    expect(triggerSelect.value).toBe("on");
+    expect(screen.getByText(/evento a escuchar|event to listen/i)).toBeInTheDocument();
+
+    await user.selectOptions(triggerSelect, "always");
+
+    await waitFor(() => {
+      const nextTriggerSelect = screen.getAllByRole("combobox")[0] as HTMLSelectElement;
+      expect(nextTriggerSelect.value).toBe("always");
+    });
+
+    expect(screen.queryByText(/evento a escuchar|event to listen/i)).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText(/ALWAYS/)).toBeInTheDocument();
+    });
+  });
+
+  it("muestra order/total en badges de transiciones always", async () => {
+    render(<StateProEditor locale="es" defaultValue={alwaysTransitionsValue} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("ALWAYS 1 / 2")).toBeInTheDocument();
+      expect(screen.getByText("ALWAYS 2 / 2")).toBeInTheDocument();
+    });
   });
 
   it("Delete elimina universo, realidad y transición seleccionados", async () => {

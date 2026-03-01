@@ -80,9 +80,9 @@ import {
   collectBehaviorUsages,
   ensureUniqueIdentifier,
   getTransitionRouteGeometry,
+  getTransitionGroupKey,
   isInvalidNotifyTransition,
   moveTransitionInsideGroup,
-  normalizeTransitionsOrder,
   viewportPointToCanvasPoint,
   removeTransitionsReferencingDeletedNodes,
   replacePackIdInBindings,
@@ -367,19 +367,23 @@ function StateProEditorInner({
     value: EditorNode[] | ((prev: EditorNode[]) => EditorNode[]),
     options: HistoryTrackingOptions = {},
   ) => {
-    const next = typeof value === "function" ? value(nodes) : value;
     const mode = options.mode || "record";
     const group = options.group || "nodes";
     const markDirty = options.markDirtyFromImport ?? true;
+    const action: EditorAction =
+      typeof value === "function"
+        ? { type: "update-nodes", payload: value }
+        : { type: "set-nodes", payload: value };
+
     if (mode === "coalesce") {
-      applyCoalesced({ type: "set-nodes", payload: next }, group, markDirty);
+      applyCoalesced(action, group, markDirty);
       return;
     }
     if (mode === "silent") {
-      applySilent({ type: "set-nodes", payload: next }, markDirty);
+      applySilent(action, markDirty);
       return;
     }
-    applyRecord({ type: "set-nodes", payload: next }, markDirty);
+    applyRecord(action, markDirty);
   };
 
   const setTransitions = (
@@ -388,20 +392,23 @@ function StateProEditorInner({
       | ((prev: EditorTransition[]) => EditorTransition[]),
     options: HistoryTrackingOptions = {},
   ) => {
-    const next = typeof value === "function" ? value(transitions) : value;
-    const normalized = normalizeTransitionsOrder(next);
     const mode = options.mode || "record";
     const group = options.group || "transitions";
     const markDirty = options.markDirtyFromImport ?? true;
+    const action: EditorAction =
+      typeof value === "function"
+        ? { type: "update-transitions", payload: value }
+        : { type: "set-transitions", payload: value };
+
     if (mode === "coalesce") {
-      applyCoalesced({ type: "set-transitions", payload: normalized }, group, markDirty);
+      applyCoalesced(action, group, markDirty);
       return;
     }
     if (mode === "silent") {
-      applySilent({ type: "set-transitions", payload: normalized }, markDirty);
+      applySilent(action, markDirty);
       return;
     }
-    applyRecord({ type: "set-transitions", payload: normalized }, markDirty);
+    applyRecord(action, markDirty);
   };
 
   const setNodeSizes = (value: NodeSizeMap | ((prev: NodeSizeMap) => NodeSizeMap)) => {
@@ -418,19 +425,23 @@ function StateProEditorInner({
       | ((prev: EditorState["registry"]) => EditorState["registry"]),
     options: HistoryTrackingOptions = {},
   ) => {
-    const next = typeof value === "function" ? value(registry) : value;
     const mode = options.mode || "record";
     const group = options.group || "registry";
     const markDirty = options.markDirtyFromImport ?? true;
+    const action: EditorAction =
+      typeof value === "function"
+        ? { type: "update-registry", payload: value }
+        : { type: "set-registry", payload: value };
+
     if (mode === "coalesce") {
-      applyCoalesced({ type: "set-registry", payload: next }, group, markDirty);
+      applyCoalesced(action, group, markDirty);
       return;
     }
     if (mode === "silent") {
-      applySilent({ type: "set-registry", payload: next }, markDirty);
+      applySilent(action, markDirty);
       return;
     }
-    applyRecord({ type: "set-registry", payload: next }, markDirty);
+    applyRecord(action, markDirty);
   };
 
   const setMetadataPackRegistry = (
@@ -439,23 +450,23 @@ function StateProEditorInner({
       | ((prev: EditorState["metadataPackRegistry"]) => EditorState["metadataPackRegistry"]),
     options: HistoryTrackingOptions = {},
   ) => {
-    const next = typeof value === "function" ? value(metadataPackRegistry) : value;
     const mode = options.mode || "record";
     const group = options.group || "metadata-pack-registry";
     const markDirty = options.markDirtyFromImport ?? true;
+    const action: EditorAction =
+      typeof value === "function"
+        ? { type: "update-metadata-pack-registry", payload: value }
+        : { type: "set-metadata-pack-registry", payload: value };
+
     if (mode === "coalesce") {
-      applyCoalesced(
-        { type: "set-metadata-pack-registry", payload: next },
-        group,
-        markDirty,
-      );
+      applyCoalesced(action, group, markDirty);
       return;
     }
     if (mode === "silent") {
-      applySilent({ type: "set-metadata-pack-registry", payload: next }, markDirty);
+      applySilent(action, markDirty);
       return;
     }
-    applyRecord({ type: "set-metadata-pack-registry", payload: next }, markDirty);
+    applyRecord(action, markDirty);
   };
 
   const setMetadataPackBindings = (
@@ -464,42 +475,46 @@ function StateProEditorInner({
       | ((prev: EditorState["metadataPackBindings"]) => EditorState["metadataPackBindings"]),
     options: HistoryTrackingOptions = {},
   ) => {
-    const next = typeof value === "function" ? value(metadataPackBindings) : value;
     const mode = options.mode || "record";
     const group = options.group || "metadata-pack-bindings";
     const markDirty = options.markDirtyFromImport ?? true;
+    const action: EditorAction =
+      typeof value === "function"
+        ? { type: "update-metadata-pack-bindings", payload: value }
+        : { type: "set-metadata-pack-bindings", payload: value };
+
     if (mode === "coalesce") {
-      applyCoalesced(
-        { type: "set-metadata-pack-bindings", payload: next },
-        group,
-        markDirty,
-      );
+      applyCoalesced(action, group, markDirty);
       return;
     }
     if (mode === "silent") {
-      applySilent({ type: "set-metadata-pack-bindings", payload: next }, markDirty);
+      applySilent(action, markDirty);
       return;
     }
-    applyRecord({ type: "set-metadata-pack-bindings", payload: next }, markDirty);
+    applyRecord(action, markDirty);
   };
 
   const setMachineConfig = (
     value: MachineConfig | ((prev: MachineConfig) => MachineConfig),
     options: HistoryTrackingOptions = {},
   ) => {
-    const next = typeof value === "function" ? value(machineConfig) : value;
     const mode = options.mode || "coalesce";
     const group = options.group || "machine-config";
     const markDirty = options.markDirtyFromImport ?? true;
+    const action: EditorAction =
+      typeof value === "function"
+        ? { type: "update-machine-config-fn", payload: value }
+        : { type: "set-machine-config", payload: value };
+
     if (mode === "coalesce") {
-      applyCoalesced({ type: "set-machine-config", payload: next }, group, markDirty);
+      applyCoalesced(action, group, markDirty);
       return;
     }
     if (mode === "silent") {
-      applySilent({ type: "set-machine-config", payload: next }, markDirty);
+      applySilent(action, markDirty);
       return;
     }
-    applyRecord({ type: "set-machine-config", payload: next }, markDirty);
+    applyRecord(action, markDirty);
   };
 
   const [showJsonModal, setShowJsonModal] = useState(false);
@@ -903,6 +918,30 @@ function StateProEditorInner({
     () => new Map(transitions.map((transition) => [transition.id, transition])),
     [transitions],
   );
+
+  const transitionOrderSummaryById = useMemo(() => {
+    const groupedTransitions = new Map<string, EditorTransition[]>();
+    transitions.forEach((transition) => {
+      const groupKey = getTransitionGroupKey(transition);
+      const currentGroup = groupedTransitions.get(groupKey) || [];
+      currentGroup.push(transition);
+      groupedTransitions.set(groupKey, currentGroup);
+    });
+
+    const orderSummaryById = new Map<string, { position: number; total: number }>();
+    groupedTransitions.forEach((groupTransitions) => {
+      const sortedByOrder = [...groupTransitions].sort((a, b) => a.order - b.order);
+      const total = sortedByOrder.length || 1;
+      sortedByOrder.forEach((transition, index) => {
+        orderSummaryById.set(transition.id, {
+          position: index + 1,
+          total,
+        });
+      });
+    });
+
+    return orderSummaryById;
+  }, [transitions]);
 
   const transitionLegsByTransitionId = useMemo(() => {
     const grouped = new Map<string, TransitionLeg[]>();
@@ -2422,7 +2461,10 @@ function StateProEditorInner({
     });
   };
 
-  const updateModalTransitionData = (field: string, value: unknown) => {
+  const updateModalTransitionPatch = (
+    patch: Partial<EditorTransition>,
+    groupKey = "patch",
+  ) => {
     if (!selectedElement || selectedElement.type !== "transition") return;
 
     markDirtyFromImport();
@@ -2438,7 +2480,7 @@ function StateProEditorInner({
 
           return {
             ...transition,
-            [field]: value,
+            ...patch,
           } as EditorTransition;
         });
 
@@ -2446,21 +2488,31 @@ function StateProEditorInner({
       },
       {
         mode: "coalesce",
-        group: `modal-transition:${transitionId}:${field}`,
+        group: `modal-transition:${transitionId}:${groupKey}`,
       },
     );
 
-    const updated = transitionsById.get(transitionId);
-    if (updated) {
-      setSelectedElement({
+    setSelectedElement((previous) => {
+      if (!previous || previous.type !== "transition" || previous.id !== transitionId) {
+        return previous;
+      }
+
+      return {
         type: "transition",
         id: transitionId,
         data: {
-          ...updated,
-          [field]: value,
+          ...previous.data,
+          ...patch,
         } as EditorTransition,
-      });
-    }
+      };
+    });
+  };
+
+  const updateModalTransitionData = (field: string, value: unknown) => {
+    updateModalTransitionPatch(
+      { [field]: value } as Partial<EditorTransition>,
+      field,
+    );
   };
 
   const moveSelectedTransition = (direction: "up" | "down") => {
@@ -3344,6 +3396,7 @@ function StateProEditorInner({
               }
 
               const transitionIssueCount = issueIndex.transitions.get(transition.id)?.length || 0;
+              const transitionOrderSummary = transitionOrderSummaryById.get(transition.id);
 
               return (
                 <TransitionBadge
@@ -3352,6 +3405,11 @@ function StateProEditorInner({
                   y={anchor.y}
                   transition={transition}
                   selected={selectedElement?.type === "transition" && selectedElement.id === transition.id}
+                  alwaysOrderSummary={
+                    transition.triggerKind === "always" && transitionOrderSummary
+                      ? `${transitionOrderSummary.position} / ${transitionOrderSummary.total}`
+                      : undefined
+                  }
                   invalidNotify={isInvalidNotifyTransition(transition, nodes)}
                   issueCount={transitionIssueCount}
                   onSelect={() =>
@@ -3776,6 +3834,10 @@ function StateProEditorInner({
             const isNotify = effectiveType === "notify";
             const hasEffects = transition.actions.length > 0 || transition.invokes.length > 0;
             const hasConditions = transition.conditions.length > 0;
+            const transitionOrderSummary = transitionOrderSummaryById.get(transition.id);
+            const transitionOrderLabel = transitionOrderSummary
+              ? `${transitionOrderSummary.position} / ${transitionOrderSummary.total}`
+              : "- / 1";
             const TriggerIcon = isAlways
               ? STUDIO_ICONS.transition.trigger.always
               : STUDIO_ICONS.transition.trigger.on;
@@ -3837,6 +3899,17 @@ function StateProEditorInner({
                     >
                       {effectiveType}
                     </div>
+
+                    {isAlways && (
+                      <>
+                        <div className="text-slate-400">
+                          {t("properties.transition.priority")}:
+                        </div>
+                        <div className="font-mono font-bold text-right text-slate-200">
+                          {transitionOrderLabel}
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {(hasConditions || hasEffects) && <div className="w-full h-px bg-slate-800 my-0.5"></div>}
@@ -3909,6 +3982,7 @@ function StateProEditorInner({
           commitUniverseCanonicalRename={commitUniverseCanonicalRename}
           commitRealityIdRename={commitRealityIdRename}
           updateTransitionData={updateModalTransitionData}
+          updateTransitionPatch={updateModalTransitionPatch}
           moveTransition={moveSelectedTransition}
           openBehaviorModal={setBehaviorModal}
           registry={registry}
