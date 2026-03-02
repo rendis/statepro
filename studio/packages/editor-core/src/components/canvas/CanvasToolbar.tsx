@@ -20,6 +20,8 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
+import visualizationDimUnrelated from "../../assets/visualization_dim_unrelated.svg";
+import visualizationHideUnrelated from "../../assets/visualization_hide_unrelated.svg";
 
 import { STUDIO_ICON_REGISTRY, STUDIO_ICONS } from "../../constants";
 import { useI18n } from "../../i18n";
@@ -61,14 +63,15 @@ interface VisualModePreviewInfoProps {
   alt: string;
 }
 
-const VISUALIZATION_HIDE_PREVIEW_SRC = "/assets/visualization_hide_unrelated.svg";
-const VISUALIZATION_DIM_PREVIEW_SRC = "/assets/visualization_dim_unrelated.svg";
+const VISUALIZATION_HIDE_PREVIEW_SRC = visualizationHideUnrelated;
+const VISUALIZATION_DIM_PREVIEW_SRC = visualizationDimUnrelated;
 
 const VisualModePreviewInfo = ({ imageSrc, alt }: VisualModePreviewInfoProps) => {
   return (
     <StudioTooltip
-      label={<img src={imageSrc} alt={alt} className="block w-72 h-auto" />}
+      label={<img src={imageSrc} alt={alt} className="block" style={{ width: 288, height: "auto" }} />}
       side="right"
+      portal={true}
       bubbleClassName="p-0 overflow-hidden rounded-md border border-slate-700 bg-slate-950 shadow-2xl"
     >
       <button

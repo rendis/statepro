@@ -4718,7 +4718,7 @@ function StateProEditorInner({
                     }}
                     onMouseUp={(e) => completeConnectionOnTargetPort(e, node.id)}
                   >
-                    <div className="absolute inset-0 rounded-full bg-sky-400/0 border border-sky-300/0 group-hover/port:bg-sky-400/15 group-hover/port:border-sky-300/70 transition-colors pointer-events-none" />
+                    <div className="absolute inset-0 rounded-full bg-transparent ring-1 ring-transparent group-hover/port:bg-sky-400/15 group-hover/port:ring-sky-300/70 transition-colors pointer-events-none" />
                     <div className="absolute top-1/2 left-1/2 w-4 h-4 -translate-x-1/2 -translate-y-1/2 bg-slate-400 border-2 border-slate-800 rounded-full group-hover/port:bg-slate-300 transition-colors pointer-events-none" />
                   </div>
 

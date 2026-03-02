@@ -23,8 +23,8 @@
   },
   "scripts": {
     "generate:builtin-catalog": "node ../../scripts/generate-builtin-behaviors.mjs",
-    "dev": "tsup src/index.ts --format esm,cjs --dts --sourcemap --watch",
-    "build": "pnpm run generate:builtin-catalog && tsup src/index.ts --format esm,cjs --dts --sourcemap --clean",
+    "dev": "tsup --watch",
+    "build": "pnpm run generate:builtin-catalog && tsup --clean",
     "test": "pnpm run generate:builtin-catalog && vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'lint: pendiente de reglas'"

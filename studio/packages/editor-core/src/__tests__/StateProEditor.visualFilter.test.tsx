@@ -149,6 +149,43 @@ describe("StateProEditor visual filter", () => {
     expect(visualTrigger).toBeEnabled();
   });
 
+  it("renderiza previews hide/dim como data URL y no usa /assets del host", async () => {
+    const user = userEvent.setup();
+    render(<StateProEditor locale="es" />);
+
+    await openVisualModeMenu(user);
+
+    const hidePreviewTrigger = screen.getByRole("button", {
+      name: /preview: ocultar no relacionados/i,
+    });
+    await user.hover(hidePreviewTrigger);
+
+    const hidePreviewImg = await screen.findByRole("img", {
+      name: /preview: ocultar no relacionados/i,
+    });
+    const hidePreviewSrc = hidePreviewImg.getAttribute("src") ?? "";
+    expect(hidePreviewSrc).toMatch(
+      /^(data:image\/svg\+xml[;,]|\/src\/assets\/visualization_hide_unrelated\.svg)/,
+    );
+    expect(hidePreviewSrc).not.toMatch(/^\/assets\/visualization_/);
+
+    await user.unhover(hidePreviewTrigger);
+
+    const dimPreviewTrigger = screen.getByRole("button", {
+      name: /preview: opacar no relacionados/i,
+    });
+    await user.hover(dimPreviewTrigger);
+
+    const dimPreviewImg = await screen.findByRole("img", {
+      name: /preview: opacar no relacionados/i,
+    });
+    const dimPreviewSrc = dimPreviewImg.getAttribute("src") ?? "";
+    expect(dimPreviewSrc).toMatch(
+      /^(data:image\/svg\+xml[;,]|\/src\/assets\/visualization_dim_unrelated\.svg)/,
+    );
+    expect(dimPreviewSrc).not.toMatch(/^\/assets\/visualization_/);
+  });
+
   it("permite activar filtro sin selección y aplicarlo al interactuar con nodos", async () => {
     const user = userEvent.setup();
     render(<StateProEditor locale="es" />);
