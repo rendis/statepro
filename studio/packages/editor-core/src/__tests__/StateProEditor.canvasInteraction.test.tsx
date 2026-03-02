@@ -304,6 +304,30 @@ describe("StateProEditor canvas interaction", () => {
     });
   });
 
+  it("durante drag en edición mantiene conexiones full y no activa skeleton", async () => {
+    render(<StateProEditor locale="es" defaultValue={largeTransitionsValue} />);
+
+    await waitFor(() => {
+      expect(screen.queryAllByTestId(/transition-badge-/).length).toBeGreaterThan(0);
+    });
+
+    const realityWrapper = screen.queryAllByTestId(/reality-node-wrapper-/)[0];
+    const realityNode = realityWrapper?.firstElementChild;
+    if (!(realityNode instanceof HTMLElement)) {
+      throw new Error("Reality node not found");
+    }
+
+    fireEvent.mouseDown(realityNode, { clientX: 1100, clientY: 1120, button: 0 });
+    fireEvent.mouseMove(window, { clientX: 1160, clientY: 1170, buttons: 1 });
+
+    await waitFor(() => {
+      expect(document.querySelectorAll(".studio-transition-skeleton").length).toBe(0);
+      expect(screen.queryAllByTestId(/transition-badge-/).length).toBeGreaterThan(0);
+    });
+
+    fireEvent.mouseUp(window, { clientX: 1160, clientY: 1170, button: 0 });
+  });
+
   it("no inicia paneo al arrastrar sobre un nodo interactivo", async () => {
     render(<StateProEditor locale="es" />);
 

@@ -17,3 +17,4 @@ export * from "./canvasVisualFilter";
 export * from "./canvasCulling";
 export * from "./performanceController";
 export * from "./transitionLod";
+export * from "./connectionRenderPolicy";

@@ -93,6 +93,7 @@ import {
   getTransitionRouteGeometry,
   getTransitionGroupKey,
   moveTransitionInsideGroup,
+  resolveConnectionRenderMode,
   selectSkeletonTransitionIds,
   searchCanvasNodes,
   usePerformanceController,
@@ -130,7 +131,6 @@ import {
 type SelectedEditorElement = EditorNode | { type: "transition"; id: string; data: EditorTransition };
 type InspectableEditorNode = Extract<EditorNode, { type: "universe" | "reality" }>;
 type InteractionPhase = "idle" | "navigating" | "editing";
-type ConnectionRenderMode = "full" | "skeleton" | "minimal";
 type TransitionDragStart = {
   transitionId: string;
   mouseX: number;
@@ -1642,18 +1642,15 @@ function StateProEditorInner({
   const shouldCullCanvas = performanceController.isPerformanceMode && isEditingPhase;
   const shouldHideHeavyOverlays = !isIdlePhase;
   const shouldFreezeSearchPulse = isLowLatencyPhase;
-  const connectionRenderMode: ConnectionRenderMode = useMemo(() => {
-    if (isEditingPhase) {
-      return "minimal";
-    }
-    if (
-      isNavigatingPhase &&
-      transitions.length > NAVIGATING_FULL_TRANSITION_THRESHOLD
-    ) {
-      return "skeleton";
-    }
-    return "full";
-  }, [isEditingPhase, isNavigatingPhase, transitions.length]);
+  const connectionRenderMode = useMemo(
+    () =>
+      resolveConnectionRenderMode({
+        isNavigating: isNavigatingPhase,
+        transitionCount: transitions.length,
+        navigatingFullTransitionThreshold: NAVIGATING_FULL_TRANSITION_THRESHOLD,
+      }),
+    [isNavigatingPhase, transitions.length],
+  );
   const activeSearchNodeId =
     searchActiveIndex >= 0 && searchActiveIndex < searchResults.length
       ? searchResults[searchActiveIndex]?.nodeId || null
@@ -1675,10 +1672,6 @@ function StateProEditorInner({
     }
     return ids;
   }, [connectingStart, draggingTransition, hoveredTransitionId, selectedElement]);
-  const shouldRenderTransitionInMinimalMode = useMemo(
-    () => new Set(alwaysVisibleTransitionIds),
-    [alwaysVisibleTransitionIds],
-  );
 
   const alwaysVisibleNodeIds = useMemo(() => {
     const ids = new Set<string>();
@@ -1809,19 +1802,11 @@ function StateProEditorInner({
     visibleTransitions,
   ]);
   const routeVisibleTransitionIds = useMemo(() => {
-    if (connectionRenderMode === "minimal") {
-      return shouldRenderTransitionInMinimalMode;
-    }
     if (connectionRenderMode === "skeleton") {
       return skeletonTransitionIds;
     }
     return new Set(visibleTransitions.map((transition) => transition.id));
-  }, [
-    connectionRenderMode,
-    shouldRenderTransitionInMinimalMode,
-    skeletonTransitionIds,
-    visibleTransitions,
-  ]);
+  }, [connectionRenderMode, skeletonTransitionIds, visibleTransitions]);
   const isSkeletonConnectionMode = connectionRenderMode === "skeleton";
   const shouldRenderTransitionBadges = connectionRenderMode === "full";
   const behaviorSourceIndex = useMemo(
