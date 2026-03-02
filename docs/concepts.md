@@ -106,6 +106,21 @@ Both actions and invokes reference executors by `src` strings. You can register 
 `builtin.RegisterAction`, `RegisterInvoke`, or provide your own registry. Actions run synchronously and
 may cancel the transition by returning an error. Invokes run asynchronously and do not influence flow.
 
+## EmitEvent
+
+Entry actions can emit internal events that trigger transitions on the current reality's `On` handlers — without requiring an external `SendEvent`. This is useful when a state needs to auto-advance after executing its entry logic.
+
+```
+CREATING_FORM (entry: action:createForm)
+  → action emits "create-form" with data
+  → On["create-form"] condition passes
+  → transitions to FILLING_FORM
+```
+
+Events are processed in FIFO order after all entry actions complete. The first event that triggers an approved transition wins; the rest are discarded. Chained emits (state A emits -> state B emits -> state C) are supported up to a depth of 10.
+
+See [Runtime & Execution](runtime.md) for the full execution flow and examples.
+
 ## Universal Constants
 
 Universal constants apply to either the machine or a specific universe.

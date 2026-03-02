@@ -19,6 +19,11 @@ const (
 	realitiesNotExistErrMsgTemplate            = "universe '%s' does not have reality '%s' defined"
 	errorExecutingOnEntryProcessMsgTemplate    = "error executing on entry process for universe '%s' and reality '%s'"
 	errorExecutingAlwaysTransitionsMsgTemplate = "error executing always transitions for reality '%s'"
+
+	// maxEmitDepth is the maximum nesting depth for emitted events.
+	// Prevents infinite loops when entry actions emit events that cause transitions
+	// whose target reality's entry actions emit events again (A → B → A → ...).
+	maxEmitDepth = 10
 )
 
 type UniverseInfoSnapshot struct {
@@ -91,6 +96,11 @@ type ExUniverse struct {
 
 	// metadata
 	metadata map[string]any
+
+	// emitDepth tracks the current nesting depth of processEmittedEvents calls.
+	// Used to prevent infinite loops when emitted events cause transitions whose
+	// entry actions emit more events. Maximum depth is maxEmitDepth.
+	emitDepth int
 }
 
 //------------------------------- External Operations -------------------------------//
@@ -455,9 +465,14 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 	u.currentReality = &reality
 	u.addStateToTracking(u.currentReality)
 	if err := u.executeOnEntry(ctx, event); err != nil {
-		return errors.Join(fmt.Errorf(errorExecutingOnEntryProcessMsgTemplate, u.model.ID, *u.currentReality), err)
+		return errors.Join(fmt.Errorf(errorExecutingOnEntryProcessMsgTemplate, u.model.ID, reality), err)
 	}
 	u.realityInitialized = true
+
+	// emitted events during entry may have changed currentReality or triggered superposition
+	if u.currentReality == nil || u.inSuperposition {
+		return nil
+	}
 
 	// clear Event accumulator
 	u.eventAccumulator = nil
@@ -466,8 +481,8 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 	u.inSuperposition = false
 	u.realityBeforeSuperposition = nil
 
-	// get if the current reality is a final reality
-	realityModel, err := u.getRealityModel(reality)
+	// re-read reality from currentReality — emitted events during entry may have changed it
+	realityModel, err := u.getRealityModel(*u.currentReality)
 	if err != nil {
 		return err
 	}
@@ -475,7 +490,7 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 	u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
 
 	// execute always
-	if err = u.executeAlways(ctx, event); err != nil {
+	if err = u.executeAlways(ctx, realityModel, event); err != nil {
 		return errors.Join(fmt.Errorf("error executing always transitions for universe '%s'", u.model.ID), err)
 	}
 
@@ -489,13 +504,7 @@ func (u *ExUniverse) executeOnEntry(ctx context.Context, event instrumentation.E
 	return nil
 }
 
-func (u *ExUniverse) executeAlways(ctx context.Context, event instrumentation.Event) error {
-	// execute current reality always transitions
-	realityModel, err := u.getRealityModel(*u.currentReality)
-	if err != nil {
-		return err
-	}
-
+func (u *ExUniverse) executeAlways(ctx context.Context, realityModel *theoretical.RealityModel, event instrumentation.Event) error {
 	approvedTransition, err := u.getApprovedTransition(ctx, realityModel.Always, event)
 	if err != nil {
 		return errors.Join(fmt.Errorf(errorExecutingAlwaysTransitionsMsgTemplate, realityModel.ID), err)
@@ -539,8 +548,8 @@ func (u *ExUniverse) doCyclicTransition(
 			return errors.Join(fmt.Errorf("error executing constants transition actions for reality '%s'", *u.currentReality), err)
 		}
 
-		// execute universe transition actions
-		if err := u.executeActions(ctx, approvedTransition.Actions, event, instrumentation.ActionTypeTransition); err != nil {
+		// execute universe transition actions (nil emittedEvents — transition actions cannot emit)
+		if err := u.executeActions(ctx, approvedTransition.Actions, event, instrumentation.ActionTypeTransition, nil); err != nil {
 			return errors.Join(fmt.Errorf("error executing transition actions for reality '%s'", *u.currentReality), err)
 		}
 
@@ -579,16 +588,23 @@ func (u *ExUniverse) doCyclicTransition(
 		// set current reality
 		u.currentReality = &approvedTransition.Targets[0]
 		u.addStateToTracking(u.currentReality)
+
+		// execute on entry process of the new reality
+		if err := u.executeOnEntry(ctx, event); err != nil {
+			return errors.Join(fmt.Errorf(errorExecutingOnEntryProcessMsgTemplate, u.model.ID, *u.currentReality), err)
+		}
+
+		// emitted events during entry may have changed currentReality or triggered superposition
+		if u.currentReality == nil || u.inSuperposition {
+			return nil
+		}
+
+		// read reality model post-entry (emitted events may have changed currentReality)
 		realityModel, err := u.getRealityModel(*u.currentReality)
 		if err != nil {
 			return err
 		}
 		u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
-
-		// execute on entry process of the new reality
-		if err = u.executeOnEntry(ctx, event); err != nil {
-			return errors.Join(fmt.Errorf(errorExecutingOnEntryProcessMsgTemplate, u.model.ID, *u.currentReality), err)
-		}
 
 		// execute current reality always transitions
 		if approvedTransition, err = u.getApprovedTransition(ctx, realityModel.Always, event); err != nil {
@@ -617,7 +633,13 @@ func (u *ExUniverse) getApprovedTransition(
 
 		doTransition, err := u.executeConditions(ctx, event, conditions)
 		if err != nil {
-			return nil, errors.Join(fmt.Errorf("error executing always transition condition '%s'", transition.Condition.Src), err)
+			condSrc := "<unknown>"
+			if transition.Condition != nil {
+				condSrc = transition.Condition.Src
+			} else if len(transition.Conditions) > 0 {
+				condSrc = transition.Conditions[0].Src
+			}
+			return nil, errors.Join(fmt.Errorf("error executing transition condition '%s'", condSrc), err)
 		}
 
 		if doTransition {
@@ -695,6 +717,9 @@ func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrument
 		return err
 	}
 
+	// collector for emitted events from entry actions
+	var emittedEvents []instrumentation.EmittedEvent
+
 	// execute on constants entry actions
 	args := &instrumentation.QuantumMachineExecutorArgs{
 		Context:               u.universeContext,
@@ -702,6 +727,7 @@ func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrument
 		UniverseCanonicalName: u.model.CanonicalName,
 		UniverseID:            u.model.ID,
 		Event:                 event,
+		EmittedEvents:         &emittedEvents,
 	}
 	if err = u.constantsLawsExecutor.ExecuteEntryAction(ctx, args); err != nil {
 		return errors.Join(
@@ -710,8 +736,8 @@ func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrument
 		)
 	}
 
-	// execute on entry universe actions
-	if err = u.executeActions(ctx, realityModel.EntryActions, event, instrumentation.ActionTypeEntry); err != nil {
+	// execute on entry universe actions (pass emittedEvents collector)
+	if err = u.executeActions(ctx, realityModel.EntryActions, event, instrumentation.ActionTypeEntry, &emittedEvents); err != nil {
 		return errors.Join(
 			fmt.Errorf("error executing on entry actions for reality '%s'", realityModel.ID),
 			err,
@@ -725,6 +751,83 @@ func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrument
 	u.executeInvokes(ctx, realityModel.EntryInvokes, event)
 
 	u.realityInitialized = true
+
+	// process emitted events after all entry actions complete and reality is initialized
+	if len(emittedEvents) > 0 {
+		if err = u.processEmittedEvents(ctx, emittedEvents); err != nil {
+			return errors.Join(
+				fmt.Errorf("error processing emitted events for reality '%s'", realityModel.ID),
+				err,
+			)
+		}
+	}
+
+	return nil
+}
+
+// processEmittedEvents processes events emitted by entry actions via EmitEvent.
+// Events are processed in FIFO order. For each event, it looks up the current reality's
+// On handlers. If a handler exists and its conditions pass, the transition is executed
+// via doCyclicTransition. The first event that triggers a transition wins; remaining
+// events are discarded.
+//
+// Nesting is tracked via emitDepth to prevent infinite loops (max depth: maxEmitDepth).
+// If the depth limit is exceeded, the error propagates up and the universe is left in an
+// inconsistent state (partially mutated). The caller should treat the machine instance as
+// invalid. This is an unrecoverable condition that indicates a bug in the state definition.
+func (u *ExUniverse) processEmittedEvents(
+	ctx context.Context, emittedEvents []instrumentation.EmittedEvent,
+) error {
+	u.emitDepth++
+	defer func() { u.emitDepth-- }()
+
+	if u.emitDepth > maxEmitDepth {
+		realityName := "<nil>"
+		if u.currentReality != nil {
+			realityName = *u.currentReality
+		}
+		return fmt.Errorf(
+			"emitted event depth exceeded maximum (%d) in universe '%s', reality '%s' — possible infinite loop",
+			maxEmitDepth, u.model.ID, realityName,
+		)
+	}
+
+	if u.currentReality == nil {
+		return nil
+	}
+	realityModel, err := u.getRealityModel(*u.currentReality)
+	if err != nil {
+		return err
+	}
+
+	for _, emitted := range emittedEvents {
+		transitions, ok := realityModel.On[emitted.Name]
+		if !ok {
+			continue
+		}
+
+		// build an event from the emitted data
+		evt := NewEventBuilder(emitted.Name).
+			SetEvtType(instrumentation.EventTypeEmitted).
+			SetData(emitted.Data).
+			Build()
+
+		approvedTransition, err := u.getApprovedTransition(ctx, transitions, evt)
+		if err != nil {
+			return errors.Join(fmt.Errorf("error evaluating emitted event '%s' conditions", emitted.Name), err)
+		}
+
+		if approvedTransition == nil {
+			continue
+		}
+
+		// first approved transition wins — execute and stop processing remaining events
+		if err = u.doCyclicTransition(ctx, approvedTransition, evt); err != nil {
+			return errors.Join(fmt.Errorf("error executing transition for emitted event '%s'", emitted.Name), err)
+		}
+		break
+	}
+
 	return nil
 }
 
@@ -754,8 +857,8 @@ func (u *ExUniverse) executeOnExitProcess(ctx context.Context, event instrumenta
 		)
 	}
 
-	// execute on exit universe actions
-	if err = u.executeActions(ctx, realityModel.ExitActions, event, instrumentation.ActionTypeExit); err != nil {
+	// execute on exit universe actions (nil emittedEvents — exit actions cannot emit)
+	if err = u.executeActions(ctx, realityModel.ExitActions, event, instrumentation.ActionTypeExit, nil); err != nil {
 		return errors.Join(
 			fmt.Errorf("error executing on exit actions for reality '%s'", realityModel.ID),
 			err,
@@ -777,6 +880,7 @@ func (u *ExUniverse) executeActions(
 	actionModels []*theoretical.ActionModel,
 	event instrumentation.Event,
 	actionType instrumentation.ActionType,
+	emittedEvents *[]instrumentation.EmittedEvent,
 ) error {
 	if len(actionModels) == 0 {
 		return nil
@@ -794,6 +898,7 @@ func (u *ExUniverse) executeActions(
 			action:                *action,
 			actionType:            actionType,
 			getSnapshotFn:         u.constantsLawsExecutor.GetSnapshot,
+			emittedEvents:         emittedEvents,
 		}
 		if err := u.runActionExecutor(ctx, action.Src, args); err != nil {
 			return errors.Join(fmt.Errorf("error executing action '%s'", action.Src), err)

@@ -49,6 +49,7 @@ func (m *mockActionExecutorArgs) DeleteFromUniverseMetadata(key string) (any, bo
 func (m *mockActionExecutorArgs) UpdateUniverseMetadata(md map[string]any) {
 	m.universeMetadata = md
 }
+func (m *mockActionExecutorArgs) EmitEvent(eventName string, data map[string]any) {}
 
 func TestLogBasicInfo(t *testing.T) {
 	ctx := context.Background()

@@ -11,6 +11,7 @@ const (
 	EventTypeStartOn EventType = "StartOn" // Event triggered when the universe starts on a reality
 	EventTypeOn      EventType = "On"      // Event triggered from reality from its "on transitions"
 	EventTypeOnEntry EventType = "OnEntry" // Event used to force the current reality to execute logic on entry
+	EventTypeEmitted EventType = "Emitted" // Event emitted internally by an entry action via EmitEvent
 )
 
 type Event interface {

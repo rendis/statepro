@@ -1,6 +1,7 @@
 package experimental
 
 import (
+	"github.com/rendis/abslog/v3"
 	"github.com/rendis/statepro/v3/instrumentation"
 	"github.com/rendis/statepro/v3/theoretical"
 )
@@ -81,6 +82,7 @@ type actionExecutorArgs struct {
 	action                theoretical.ActionModel
 	actionType            instrumentation.ActionType
 	getSnapshotFn         func() *instrumentation.MachineSnapshot
+	emittedEvents         *[]instrumentation.EmittedEvent
 }
 
 func (a *actionExecutorArgs) GetContext() any {
@@ -136,6 +138,20 @@ func (a *actionExecutorArgs) DeleteFromUniverseMetadata(key string) (any, bool) 
 
 func (a *actionExecutorArgs) UpdateUniverseMetadata(md map[string]any) {
 	a.universeMetadata = md
+}
+
+func (a *actionExecutorArgs) EmitEvent(eventName string, data map[string]any) {
+	if eventName == "" {
+		return
+	}
+	if a.emittedEvents == nil {
+		abslog.Warnf(
+			"EmitEvent called outside entry action context (actionType=%s, reality=%s) — event '%s' ignored",
+			a.actionType, a.realityName, eventName,
+		)
+		return
+	}
+	*a.emittedEvents = append(*a.emittedEvents, instrumentation.EmittedEvent{Name: eventName, Data: data})
 }
 
 //--------- InvokeExecutorArgs ---------//

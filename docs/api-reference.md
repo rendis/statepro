@@ -501,6 +501,27 @@ builtin.RegisterAction("action:sendEmail", func(ctx context.Context, args instru
 })
 ```
 
+#### `EmitEvent` in Actions
+
+Entry actions receive `ActionExecutorArgs` which includes `EmitEvent(eventName, data)`. This queues an internal event processed after all entry actions complete.
+
+```go
+builtin.RegisterAction("action:createContract", func(ctx context.Context, args instrumentation.ActionExecutorArgs) error {
+    templateId := args.GetAction().Args["templateId"].(string)
+    // ... business logic ...
+
+    args.EmitEvent("create-contract", map[string]any{"templateId": templateId})
+    return nil
+})
+```
+
+**Important notes:**
+
+- Only works in entry actions (reality-level and constants-level). Calling from exit or transition actions is a no-op and logs a warning.
+- Multiple `EmitEvent` calls accumulate in FIFO order. First approved transition wins.
+- Chained emits are supported up to depth 10. Exceeding this returns an error and invalidates the machine instance (indicates an infinite loop in the definition).
+- External code that implements `ActionExecutorArgs` directly (e.g., test mocks) must add `EmitEvent` as a no-op method.
+
 ### Observer Registration
 
 ```go

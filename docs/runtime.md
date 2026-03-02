@@ -61,6 +61,49 @@ superposition indefinitely.
 - Both receive `instrumentation` executor arguments including the machine context, universe metadata,
   event payload, and snapshot accessors.
 
+### EmitEvent — Internal Event Emission
+
+Entry actions can emit internal events via `args.EmitEvent(eventName, data)`. After **all** entry actions complete, emitted events are processed against the current reality's `On` handlers. If a transition is approved (conditions pass), the machine advances automatically — no external `SendEvent` needed.
+
+This is similar to XState's `raise`: an internal event processed within the same operation.
+
+**Execution flow:**
+
+1. Reality entry actions run (synchronously, in order).
+2. Emitted events are collected in a FIFO queue.
+3. After all entry actions + invokes complete, each emitted event is matched against `On` handlers.
+4. The first event that triggers an approved transition wins. Remaining events are discarded.
+5. If the new reality also has entry actions that emit, the process chains recursively (max depth: 10).
+
+**Where EmitEvent works:**
+
+| Context | EmitEvent | Reason |
+|---------|-----------|--------|
+| Entry actions | Yes | Primary use case |
+| Constants entry actions | Yes | Same semantics as reality entry |
+| Exit actions | No-op + warning | Reality is being left, no `On` handlers apply |
+| Transition actions | No-op + warning | Target already determined |
+
+**Example:**
+
+```go
+builtin.RegisterAction("action:createForm", func(ctx context.Context, args instrumentation.ActionExecutorArgs) error {
+    templateId := args.GetAction().Args["templateId"].(string)
+    // ... create the form ...
+
+    // Emit event to auto-advance. The existing On handler for "create-form"
+    // will evaluate its conditions and transition if approved.
+    args.EmitEvent("create-form", map[string]any{"templateId": templateId})
+    return nil
+})
+```
+
+Zero changes to the JSON definition. The existing `on.create-form` transition with its conditions does the rest.
+
+**Error handling:** Chained emits (A emits -> B -> B emits -> C -> ...) are capped at depth 10. Exceeding this limit returns an error and leaves the machine instance in an unrecoverable state. This always indicates a bug in the state machine definition (infinite loop). The caller should discard the machine instance.
+
+**Backward compatibility:** If no action calls `EmitEvent`, behavior is identical to before. Zero overhead when unused.
+
 ### Universal Constants Ordering
 
 1. Machine-level entry/exit invocations and actions.

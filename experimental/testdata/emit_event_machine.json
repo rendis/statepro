@@ -1,0 +1,266 @@
+{
+  "id": "emit-event-test",
+  "canonicalName": "emit-event-test-machine",
+  "version": "1.0.0",
+  "initials": ["U:form-process"],
+  "description": "Comprehensive test machine for EmitEvent integration tests",
+  "universes": {
+    "form-process": {
+      "id": "form-process",
+      "canonicalName": "form-process",
+      "version": "1.0.0",
+      "initial": "CREATING_FORM",
+      "realities": {
+        "CREATING_FORM": {
+          "id": "CREATING_FORM",
+          "type": "transition",
+          "entryActions": [
+            {
+              "src": "action:createFormTest",
+              "args": { "templateId": "tpl-1" }
+            }
+          ],
+          "on": {
+            "create-form": [
+              {
+                "condition": {
+                  "src": "condition:ifTemplateTest",
+                  "args": { "templateId": "tpl-1" }
+                },
+                "targets": ["FILLING_FORM"]
+              }
+            ]
+          }
+        },
+        "FILLING_FORM": {
+          "id": "FILLING_FORM",
+          "type": "transition",
+          "on": {
+            "fill-form": [
+              { "targets": ["FILLED"] }
+            ]
+          }
+        },
+        "FILLED": {
+          "id": "FILLED",
+          "type": "final",
+          "always": [
+            { "targets": ["U:contract-process"] }
+          ]
+        }
+      }
+    },
+
+    "contract-process": {
+      "id": "contract-process",
+      "canonicalName": "contract-process",
+      "version": "1.0.0",
+      "initial": "CREATING_CONTRACT",
+      "realities": {
+        "CREATING_CONTRACT": {
+          "id": "CREATING_CONTRACT",
+          "type": "transition",
+          "entryActions": [
+            {
+              "src": "action:createContractTest",
+              "args": { "templateId": "tpl-2" }
+            }
+          ],
+          "on": {
+            "create-contract": [
+              {
+                "condition": {
+                  "src": "condition:ifTemplateTest",
+                  "args": { "templateId": "tpl-2" }
+                },
+                "targets": ["SIGNING_CONTRACT"]
+              }
+            ]
+          }
+        },
+        "SIGNING_CONTRACT": {
+          "id": "SIGNING_CONTRACT",
+          "type": "transition",
+          "on": {
+            "sign": [
+              { "targets": ["SIGNED"] }
+            ]
+          }
+        },
+        "SIGNED": {
+          "id": "SIGNED",
+          "type": "final",
+          "always": [
+            { "targets": ["U:completed"] }
+          ]
+        }
+      }
+    },
+
+    "multi-emit": {
+      "id": "multi-emit",
+      "canonicalName": "multi-emit",
+      "version": "1.0.0",
+      "initial": "PROCESSING",
+      "realities": {
+        "PROCESSING": {
+          "id": "PROCESSING",
+          "type": "transition",
+          "entryActions": [
+            { "src": "action:firstEmitAction", "args": { "order": "first" } },
+            { "src": "action:secondEmitAction", "args": { "order": "second" } }
+          ],
+          "on": {
+            "event-alpha": [
+              { "targets": ["ALPHA_DONE"] }
+            ],
+            "event-beta": [
+              { "targets": ["BETA_DONE"] }
+            ]
+          }
+        },
+        "ALPHA_DONE": {
+          "id": "ALPHA_DONE",
+          "type": "final"
+        },
+        "BETA_DONE": {
+          "id": "BETA_DONE",
+          "type": "final"
+        }
+      }
+    },
+
+    "conditional-emit": {
+      "id": "conditional-emit",
+      "canonicalName": "conditional-emit",
+      "version": "1.0.0",
+      "initial": "CHECKING",
+      "realities": {
+        "CHECKING": {
+          "id": "CHECKING",
+          "type": "transition",
+          "entryActions": [
+            { "src": "action:conditionalEmitAction" }
+          ],
+          "on": {
+            "guarded-event": [
+              {
+                "condition": {
+                  "src": "condition:alwaysRejectTest"
+                },
+                "targets": ["REJECTED_PATH"]
+              }
+            ],
+            "fallback-event": [
+              { "targets": ["FALLBACK_PATH"] }
+            ]
+          }
+        },
+        "REJECTED_PATH": {
+          "id": "REJECTED_PATH",
+          "type": "final"
+        },
+        "FALLBACK_PATH": {
+          "id": "FALLBACK_PATH",
+          "type": "final"
+        }
+      }
+    },
+
+    "chained-emit": {
+      "id": "chained-emit",
+      "canonicalName": "chained-emit",
+      "version": "1.0.0",
+      "initial": "STEP_A",
+      "realities": {
+        "STEP_A": {
+          "id": "STEP_A",
+          "type": "transition",
+          "entryActions": [
+            { "src": "action:emitAdvanceA" }
+          ],
+          "on": {
+            "advance-a": [
+              { "targets": ["STEP_B"] }
+            ]
+          }
+        },
+        "STEP_B": {
+          "id": "STEP_B",
+          "type": "transition",
+          "entryActions": [
+            { "src": "action:emitAdvanceB" }
+          ],
+          "on": {
+            "advance-b": [
+              { "targets": ["STEP_C"] }
+            ]
+          }
+        },
+        "STEP_C": {
+          "id": "STEP_C",
+          "type": "final"
+        }
+      }
+    },
+
+    "no-handler-emit": {
+      "id": "no-handler-emit",
+      "canonicalName": "no-handler-emit",
+      "version": "1.0.0",
+      "initial": "WAITING",
+      "realities": {
+        "WAITING": {
+          "id": "WAITING",
+          "type": "transition",
+          "entryActions": [
+            { "src": "action:emitNonExistent" }
+          ],
+          "on": {
+            "real-event": [
+              { "targets": ["DONE"] }
+            ]
+          }
+        },
+        "DONE": {
+          "id": "DONE",
+          "type": "final"
+        }
+      }
+    },
+
+    "cross-universe-emit": {
+      "id": "cross-universe-emit",
+      "canonicalName": "cross-universe-emit",
+      "version": "1.0.0",
+      "initial": "DISPATCHING",
+      "realities": {
+        "DISPATCHING": {
+          "id": "DISPATCHING",
+          "type": "transition",
+          "entryActions": [
+            { "src": "action:emitCrossUniverse" }
+          ],
+          "on": {
+            "go-external": [
+              { "targets": ["U:completed"] }
+            ]
+          }
+        }
+      }
+    },
+
+    "completed": {
+      "id": "completed",
+      "canonicalName": "completed",
+      "version": "1.0.0",
+      "initial": "DONE",
+      "realities": {
+        "DONE": {
+          "id": "DONE",
+          "type": "final"
+        }
+      }
+    }
+  }
+}

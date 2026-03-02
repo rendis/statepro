@@ -473,6 +473,7 @@ func (qm *ExQuantumMachine) executeAction(ctx context.Context, model *theoretica
 		action:                *model,
 		actionType:            instrumentation.ActionTypeEntry,
 		getSnapshotFn:         qm.GetSnapshot,
+		emittedEvents:         args.EmittedEvents,
 	}
 
 	if fn := builtin.GetAction(model.Src); fn != nil {
