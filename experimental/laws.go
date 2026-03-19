@@ -67,7 +67,12 @@ func (o *observerExecutorArgs) DeleteFromUniverseMetadata(key string) (any, bool
 }
 
 func (o *observerExecutorArgs) UpdateUniverseMetadata(md map[string]any) {
-	o.universeMetadata = md
+	for k := range o.universeMetadata {
+		delete(o.universeMetadata, k)
+	}
+	for k, v := range md {
+		o.universeMetadata[k] = v
+	}
 }
 
 // --------- ActionExecutorArgs ---------//
@@ -137,7 +142,12 @@ func (a *actionExecutorArgs) DeleteFromUniverseMetadata(key string) (any, bool) 
 }
 
 func (a *actionExecutorArgs) UpdateUniverseMetadata(md map[string]any) {
-	a.universeMetadata = md
+	for k := range a.universeMetadata {
+		delete(a.universeMetadata, k)
+	}
+	for k, v := range md {
+		a.universeMetadata[k] = v
+	}
 }
 
 func (a *actionExecutorArgs) EmitEvent(eventName string, data map[string]any) {
@@ -210,7 +220,12 @@ func (i *invokeExecutorArgs) DeleteFromUniverseMetadata(key string) (any, bool) 
 }
 
 func (i *invokeExecutorArgs) UpdateUniverseMetadata(md map[string]any) {
-	i.universeMetadata = md
+	for k := range i.universeMetadata {
+		delete(i.universeMetadata, k)
+	}
+	for k, v := range md {
+		i.universeMetadata[k] = v
+	}
 }
 
 //--------- ConditionExecutorArgs ---------//
@@ -269,5 +284,10 @@ func (c *conditionExecutorArgs) DeleteFromUniverseMetadata(key string) (any, boo
 }
 
 func (c *conditionExecutorArgs) UpdateUniverseMetadata(md map[string]any) {
-	c.universeMetadata = md
+	for k := range c.universeMetadata {
+		delete(c.universeMetadata, k)
+	}
+	for k, v := range md {
+		c.universeMetadata[k] = v
+	}
 }

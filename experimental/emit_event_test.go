@@ -720,11 +720,23 @@ func TestEmitEvent_MultipleTargets_Superposition(t *testing.T) {
 		t.Fatalf("Init failed: %v", err)
 	}
 
-	// u1 should be in superposition because of multiple targets
-	if !u1.inSuperposition {
-		t.Fatal("u1 should be in superposition with multiple targets")
+	// After Init, u1's entry action emits "go-multi" → multi-target transition → superposition.
+	// Machine processes external targets: U:u1:stateB (no observers → immediately approved → collapses).
+	// So u1 should now be on stateB (not in superposition anymore).
+	if u1.inSuperposition {
+		t.Fatal("u1 should NOT be in superposition — stateB has no observers and was directly targeted")
 	}
-	_ = u2 // u2 used for reference only
+	if u1.currentReality == nil || *u1.currentReality != "stateB" {
+		cr := "<nil>"
+		if u1.currentReality != nil {
+			cr = *u1.currentReality
+		}
+		t.Fatalf("expected u1 on stateB, got %s", cr)
+	}
+	// u2 should also be initialized (from the second external target U:u2:stateX)
+	if !u2.initialized {
+		t.Fatal("u2 should be initialized from external target")
+	}
 }
 
 // 18. Emit triggers transition + new reality has always → both execute

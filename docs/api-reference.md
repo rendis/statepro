@@ -203,7 +203,7 @@ type QuantumMachine interface {
 
 ##### `Init`
 
-Initializes the quantum machine with optional context.
+Initializes the quantum machine with optional context. A machine can only be initialized once — calling `Init()` again returns an error.
 
 **Parameters:**
 
@@ -212,7 +212,7 @@ Initializes the quantum machine with optional context.
 
 **Returns:**
 
-- `error` - Any initialization errors
+- `error` - Any initialization errors, or `"machine already initialized"` if called more than once
 
 **Example:**
 
@@ -225,7 +225,7 @@ if err != nil {
 
 ##### `InitWithEvent`
 
-Initializes the quantum machine with a custom event. Similar to `Init`, but allows passing a custom event that will be propagated through the initialization process.
+Initializes the quantum machine with a custom event. Similar to `Init`, but allows passing a custom event that will be propagated through the initialization process. A machine can only be initialized once.
 
 **Parameters:**
 
@@ -235,7 +235,7 @@ Initializes the quantum machine with a custom event. Similar to `Init`, but allo
 
 **Returns:**
 
-- `error` - Any initialization errors
+- `error` - Any initialization errors, or `"machine already initialized"` if called more than once
 
 **Example:**
 

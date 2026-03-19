@@ -61,6 +61,11 @@ type ObserverExecutorArgs interface {
 	GetUniverseMetadata() map[string]any
 	AddToUniverseMetadata(key string, value any)
 	DeleteFromUniverseMetadata(key string) (any, bool)
+
+	// UpdateUniverseMetadata replaces all universe metadata with the provided map.
+	// Existing keys are cleared before copying new entries. The method copies entries
+	// (not the reference), so subsequent modifications to the passed map do not affect
+	// the stored metadata. Changes persist across actions, transitions, and realities.
 	UpdateUniverseMetadata(md map[string]any)
 }
 type ObserverFn func(ctx context.Context, args ObserverExecutorArgs) (bool, error)
@@ -80,6 +85,11 @@ type ActionExecutorArgs interface {
 	GetUniverseMetadata() map[string]any
 	AddToUniverseMetadata(key string, value any)
 	DeleteFromUniverseMetadata(key string) (any, bool)
+
+	// UpdateUniverseMetadata replaces all universe metadata with the provided map.
+	// Existing keys are cleared before copying new entries. The method copies entries
+	// (not the reference), so subsequent modifications to the passed map do not affect
+	// the stored metadata. Changes persist across actions, transitions, and realities.
 	UpdateUniverseMetadata(md map[string]any)
 
 	// EmitEvent queues an internal event to be processed after all entry actions complete.
@@ -112,6 +122,11 @@ type InvokeExecutorArgs interface {
 	GetUniverseMetadata() map[string]any
 	AddToUniverseMetadata(key string, value any)
 	DeleteFromUniverseMetadata(key string) (any, bool)
+
+	// UpdateUniverseMetadata replaces all universe metadata with the provided map.
+	// Existing keys are cleared before copying new entries. The method copies entries
+	// (not the reference), so subsequent modifications to the passed map do not affect
+	// the stored metadata. Changes persist across actions, transitions, and realities.
 	UpdateUniverseMetadata(md map[string]any)
 }
 type InvokeFn func(ctx context.Context, args InvokeExecutorArgs)
@@ -126,6 +141,11 @@ type ConditionExecutorArgs interface {
 	GetUniverseMetadata() map[string]any
 	AddToUniverseMetadata(key string, value any)
 	DeleteFromUniverseMetadata(key string) (any, bool)
+
+	// UpdateUniverseMetadata replaces all universe metadata with the provided map.
+	// Existing keys are cleared before copying new entries. The method copies entries
+	// (not the reference), so subsequent modifications to the passed map do not affect
+	// the stored metadata. Changes persist across actions, transitions, and realities.
 	UpdateUniverseMetadata(md map[string]any)
 }
 type ConditionFn func(ctx context.Context, args ConditionExecutorArgs) (bool, error)

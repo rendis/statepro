@@ -7,6 +7,7 @@ This document explains how it interprets a model and processes events.
 
 - Call `qm.Init(ctx, machineContext)` to boot every universe referenced in `QuantumMachineModel.Initials`.
 - Use `qm.InitWithEvent(ctx, machineContext, event)` to inject a custom event during initialization.
+- A machine can only be initialized once. Calling `Init()` or `InitWithEvent()` again returns an error. To restore a previously initialized machine, use `LoadSnapshot()` instead.
 - Each reference in `initials` is validated and mapped to an `ExUniverse` instance.
 - Universes without an `initial` reality enter superposition. Universes with an initial reality execute:
   1. Machine-level entry constants.

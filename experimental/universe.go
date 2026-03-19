@@ -469,8 +469,8 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 	}
 	u.realityInitialized = true
 
-	// emitted events during entry may have changed currentReality or triggered superposition
-	if u.currentReality == nil || u.inSuperposition {
+	// emitted events during entry may have changed currentReality (e.g. initSuperposition sets it to nil)
+	if u.currentReality == nil {
 		return nil
 	}
 
@@ -692,6 +692,10 @@ func (u *ExUniverse) initSuperposition(targets []string) error {
 	return nil
 }
 
+// initOnSuperposition initializes the universe directly into superposition.
+// This is the correct path for universes without an Initial reality.
+// No reality is established and no always transitions execute until an
+// observer approves a reality via establishNewReality.
 func (u *ExUniverse) initOnSuperposition() {
 	u.initialized = true
 	u.realityBeforeSuperposition = nil

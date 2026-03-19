@@ -395,6 +395,13 @@ func (qm *ExQuantumMachine) init(ctx context.Context, machineContext any, event 
 	qm.quantumMachineMtx.Lock()
 	defer qm.quantumMachineMtx.Unlock()
 
+	// guard: prevent double initialization
+	for _, u := range qm.universes {
+		if u.initialized {
+			return fmt.Errorf("machine already initialized")
+		}
+	}
+
 	qm.machineContext = machineContext
 
 	var pairs []devtoolkit.Pair[instrumentation.Event, []string]

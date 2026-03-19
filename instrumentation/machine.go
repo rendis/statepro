@@ -13,7 +13,8 @@ type QuantumMachine interface {
 	// Parameters:
 	//   - ctx: Context for execution
 	//   - machineContext: Machine context to be stored and used throughout the machine's lifecycle
-	// Returns error if any initial universe reference is invalid or initialization fails
+	// Returns error if any initial universe reference is invalid, initialization fails,
+	// or the machine has already been initialized.
 	Init(ctx context.Context, machineContext any) error
 
 	// InitWithEvent initializes the quantum machine with a custom event.
@@ -24,7 +25,8 @@ type QuantumMachine interface {
 	//   - ctx: Context for execution
 	//   - machineContext: Machine context to be stored and used throughout the machine's lifecycle
 	//   - event: Custom event to propagate during initialization
-	// Returns error if any initial universe reference is invalid or initialization fails
+	// Returns error if any initial universe reference is invalid, initialization fails,
+	// or the machine has already been initialized.
 	InitWithEvent(ctx context.Context, machineContext any, event Event) error
 
 	// SendEvent sends an event to all active universes that can handle it.
