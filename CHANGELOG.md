@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.2] - 2026-04-25
+
 ### Changed
 
 - **BREAKING**: Replaced `github.com/rendis/abslog/v3` with the standard library
@@ -131,7 +133,8 @@ universes, realities, superposition, observers, and accumulators.
 
 See the GitHub release page for the full v3.0.0 release notes.
 
-[Unreleased]: https://github.com/rendis/statepro/compare/v3.2.1...HEAD
+[Unreleased]: https://github.com/rendis/statepro/compare/v3.2.2...HEAD
+[3.2.2]: https://github.com/rendis/statepro/compare/v3.2.1...v3.2.2
 [3.2.1]: https://github.com/rendis/statepro/compare/v3.2.0...v3.2.1
 [3.2.0]: https://github.com/rendis/statepro/compare/v3.1.1...v3.2.0
 [3.1.1]: https://github.com/rendis/statepro/compare/v3.1.0...v3.1.1
