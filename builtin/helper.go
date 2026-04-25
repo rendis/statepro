@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/rendis/devtoolkit"
+	"github.com/rendis/statepro/v3/internal/util"
 )
 
 // TryToCastToInt tries to cast the given value to an int.
@@ -12,7 +12,7 @@ import (
 // If the value is a string, it will try to parse it to an int and return the result and true if successful.
 // Otherwise, it will return 0 and false.
 func TryToCastToInt(v any) (int, bool) {
-	if m, ok := devtoolkit.ToInt(v); ok {
+	if m, ok := util.ToInt(v); ok {
 		return m, true
 	}
 

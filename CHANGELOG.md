@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `log/slog` across the codebase. Log calls now use structured key-value
   attributes (e.g. `slog.WarnContext(ctx, "observer not found", "src", src)`)
   instead of printf-style formatting.
+- Inlined the four helpers previously imported from
+  `github.com/rendis/devtoolkit` (`ToInt`, `StructToMap`, `MapToStruct`,
+  `Pair`/`NewPair`) into a new private `internal/util` package. No public API
+  change. (#7)
 
 ### Removed
 
@@ -21,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Direct dependency on `github.com/rendis/abslog/v3` and its transitive
   dependencies (`logrus`, `logrus-stackdriver-formatter`, `zap`, `multierr`,
   `go-stack/stack`).
+- Direct dependency on `github.com/rendis/devtoolkit` and its transitive
+  dependencies (`gabriel-vasile/mimetype`, `go-playground/locales`,
+  `go-playground/universal-translator`, `go-playground/validator/v10`,
+  `leodido/go-urn`, `golang.org/x/crypto`, `golang.org/x/exp`,
+  `golang.org/x/net`, `gopkg.in/yaml.v3`). (#7)
 
 ### Migration
 

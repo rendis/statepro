@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/rendis/devtoolkit"
 	"github.com/rendis/statepro/v3/builtin"
 	"github.com/rendis/statepro/v3/instrumentation"
+	"github.com/rendis/statepro/v3/internal/util"
 	"github.com/rendis/statepro/v3/theoretical"
 )
 
@@ -194,13 +194,13 @@ func (u *ExUniverse) getSnapshot() instrumentation.SerializedUniverseSnapshot {
 		}
 	}
 
-	m, _ := devtoolkit.StructToMap(infoSnapshot)
+	m, _ := util.StructToMap(infoSnapshot)
 	return m
 }
 
 // loadSnapshot loads a snapshot of the universe
 func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUniverseSnapshot) error {
-	snapshot, err := devtoolkit.MapToStruct[UniverseInfoSnapshot](universeSnapshot)
+	snapshot, err := util.MapToStruct[UniverseInfoSnapshot](universeSnapshot)
 	if err != nil {
 		return errors.Join(fmt.Errorf("error loading snapshot for universe '%s'", u.model.ID), err)
 	}
