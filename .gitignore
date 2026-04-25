@@ -25,3 +25,17 @@ coverage.html
 node_modules/
 dist/
 tmp/
+
+# Editor / IDE settings
+.vscode/
+
+# Agent workspaces — only track skills/, ignore everything else (worktrees, caches, etc.)
+.claude/*
+!.claude/skills/
+!.claude/skills/**
+
+.codex/*
+!.codex/skills/
+!.codex/skills/**
+
+# .agents/ is tracked in full: no exclusion rules needed
