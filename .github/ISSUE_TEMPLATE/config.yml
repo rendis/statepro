@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Question or discussion
+    url: https://github.com/rendis/statepro/discussions
+    about: For questions, ideas, and general discussion. Bug reports and feature requests should use the issue templates above.
+  - name: 📖 Documentation
+    url: https://github.com/rendis/statepro/tree/main/docs
+    about: Concepts, modeling guide, runtime, instrumentation, debugging, and best practices.
+  - name: 🔒 Security vulnerability
+    url: https://github.com/rendis/statepro/security/advisories/new
+    about: Report security issues privately via GitHub Security Advisories. Do not open a public issue for vulnerabilities.

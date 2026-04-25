@@ -1,0 +1,127 @@
+name: 🐛 Bug Report
+description: Report something that isn't working as expected
+title: "fix(<area>): <short description>"
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report!
+        Please fill in as much information as you can — it helps us reproduce and fix the issue faster.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight checks
+      description: Confirm before submitting.
+      options:
+        - label: I searched [existing issues](https://github.com/rendis/statepro/issues?q=is%3Aissue) and this is not a duplicate.
+          required: true
+        - label: I read the [CONTRIBUTING guide](https://github.com/rendis/statepro/blob/main/CONTRIBUTING.md).
+          required: true
+        - label: This is a bug, not a question. (Questions go to [Discussions](https://github.com/rendis/statepro/discussions).)
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Which part of the project is affected?
+      options:
+        - Core (Go library — runtime, theoretical, instrumentation)
+        - Built-in executors (observers, actions, invokes, conditions)
+        - Schema / JSON definition
+        - Debugger (CLI / bot)
+        - Studio — App
+        - Studio — editor-core (@rendis/statepro-studio-react)
+        - Studio — web-component (@rendis/statepro-studio-web-component)
+        - Documentation
+        - Build / tooling / CI
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal, ordered steps that reliably reproduce the bug.
+      placeholder: |
+        1. Define a quantum machine with `...`
+        2. Call `qm.SendEvent(...)` with `...`
+        3. Observe `...`
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead? Include error messages or stack traces.
+    validations:
+      required: true
+
+  - type: textarea
+    id: minimal-repro
+    attributes:
+      label: Minimal reproduction
+      description: A minimal Go snippet, JSON definition, or repository link that reproduces the bug. This is the single most useful thing you can provide.
+      render: go
+
+  - type: input
+    id: statepro-version
+    attributes:
+      label: statepro version
+      description: Output of `go list -m github.com/rendis/statepro/v3` — or the npm package version for Studio.
+      placeholder: "v3.2.1"
+    validations:
+      required: true
+
+  - type: input
+    id: go-version
+    attributes:
+      label: Go version
+      description: Output of `go version`. Leave blank if the bug is Studio-only.
+      placeholder: "go1.25.0"
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - WSL
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Any log output, panic traces, or `go test -v` output. Will be auto-formatted as a code block.
+      render: shell
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Screenshots, related issues, workarounds you've tried, or any other context that might help.
