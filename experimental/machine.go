@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/rendis/devtoolkit"
 	"github.com/rendis/statepro/v3/builtin"
 	"github.com/rendis/statepro/v3/instrumentation"
+	"github.com/rendis/statepro/v3/internal/util"
 	"github.com/rendis/statepro/v3/theoretical"
 )
 
@@ -80,7 +80,7 @@ func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation
 	qm.quantumMachineMtx.Lock()
 	defer qm.quantumMachineMtx.Unlock()
 
-	var pairs []devtoolkit.Pair[instrumentation.Event, []string]
+	var pairs []util.Pair[instrumentation.Event, []string]
 
 	activeUniverses := qm.getLazyActiveUniverses(event)
 	if len(activeUniverses) == 0 {
@@ -97,7 +97,7 @@ func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation
 			continue
 		}
 
-		pair := devtoolkit.NewPair(event, externalTargets)
+		pair := util.NewPair(event, externalTargets)
 		pairs = append(pairs, pair)
 	}
 
@@ -232,8 +232,8 @@ func (qm *ExQuantumMachine) PositionMachine(ctx context.Context, machineContext 
 	if len(externalTargets) > 0 {
 		// Use the original event from startOnReality to preserve metadata, type, and flags
 		// This ensures downstream universes receive the correct StartOn event context
-		var pairs []devtoolkit.Pair[instrumentation.Event, []string]
-		pair := devtoolkit.NewPair(originalEvent, externalTargets)
+		var pairs []util.Pair[instrumentation.Event, []string]
+		pair := util.NewPair(originalEvent, externalTargets)
 		pairs = append(pairs, pair)
 
 		// Process external targets using existing machinery
@@ -404,7 +404,7 @@ func (qm *ExQuantumMachine) init(ctx context.Context, machineContext any, event 
 
 	qm.machineContext = machineContext
 
-	var pairs []devtoolkit.Pair[instrumentation.Event, []string]
+	var pairs []util.Pair[instrumentation.Event, []string]
 
 	for _, ref := range qm.model.Initials {
 		// get reference type and parts
@@ -431,7 +431,7 @@ func (qm *ExQuantumMachine) init(ctx context.Context, machineContext any, event 
 			return err
 		}
 
-		pair := devtoolkit.NewPair(evt, externalTargets)
+		pair := util.NewPair(evt, externalTargets)
 		pairs = append(pairs, pair)
 	}
 
@@ -511,7 +511,7 @@ func (qm *ExQuantumMachine) getActiveUniverses() []*ExUniverse {
 	return activeUniverses
 }
 
-func (qm *ExQuantumMachine) executeExternalTargetPairs(ctx context.Context, pairs []devtoolkit.Pair[instrumentation.Event, []string]) error {
+func (qm *ExQuantumMachine) executeExternalTargetPairs(ctx context.Context, pairs []util.Pair[instrumentation.Event, []string]) error {
 	// while there are pairs to execute
 	for len(pairs) > 0 {
 		pair := pairs[0]
@@ -529,7 +529,7 @@ func (qm *ExQuantumMachine) executeExternalTargetPairs(ctx context.Context, pair
 		}
 
 		// add new targets to the queue
-		newPair := devtoolkit.NewPair(pair.GetFirst(), newTargets)
+		newPair := util.NewPair(pair.GetFirst(), newTargets)
 		pairs = append(pairs, newPair)
 	}
 
