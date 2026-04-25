@@ -14,5 +14,10 @@
   },
   "devDependencies": {
     "typescript": "^5.7.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "picomatch": "^4.0.4"
+    }
   }
 }

@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `github.com/rendis/devtoolkit` (`ToInt`, `StructToMap`, `MapToStruct`,
   `Pair`/`NewPair`) into a new private `internal/util` package. No public API
   change. (#7)
+- Bumped `debugger/cli` TUI dependencies to their latest v1 releases:
+  `charmbracelet/bubbles` v0.20.0 → v1.0.0, `charmbracelet/bubbletea` v1.2.4
+  → v1.3.10, `charmbracelet/lipgloss` v1.0.0 → v1.1.0. Plus minor / patch
+  bumps on transitive deps (`x/ansi`, `x/term`, `x/sys`, `x/text`, `mattn/*`,
+  `lucasb-eyer/go-colorful`, `muesli/termenv`). (#9)
 
 ### Removed
 
@@ -30,6 +35,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `go-playground/universal-translator`, `go-playground/validator/v10`,
   `leodido/go-urn`, `golang.org/x/crypto`, `golang.org/x/exp`,
   `golang.org/x/net`, `gopkg.in/yaml.v3`). (#7)
+
+### Security
+
+- Studio: bumped `vite` to `^6.4.2` to address Dependabot alerts #12 (high —
+  arbitrary file read via dev-server WebSocket) and #13 (medium — path
+  traversal in optimized deps `.map` handling). (#9)
+- Studio: bumped `postcss` to `^8.5.10` to address Dependabot alert #14
+  (medium — XSS via unescaped `</style>` in CSS stringify output). (#9)
+- Studio: pinned all transitive `picomatch` resolutions to `^4.0.4` via a
+  `pnpm.overrides` entry in `studio/package.json` to address Dependabot alerts
+  #8 / #9 (high / medium — ReDoS and method injection in versions <2.3.2)
+  and #10 / #11 (high / medium — same vectors in 4.0.0–4.0.3). (#9)
 
 ### Migration
 
