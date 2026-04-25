@@ -1,0 +1,88 @@
+name: ✨ Feature Request
+description: Suggest a new capability, API, or improvement
+title: "feat(<area>): <short description>"
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing an idea!
+        Strong feature requests describe a real problem first and a proposal second.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I searched [existing issues](https://github.com/rendis/statepro/issues?q=is%3Aissue) and this is not a duplicate.
+          required: true
+        - label: I read the [CONTRIBUTING guide](https://github.com/rendis/statepro/blob/main/CONTRIBUTING.md).
+          required: true
+        - label: This is a feature proposal, not a question. (Questions go to [Discussions](https://github.com/rendis/statepro/discussions).)
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Core (Go library — runtime, theoretical, instrumentation)
+        - Built-in executors (observers, actions, invokes, conditions)
+        - Schema / JSON definition
+        - Debugger (CLI / bot)
+        - Studio — App
+        - Studio — editor-core (@rendis/statepro-studio-react)
+        - Studio — web-component (@rendis/statepro-studio-web-component)
+        - Documentation
+        - Build / tooling / CI
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What pain point or limitation does this address? Describe the problem before proposing a solution.
+      placeholder: When I try to ..., I have to ... because there's no way to ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How would this work from the user's perspective? Include API sketches, JSON examples, or UI flows when relevant.
+      placeholder: |
+        Add a method `qm.SomeMethod(...)` that ...
+
+        Example usage:
+        ```go
+        qm.SomeMethod(...)
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches, workarounds, or related libraries you evaluated.
+
+  - type: dropdown
+    id: breaking
+    attributes:
+      label: Is this a breaking change?
+      description: Would this require consumers of statepro to change their code or JSON definitions?
+      options:
+        - "No"
+        - "Yes — breaking change"
+        - "Unsure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Use cases, related projects, mockups, references, or any background that helps evaluate the proposal.
