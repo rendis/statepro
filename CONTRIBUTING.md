@@ -286,6 +286,7 @@ Before creating a PR, ensure:
 - No static analysis issues
 - Dependencies are clean
 - Documentation updated (if needed)
+- `CHANGELOG.md` updated under `[Unreleased]` for user-visible changes (new features, breaking changes, fixes, deprecations)
 - Commit messages are descriptive
 - No merge conflicts exist
 
@@ -330,6 +331,7 @@ Fixes #456
 - [ ] Code follows the project's style guidelines
 - [ ] Self-review of code completed
 - [ ] Documentation updated (if needed)
+- [ ] CHANGELOG.md updated under [Unreleased] (for user-visible changes)
 - [ ] Tests added for new functionality
 - [ ] All tests pass locally
 - [ ] No new warnings or errors

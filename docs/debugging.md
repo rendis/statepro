@@ -76,8 +76,15 @@ Parameters:
 
 ## Logging
 
-Use `builtin.SetLogger(abslog.New(...))` or register your own logger to capture runtime diagnostics.
-Abslog integrates with structured logging backends and honors context cancellation.
+statepro uses the standard library `log/slog` package. Configure logging by
+setting the default slog logger; statepro will use it for runtime diagnostics
+and honors context propagation.
+
+```go
+import "log/slog"
+
+slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+```
 
 ## Next Steps
 

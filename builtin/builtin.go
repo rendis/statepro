@@ -1,13 +1,8 @@
 package builtin
 
 import (
-	"github.com/rendis/abslog/v3"
 	"github.com/rendis/statepro/v3/instrumentation"
 )
-
-func SetLogger(logger abslog.AbsLog) {
-	abslog.SetLogger(logger)
-}
 
 var builtinObserverRegistry = map[string]instrumentation.ObserverFn{
 	"builtin:observer:containsAllEvents":        ContainsAllEvents,

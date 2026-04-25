@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/rendis/abslog/v3"
+	"log"
+	"log/slog"
+	"os"
+
 	"github.com/rendis/statepro/v3"
 	"github.com/rendis/statepro/v3/builtin"
 	"github.com/rendis/statepro/v3/instrumentation"
-	"log"
-	"os"
 )
 
 func main() {
@@ -100,7 +101,7 @@ func loadDefinition() instrumentation.QuantumMachine {
 
 func registerLaws() {
 	if err := builtin.RegisterAction("disableAdmission", DisableAdmission); err != nil {
-		abslog.Fatalf("failed to register custom action '%s'", "disableAdmission", err)
+		log.Fatalf("failed to register custom action %q: %v", "disableAdmission", err)
 	}
 }
 
@@ -117,7 +118,7 @@ func DisableAdmission(ctx context.Context, args instrumentation.ActionExecutorAr
 func toContext(ctx context.Context, admissionCtx any) (*AdmissionQMContext, error) {
 	admission, ok := admissionCtx.(*AdmissionQMContext)
 	if !ok {
-		abslog.ErrorCtx(ctx, "context is not an admission")
+		slog.ErrorContext(ctx, "context is not an admission")
 		return nil, fmt.Errorf("context is not an admission")
 	}
 
