@@ -1,7 +1,8 @@
 package experimental
 
 import (
-	"github.com/rendis/abslog/v3"
+	"log/slog"
+
 	"github.com/rendis/statepro/v3/instrumentation"
 	"github.com/rendis/statepro/v3/theoretical"
 )
@@ -155,9 +156,10 @@ func (a *actionExecutorArgs) EmitEvent(eventName string, data map[string]any) {
 		return
 	}
 	if a.emittedEvents == nil {
-		abslog.Warnf(
-			"EmitEvent called outside entry action context (actionType=%s, reality=%s) — event '%s' ignored",
-			a.actionType, a.realityName, eventName,
+		slog.Warn("EmitEvent called outside entry action context — event ignored",
+			"actionType", a.actionType,
+			"reality", a.realityName,
+			"event", eventName,
 		)
 		return
 	}

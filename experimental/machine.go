@@ -3,9 +3,9 @@ package experimental
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 
-	"github.com/rendis/abslog/v3"
 	"github.com/rendis/devtoolkit"
 	"github.com/rendis/statepro/v3/builtin"
 	"github.com/rendis/statepro/v3/instrumentation"
@@ -460,7 +460,7 @@ func (qm *ExQuantumMachine) executeInvoke(ctx context.Context, invoke theoretica
 		return
 	}
 
-	abslog.WarnCtxf(ctx, "invoke '%s' not found", invoke.Src)
+	slog.WarnContext(ctx, "invoke not found", "src", invoke.Src)
 }
 
 func (qm *ExQuantumMachine) executeAction(ctx context.Context, model *theoretical.ActionModel, args *instrumentation.QuantumMachineExecutorArgs) error {
@@ -487,7 +487,7 @@ func (qm *ExQuantumMachine) executeAction(ctx context.Context, model *theoretica
 		return fn(ctx, a)
 	}
 
-	abslog.WarnCtxf(ctx, "action '%s' not found", model.Src)
+	slog.WarnContext(ctx, "action not found", "src", model.Src)
 	return nil
 }
 

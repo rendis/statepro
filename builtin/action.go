@@ -2,10 +2,9 @@ package builtin
 
 import (
 	"context"
-	"fmt"
-	"github.com/rendis/abslog/v3"
+	"log/slog"
+
 	"github.com/rendis/statepro/v3/instrumentation"
-	"strings"
 )
 
 // LogBasicInfo builtin action (builtin:action:logBasicInfo)
@@ -13,13 +12,12 @@ import (
 // Valid args:
 //   - none
 func LogBasicInfo(ctx context.Context, args instrumentation.ActionExecutorArgs) error {
-	realityName := args.GetRealityName()
-	universeName := args.GetUniverseCanonicalName()
-	universeId := args.GetUniverseId()
-	actionType := args.GetActionType()
-
-	abslog.InfoCtxf(ctx, "%s action executed in reality '%s' from universe '%s' (universe id: %s)", actionType, realityName, universeName, universeId)
-
+	slog.InfoContext(ctx, "action executed",
+		"actionType", args.GetActionType(),
+		"reality", args.GetRealityName(),
+		"universe", args.GetUniverseCanonicalName(),
+		"universeId", args.GetUniverseId(),
+	)
 	return nil
 }
 
@@ -28,21 +26,18 @@ func LogBasicInfo(ctx context.Context, args instrumentation.ActionExecutorArgs) 
 // Valid args:
 //   - map[string]any (key: arg name, value: any)
 func LogArgs(ctx context.Context, args instrumentation.ActionExecutorArgs) error {
-	realityName := args.GetRealityName()
-	universeName := args.GetUniverseCanonicalName()
-	universeId := args.GetUniverseId()
-	actionType := args.GetActionType()
-
-	var argsStr []string
-	for k, v := range args.GetAction().Args {
-		argsStr = append(argsStr, fmt.Sprintf("%s = %v", k, v))
-	}
-
-	abslog.InfoCtxf(
-		ctx,
-		"%s action executed in reality %s from universe '%s' (universe id: %s) with args: %s",
-		actionType, realityName, universeName, universeId, strings.Join(argsStr, ", "),
+	actionArgs := args.GetAction().Args
+	attrs := make([]any, 0, 8+2*len(actionArgs))
+	attrs = append(attrs,
+		"actionType", args.GetActionType(),
+		"reality", args.GetRealityName(),
+		"universe", args.GetUniverseCanonicalName(),
+		"universeId", args.GetUniverseId(),
 	)
+	for k, v := range actionArgs {
+		attrs = append(attrs, k, v)
+	}
+	slog.InfoContext(ctx, "action executed with args", attrs...)
 	return nil
 }
 
@@ -51,20 +46,17 @@ func LogArgs(ctx context.Context, args instrumentation.ActionExecutorArgs) error
 // Valid args:
 //   - map[string]any (key: arg name, value: any) -> keys will be ignored
 func LogArgsWithoutKeys(ctx context.Context, args instrumentation.ActionExecutorArgs) error {
-	realityName := args.GetRealityName()
-	universeName := args.GetUniverseCanonicalName()
-	universeId := args.GetUniverseId()
-	actionType := args.GetActionType()
-
-	var argsStr []string
-	for _, v := range args.GetAction().Args {
-		argsStr = append(argsStr, fmt.Sprintf("'%v'", v))
+	actionArgs := args.GetAction().Args
+	vals := make([]any, 0, len(actionArgs))
+	for _, v := range actionArgs {
+		vals = append(vals, v)
 	}
-
-	abslog.InfoCtxf(
-		ctx,
-		"%s action executed in reality %s from universe '%s' (universe id: %s) with args: %s",
-		actionType, realityName, universeName, universeId, strings.Join(argsStr, ", "),
+	slog.InfoContext(ctx, "action executed with args",
+		"actionType", args.GetActionType(),
+		"reality", args.GetRealityName(),
+		"universe", args.GetUniverseCanonicalName(),
+		"universeId", args.GetUniverseId(),
+		"args", vals,
 	)
 	return nil
 }
@@ -74,10 +66,11 @@ func LogArgsWithoutKeys(ctx context.Context, args instrumentation.ActionExecutor
 // Valid args:
 //   - map[string]any (key: arg name, value: any) -> keys will be ignored
 func LogJustArgsValues(ctx context.Context, args instrumentation.ActionExecutorArgs) error {
-	var argsStr []string
-	for _, v := range args.GetAction().Args {
-		argsStr = append(argsStr, fmt.Sprintf("'%v'", v))
+	actionArgs := args.GetAction().Args
+	vals := make([]any, 0, len(actionArgs))
+	for _, v := range actionArgs {
+		vals = append(vals, v)
 	}
-	abslog.InfoCtxf(ctx, "%s", strings.Join(argsStr, ", "))
+	slog.InfoContext(ctx, "action args", "args", vals)
 	return nil
 }

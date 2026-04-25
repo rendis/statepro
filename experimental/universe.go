@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
-	"github.com/rendis/abslog/v3"
 	"github.com/rendis/devtoolkit"
 	"github.com/rendis/statepro/v3/builtin"
 	"github.com/rendis/statepro/v3/instrumentation"
@@ -1029,7 +1029,7 @@ func (u *ExUniverse) runObserverExecutor(ctx context.Context, src string, args *
 		return fn(ctx, args)
 	}
 
-	abslog.WarnCtxf(ctx, "observer '%s' not found (default behavior: return true)", src)
+	slog.WarnContext(ctx, "observer not found (default: return true)", "src", src)
 	return true, nil
 }
 
@@ -1042,7 +1042,7 @@ func (u *ExUniverse) runActionExecutor(ctx context.Context, src string, args *ac
 		return fn(ctx, args)
 	}
 
-	abslog.WarnCtxf(ctx, "action '%s' not found", src)
+	slog.WarnContext(ctx, "action not found", "src", src)
 	return nil
 }
 
@@ -1056,7 +1056,7 @@ func (u *ExUniverse) runInvokeExecutor(ctx context.Context, args *invokeExecutor
 		return
 	}
 
-	abslog.WarnCtxf(ctx, "invoke '%s' not found", args.invoke.Src)
+	slog.WarnContext(ctx, "invoke not found", "src", args.invoke.Src)
 }
 
 func (u *ExUniverse) runConditionExecutor(ctx context.Context, args *conditionExecutorArgs) (bool, error) {
@@ -1068,7 +1068,7 @@ func (u *ExUniverse) runConditionExecutor(ctx context.Context, args *conditionEx
 		return fn(ctx, args)
 	}
 
-	abslog.WarnCtxf(ctx, "condition '%s' not found (default behavior: return false)", args.condition.Src)
+	slog.WarnContext(ctx, "condition not found (default: return false)", "src", args.condition.Src)
 	return false, nil
 }
 

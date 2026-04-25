@@ -528,6 +528,7 @@ Comprehensive guides and references are available in the [`docs/`](docs/README.m
 - 🔧 [**Debugging & Tooling**](docs/debugging.md) - Interactive CLI viewer, automation bot, and logging utilities
 - 🎨 [**StatePro Studio Guide**](studio/README.md) - Visual editor usage, embedding patterns, and full API/props reference
 - 🤝 [**Contributing Guide**](CONTRIBUTING.md) - How to contribute code, report issues, and help improve StatePro
+- 📜 [**Changelog**](CHANGELOG.md) - Notable changes, breaking changes, and migration notes per release
 
 ### Quick Navigation
 
