@@ -1109,7 +1109,15 @@ func (u *ExUniverse) runInvokeExecutor(ctx context.Context, args *invokeExecutor
 	}
 
 	if fn := builtin.GetInvoke(args.invoke.Src); fn != nil {
-		go fn(ctx, args)
+		src := args.invoke.Src
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					slog.ErrorContext(ctx, "invoke panicked", "src", src, "panic", r)
+				}
+			}()
+			fn(ctx, args)
+		}()
 		return
 	}
 

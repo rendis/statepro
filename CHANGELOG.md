@@ -24,10 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Experimental runtime: universe-level `UniversalConstants` now execute between machine-level constants and reality-level actions/invokes.
+- Adversarial / hostile test suite across runtime, definition validation, builtin observers, debugger bot, and Studio validation (races, cascade depth limits, invoke panic isolation, malformed payloads, fuzz for `processReference`).
 
 ### Changed
 
 - Studio: validation no longer warns that the runtime ignores `universe.universalConstants`; those constants are executed by the experimental runtime.
+- Experimental runtime: invoke goroutines recover from panics so a crashing invoke cannot take down the process.
 
 
 ## [3.2.2] - 2026-04-25

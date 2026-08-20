@@ -131,4 +131,84 @@ describe("validateStateProMachine", () => {
       ),
     ).toBe(true);
   });
+
+  it("rechaza máquinas hostiles: refs rotas, notify interno y universo vacío", () => {
+    const brokenTargets: StateProMachine = {
+      id: "machine",
+      canonicalName: "machine",
+      version: "1.0.0",
+      initials: ["U:ghost"],
+      universes: {
+        main: {
+          id: "main",
+          canonicalName: "main",
+          version: "1.0.0",
+          initial: "idle",
+          realities: {
+            idle: {
+              id: "idle",
+              type: "transition",
+              on: {
+                GO: [{ targets: ["U:ghost"], type: "notify" }],
+              },
+            },
+            done: { id: "done", type: "final" },
+          },
+        },
+      },
+    };
+
+    const broken = validateStateProMachine(brokenTargets);
+    expect(broken.canExport).toBe(false);
+    expect(
+      broken.issues.some(
+        (issue) =>
+          issue.messageKey === "issue.initialUnknownUniverse" ||
+          issue.messageKey === "issue.unknownUniverse",
+      ),
+    ).toBe(true);
+
+    const emptyUniverses: StateProMachine = {
+      id: "machine",
+      canonicalName: "machine",
+      version: "1.0.0",
+      initials: [],
+      universes: {},
+    };
+    const empty = validateStateProMachine(emptyUniverses);
+    expect(empty.canExport).toBe(false);
+    expect(
+      empty.issues.some((issue) => issue.messageKey === "issue.machineNeedsUniverse"),
+    ).toBe(true);
+
+    const notifyInternal: StateProMachine = {
+      id: "machine",
+      canonicalName: "machine",
+      version: "1.0.0",
+      initials: ["U:main"],
+      universes: {
+        main: {
+          id: "main",
+          canonicalName: "main",
+          version: "1.0.0",
+          initial: "idle",
+          realities: {
+            idle: {
+              id: "idle",
+              type: "transition",
+              on: {
+                GO: [{ targets: ["done"], type: "notify" }],
+              },
+            },
+            done: { id: "done", type: "final" },
+          },
+        },
+      },
+    };
+    const notify = validateStateProMachine(notifyInternal);
+    expect(notify.canExport).toBe(false);
+    expect(
+      notify.issues.some((issue) => issue.messageKey === "issue.notifyInternalTarget"),
+    ).toBe(true);
+  });
 });

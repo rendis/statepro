@@ -478,7 +478,15 @@ func (qm *ExQuantumMachine) executeInvoke(ctx context.Context, invoke theoretica
 	}
 
 	if fn := builtin.GetInvoke(invoke.Src); fn != nil {
-		go fn(ctx, a)
+		src := invoke.Src
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					slog.ErrorContext(ctx, "invoke panicked", "src", src, "panic", r)
+				}
+			}()
+			fn(ctx, a)
+		}()
 		return
 	}
 

@@ -700,3 +700,51 @@ func TestTotalEventsBetweenLimits_InvalidMaxCast(t *testing.T) {
 		t.Fatal("TotalEventsBetweenLimits should return true when using default max")
 	}
 }
+
+func TestAdv_Observers_NilAccumulatorStatistics(t *testing.T) {
+	ctx := context.Background()
+	args := &mockObserverExecutorArgs{
+		realityName: "r",
+		observer: theoretical.ObserverModel{
+			Src:  "x",
+			Args: map[string]any{"0": "e1", "minimum": 1, "maximum": 10},
+		},
+		accumulatorStats: nil,
+	}
+
+	cases := []struct {
+		name string
+		fn   func(context.Context, instrumentation.ObserverExecutorArgs) (bool, error)
+		want bool
+	}{
+		{"ContainsAllEvents", ContainsAllEvents, false},
+		{"ContainsAtLeastOneEvent", ContainsAtLeastOneEvent, false},
+		{"GreaterThanEqualCounter", GreaterThanEqualCounter, false},
+		{"TotalEventsBetweenLimits", TotalEventsBetweenLimits, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := tc.fn(ctx, args)
+			if err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
+			if got != tc.want {
+				t.Fatalf("got %v want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestAdv_Register_HostileSrcNames(t *testing.T) {
+	hostile := []string{"", " ", "1bad", "bad!", "a", "ends-with-", ":leading", "has space"}
+	for _, src := range hostile {
+		if err := RegisterAction(src, func(context.Context, instrumentation.ActionExecutorArgs) error { return nil }); err == nil {
+			t.Fatalf("expected invalid src rejection for %q", src)
+		}
+		if err := RegisterCondition(src, func(context.Context, instrumentation.ConditionExecutorArgs) (bool, error) {
+			return true, nil
+		}); err == nil {
+			t.Fatalf("expected invalid condition src rejection for %q", src)
+		}
+	}
+}
