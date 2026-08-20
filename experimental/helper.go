@@ -3,6 +3,7 @@ package experimental
 import (
 	"fmt"
 	"regexp"
+	"sort"
 )
 
 type refType int
@@ -24,11 +25,15 @@ const (
 	RefTypeReality
 )
 
+// ID pattern matches the JSON schema: letter, optionally followed by
+// [letters|digits|_|-]* ending in alphanumeric. Single-character IDs are valid.
+const idPattern = `[a-zA-Z](?:[a-zA-Z0-9_-]*[a-zA-Z0-9])?`
+
 // regex
 const (
-	universePattern        = `^U:([a-zA-Z][a-zA-Z0-9_-]*[a-zA-Z0-9])$`
-	universeRealityPattern = `^U:([a-zA-Z][a-zA-Z0-9_-]*[a-zA-Z0-9]):([a-zA-Z][a-zA-Z0-9_-]*[a-zA-Z0-9])$`
-	realityPattern         = `^([a-zA-Z][a-zA-Z0-9_-]*[a-zA-Z0-9])$`
+	universePattern        = `^U:(` + idPattern + `)$`
+	universeRealityPattern = `^U:(` + idPattern + `):(` + idPattern + `)$`
+	realityPattern         = `^(` + idPattern + `)$`
 )
 
 type refTypePattern struct {
@@ -53,4 +58,28 @@ func processReference(ref string) (refType, []string, error) {
 		}
 	}
 	return -1, nil, fmt.Errorf("invalid ref '%s'", ref)
+}
+
+func cloneStringSlice(src []string) []string {
+	if src == nil {
+		return nil
+	}
+	dst := make([]string, len(src))
+	copy(dst, src)
+	return dst
+}
+
+func sortUniversesByID(universes []*ExUniverse) {
+	sort.Slice(universes, func(i, j int) bool {
+		return universes[i].model.ID < universes[j].model.ID
+	})
+}
+
+func sortedMapKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }

@@ -864,13 +864,15 @@ func TestSuperposition_BroadcastEvent(t *testing.T) {
 	}
 	assertSuperposition(t, u)
 
-	// broadcast event to universe (no specific reality)
-	// Since universe is in superposition and was NOT started with an initial,
-	// we need to use handleEvent directly (as receiveEvent) — which SendEvent cannot do
-	// because canHandleEvent returns false for superposition.
-	// However, if another universe sends to U:u1 (no reality), it calls handleEvent with nil realityName -> receiveEvent.
-	// Let's test via a second universe routing to U:u1.
-	// For simplicity, verify the accumulator is initialized for all realities after superposition init.
+	handled, err := qm.SendEvent(context.Background(), NewEventBuilder("tick").Build())
+	if err != nil {
+		t.Fatalf("SendEvent(tick) failed: %v", err)
+	}
+	if !handled {
+		t.Fatal("expected SendEvent to handle a superposition universe")
+	}
+	assertSuperposition(t, u)
+
 	if u.eventAccumulator == nil {
 		t.Fatal("expected eventAccumulator to be non-nil during superposition")
 	}
@@ -2279,11 +2281,11 @@ func TestConstants_Empty_NoOp(t *testing.T) {
 		Realities:     realities,
 	}
 	qmm := &theoretical.QuantumMachineModel{
-		ID:            "qm1",
-		CanonicalName: "TestQM",
-		Version:       "1.0.0",
-		Universes:     map[string]*theoretical.UniverseModel{"u1": um},
-		Initials:      []string{"U:u1"},
+		ID:                 "qm1",
+		CanonicalName:      "TestQM",
+		Version:            "1.0.0",
+		Universes:          map[string]*theoretical.UniverseModel{"u1": um},
+		Initials:           []string{"U:u1"},
 		UniversalConstants: &theoretical.UniversalConstantsModel{
 			// all fields nil/empty
 		},

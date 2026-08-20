@@ -10,6 +10,11 @@ Instructions for AI coding agents working in this repository.
 - Test all: `go test ./...`
 - Test single package: `go test ./experimental/...`
 - Test single function: `go test -run TestFuncName ./...`
+- Race: `make test-race` or `go test -race ./...`
+- Fuzz smoke: `make test-fuzz-smoke` (native Go fuzz; longer: `make test-fuzz`)
+- Mutation (Go / Gremlins): `make tools && make test-mutation-builtin` (fast) or `make test-mutation`
+- Mutation dry-run: `make test-mutation-dry`
+- Details: [`docs/mutation-fuzzing.md`](docs/mutation-fuzzing.md)
 
 ### Studio (visual editor — pnpm workspace)
 
@@ -26,6 +31,7 @@ All studio commands run from `studio/`:
 Editor-core package specifically:
 
 - Test: `pnpm -C studio/packages/editor-core test`
+- Mutation (Stryker): `make test-mutation-studio` or `pnpm -C studio/packages/editor-core test:mutation`
 - Build: `pnpm -C studio/packages/editor-core build`
 - Generate builtin catalog (runs before build/test automatically): `pnpm -C studio/packages/editor-core generate:builtin-catalog`
 
