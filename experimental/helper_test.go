@@ -68,10 +68,10 @@ func TestProcessReference_Invalid(t *testing.T) {
 		"U:universe:",
 		"U::reality",
 		"U:universe:reality:extra",
-		"u:universe:reality", // lowercase u
-		"U_universe reality", // contains space
-		"123invalid", // starts with number
-		"invalid!", // contains invalid character
+		"u:universe:reality",    // lowercase u
+		"U_universe reality",    // contains space
+		"123invalid",            // starts with number
+		"invalid!",              // contains invalid character
 		"U:123universe:reality", // universe starts with number
 	}
 
@@ -80,6 +80,38 @@ func TestProcessReference_Invalid(t *testing.T) {
 		if err == nil {
 			t.Fatalf("Expected error for invalid ref '%s', got nil", ref)
 		}
+	}
+}
+
+func TestProcessReference_SingleCharacterIDs(t *testing.T) {
+	tests := []struct {
+		ref     string
+		refType refType
+		parts   []string
+	}{
+		{ref: "U:a", refType: RefTypeUniverse, parts: []string{"a"}},
+		{ref: "U:a:b", refType: RefTypeUniverseReality, parts: []string{"a", "b"}},
+		{ref: "a", refType: RefTypeReality, parts: []string{"a"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.ref, func(t *testing.T) {
+			gotType, parts, err := processReference(tt.ref)
+			if err != nil {
+				t.Fatalf("processReference(%q) error: %v — schema allows min length 1", tt.ref, err)
+			}
+			if gotType != tt.refType {
+				t.Fatalf("ref type: got %v, want %v", gotType, tt.refType)
+			}
+			if len(parts) != len(tt.parts) {
+				t.Fatalf("parts: got %v, want %v", parts, tt.parts)
+			}
+			for i, p := range tt.parts {
+				if parts[i] != p {
+					t.Fatalf("parts[%d]: got %q, want %q", i, parts[i], p)
+				}
+			}
+		})
 	}
 }
 

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Experimental runtime: `LoadSnapshot` now restores per-universe tracking history.
+- Experimental runtime: `GetSnapshot` copies tracking slices and serializes under the machine mutex (actions use an unlocked snapshot path to avoid deadlock).
+- Experimental runtime: machine-level constant actions report the correct `ActionType` (`entry` / `exit` / `transition`).
+- Experimental runtime: final realities ignore `On` handlers; `ReplayOnEntry` skips finalized universes.
+- Experimental runtime: failed entry actions roll back the previous reality instead of leaving a half-applied state.
+- Experimental runtime: observer errors are ignored when another observer approves (matches documented semantics).
+- Experimental runtime: superposition collapse iterates realities in sorted-id order (deterministic).
+- Experimental runtime: always-transition cycles and notify/external-target cascades fail with an error instead of hanging.
+- Experimental runtime: invalid external targets return an error instead of panicking; single-character IDs match the JSON schema.
+
+### Added
+
+- Experimental runtime: universe-level `UniversalConstants` now execute between machine-level constants and reality-level actions/invokes.
+
+
 ## [3.2.2] - 2026-04-25
 
 ### Changed

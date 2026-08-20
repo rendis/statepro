@@ -14,6 +14,10 @@ import (
 
 const (
 	universeNotFoundErrorTemplate = "universe '%s' not found"
+
+	// maxExternalTargetDepth bounds cross-universe notify/superposition cascades
+	// (A notifies B, B notifies A, ...). Mirrors maxEmitDepth for emitted events.
+	maxExternalTargetDepth = 10
 )
 
 type initFunc func(context.Context, any, *ExUniverse, []string, instrumentation.Event) ([]string, instrumentation.Event, error)
@@ -45,6 +49,7 @@ func NewExQuantumMachine(qmm *theoretical.QuantumMachineModel, universes []*ExUn
 		}
 
 		u.constantsLawsExecutor = qm
+		u.getSnapshotFn = qm.snapshotUnlocked
 		qm.universes[u.model.ID] = u
 	}
 
@@ -83,6 +88,7 @@ func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation
 	var pairs []util.Pair[instrumentation.Event, []string]
 
 	activeUniverses := qm.getLazyActiveUniverses(event)
+	sortUniversesByID(activeUniverses)
 	if len(activeUniverses) == 0 {
 		return false, nil
 	}
@@ -119,6 +125,12 @@ func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapsh
 			continue
 		}
 
+		if snapshot.Tracking != nil {
+			if tr, ok := snapshot.Tracking[u.model.ID]; ok {
+				u.tracking = cloneStringSlice(tr)
+			}
+		}
+
 		err := u.loadSnapshot(universeSnapshot)
 		if err != nil {
 			return err
@@ -130,6 +142,12 @@ func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapsh
 }
 
 func (qm *ExQuantumMachine) GetSnapshot() *instrumentation.MachineSnapshot {
+	qm.quantumMachineMtx.Lock()
+	defer qm.quantumMachineMtx.Unlock()
+	return qm.snapshotUnlocked()
+}
+
+func (qm *ExQuantumMachine) snapshotUnlocked() *instrumentation.MachineSnapshot {
 	var machineSnapshot = &instrumentation.MachineSnapshot{}
 
 	for _, u := range qm.universes {
@@ -156,8 +174,8 @@ func (qm *ExQuantumMachine) GetSnapshot() *instrumentation.MachineSnapshot {
 		// superposition universe resume
 		qm.setSnapshotFromUniverseInSuperposition(u, machineSnapshot)
 
-		// add tracking
-		machineSnapshot.AddTracking(u.model.ID, u.tracking)
+		// add tracking (copy so later mutations do not alias the snapshot)
+		machineSnapshot.AddTracking(u.model.ID, cloneStringSlice(u.tracking))
 	}
 
 	return machineSnapshot
@@ -346,7 +364,7 @@ func (qm *ExQuantumMachine) ExecuteEntryAction(ctx context.Context, args *instru
 	}
 
 	for _, action := range qm.model.UniversalConstants.EntryActions {
-		if err := qm.executeAction(ctx, action, args); err != nil {
+		if err := qm.executeAction(ctx, action, args, instrumentation.ActionTypeEntry); err != nil {
 			return err
 		}
 	}
@@ -359,7 +377,7 @@ func (qm *ExQuantumMachine) ExecuteExitAction(ctx context.Context, args *instrum
 	}
 
 	for _, action := range qm.model.UniversalConstants.ExitActions {
-		if err := qm.executeAction(ctx, action, args); err != nil {
+		if err := qm.executeAction(ctx, action, args, instrumentation.ActionTypeExit); err != nil {
 			return err
 		}
 	}
@@ -382,7 +400,7 @@ func (qm *ExQuantumMachine) ExecuteTransitionAction(ctx context.Context, args *i
 	}
 
 	for _, action := range qm.model.UniversalConstants.ActionsOnTransition {
-		if err := qm.executeAction(ctx, action, args); err != nil {
+		if err := qm.executeAction(ctx, action, args, instrumentation.ActionTypeTransition); err != nil {
 			return err
 		}
 	}
@@ -444,6 +462,9 @@ func (qm *ExQuantumMachine) executeInvoke(ctx context.Context, invoke theoretica
 	}
 
 	u := qm.universes[args.UniverseID]
+	if u == nil {
+		return
+	}
 
 	a := &invokeExecutorArgs{
 		context:               args.Context,
@@ -463,12 +484,15 @@ func (qm *ExQuantumMachine) executeInvoke(ctx context.Context, invoke theoretica
 	slog.WarnContext(ctx, "invoke not found", "src", invoke.Src)
 }
 
-func (qm *ExQuantumMachine) executeAction(ctx context.Context, model *theoretical.ActionModel, args *instrumentation.QuantumMachineExecutorArgs) error {
+func (qm *ExQuantumMachine) executeAction(ctx context.Context, model *theoretical.ActionModel, args *instrumentation.QuantumMachineExecutorArgs, actionType instrumentation.ActionType) error {
 	if model.Src == "" {
 		return nil
 	}
 
 	u := qm.universes[args.UniverseID]
+	if u == nil {
+		return fmt.Errorf(universeNotFoundErrorTemplate, args.UniverseID)
+	}
 
 	a := &actionExecutorArgs{
 		context:               args.Context,
@@ -478,8 +502,8 @@ func (qm *ExQuantumMachine) executeAction(ctx context.Context, model *theoretica
 		universeMetadata:      u.metadata,
 		event:                 args.Event,
 		action:                *model,
-		actionType:            instrumentation.ActionTypeEntry,
-		getSnapshotFn:         qm.GetSnapshot,
+		actionType:            actionType,
+		getSnapshotFn:         qm.snapshotUnlocked,
 		emittedEvents:         args.EmittedEvents,
 	}
 
@@ -508,18 +532,38 @@ func (qm *ExQuantumMachine) getActiveUniverses() []*ExUniverse {
 			activeUniverses = append(activeUniverses, u)
 		}
 	}
+	sortUniversesByID(activeUniverses)
 	return activeUniverses
 }
 
 func (qm *ExQuantumMachine) executeExternalTargetPairs(ctx context.Context, pairs []util.Pair[instrumentation.Event, []string]) error {
-	// while there are pairs to execute
-	for len(pairs) > 0 {
-		pair := pairs[0]
-		pairs = pairs[1:]
+	type cascadeJob struct {
+		event   instrumentation.Event
+		targets []string
+		depth   int
+	}
 
-		// execute transition
+	var jobs []cascadeJob
+	for _, pair := range pairs {
 		evt, targets := pair.GetAll()
-		newTargets, err := qm.executeTransitions(ctx, evt, targets)
+		if len(targets) == 0 {
+			continue
+		}
+		jobs = append(jobs, cascadeJob{event: evt, targets: targets, depth: 0})
+	}
+
+	for len(jobs) > 0 {
+		job := jobs[0]
+		jobs = jobs[1:]
+
+		if job.depth > maxExternalTargetDepth {
+			return fmt.Errorf(
+				"external target cascade exceeded maximum depth (%d) — possible notify/superposition loop",
+				maxExternalTargetDepth,
+			)
+		}
+
+		newTargets, err := qm.executeTransitions(ctx, job.event, job.targets)
 		if err != nil {
 			return err
 		}
@@ -528,9 +572,7 @@ func (qm *ExQuantumMachine) executeExternalTargetPairs(ctx context.Context, pair
 			continue
 		}
 
-		// add new targets to the queue
-		newPair := util.NewPair(pair.GetFirst(), newTargets)
-		pairs = append(pairs, newPair)
+		jobs = append(jobs, cascadeJob{event: job.event, targets: newTargets, depth: job.depth + 1})
 	}
 
 	return nil
@@ -541,7 +583,14 @@ func (qm *ExQuantumMachine) executeTransitions(ctx context.Context, event instru
 	var newTargets []string
 
 	for _, target := range targets {
-		refT, parts, _ := processReference(target)
+		refT, parts, err := processReference(target)
+		if err != nil {
+			return nil, err
+		}
+		if len(parts) == 0 {
+			return nil, fmt.Errorf("invalid ref '%s'", target)
+		}
+
 		exUniverse := qm.universes[parts[0]]
 
 		if exUniverse == nil {

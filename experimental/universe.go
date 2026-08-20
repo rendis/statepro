@@ -101,6 +101,10 @@ type ExUniverse struct {
 	// Used to prevent infinite loops when emitted events cause transitions whose
 	// entry actions emit more events. Maximum depth is maxEmitDepth.
 	emitDepth int
+
+	// getSnapshotFn returns a snapshot without taking the machine mutex.
+	// Used from actions that already run under quantumMachineMtx.
+	getSnapshotFn func() *instrumentation.MachineSnapshot
 }
 
 //------------------------------- External Operations -------------------------------//
@@ -238,19 +242,16 @@ func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUni
 // - the universe is initialized
 // - not in superposition
 // - the current reality is not a final reality
+// - the current reality has an On handler for the event
 func (u *ExUniverse) canHandleEvent(evt instrumentation.Event) bool {
-	// not initialized -> false
-	// in superposition -> false
-	if !u.initialized || u.inSuperposition {
+	if !u.initialized || u.inSuperposition || u.isFinalReality {
 		return false
 	}
 
-	// if current reality can handle the Event -> true
 	if u.currentReality != nil && u.canRealityHandleEvent(*u.currentReality, evt) {
 		return true
 	}
 
-	// otherwise -> false
 	return false
 }
 
@@ -294,7 +295,7 @@ func (u *ExUniverse) positionStatic(realityID string, universeContext any) error
 
 // isActive returns true if the universe is active
 func (u *ExUniverse) isActive() bool {
-	return u.initialized && !u.inSuperposition
+	return u.initialized && !u.inSuperposition && !u.isFinalReality
 }
 
 //------------------------------- Internal Operations -------------------------------//
@@ -308,6 +309,15 @@ func (u *ExUniverse) addStateToTracking(state *string) {
 		return
 	}
 	u.tracking = append(u.tracking, *state)
+}
+
+func (u *ExUniverse) popTrackingIfLast(state string) {
+	if len(u.tracking) == 0 {
+		return
+	}
+	if u.tracking[len(u.tracking)-1] == state {
+		u.tracking = u.tracking[:len(u.tracking)-1]
+	}
 }
 
 func (u *ExUniverse) universeDecorator(operation func() error) ([]string, error) {
@@ -448,12 +458,14 @@ func (u *ExUniverse) onEvent(ctx context.Context, event instrumentation.Event) e
 }
 
 func (u *ExUniverse) initializeUniverseOn(ctx context.Context, realityName string, event instrumentation.Event) error {
-	// mark universe as initialized
 	u.initialized = true
 
-	// establish initial reality
 	if err := u.establishNewReality(ctx, realityName, event); err != nil {
 		u.initialized = false
+		u.currentReality = nil
+		u.realityInitialized = false
+		u.isFinalReality = false
+		u.inSuperposition = false
 		return errors.Join(fmt.Errorf("error establishing initial reality '%s'", realityName), err)
 	}
 
@@ -461,10 +473,21 @@ func (u *ExUniverse) initializeUniverseOn(ctx context.Context, realityName strin
 }
 
 func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, event instrumentation.Event) error {
-	// set current reality
+	previousReality := u.currentReality
+	previousFinal := u.isFinalReality
+	previousRealityInitialized := u.realityInitialized
+	previousSuperposition := u.inSuperposition
+	previousBeforeSuperposition := u.realityBeforeSuperposition
+
 	u.currentReality = &reality
 	u.addStateToTracking(u.currentReality)
 	if err := u.executeOnEntry(ctx, event); err != nil {
+		u.currentReality = previousReality
+		u.isFinalReality = previousFinal
+		u.realityInitialized = previousRealityInitialized
+		u.inSuperposition = previousSuperposition
+		u.realityBeforeSuperposition = previousBeforeSuperposition
+		u.popTrackingIfLast(reality)
 		return errors.Join(fmt.Errorf(errorExecutingOnEntryProcessMsgTemplate, u.model.ID, reality), err)
 	}
 	u.realityInitialized = true
@@ -527,13 +550,13 @@ func (u *ExUniverse) executeAlways(ctx context.Context, realityModel *theoretica
 func (u *ExUniverse) doCyclicTransition(
 	ctx context.Context, approvedTransition *theoretical.TransitionModel, event instrumentation.Event,
 ) error {
+	visitedTargets := map[string]int{}
+
 	for {
-		// if no approved transition or no targets -> break
 		if approvedTransition == nil || len(approvedTransition.Targets) == 0 {
 			return nil
 		}
 
-		// execute constants transition actions
 		args := instrumentation.QuantumMachineExecutorArgs{
 			Context:               u.universeContext,
 			RealityName:           *u.currentReality,
@@ -542,41 +565,35 @@ func (u *ExUniverse) doCyclicTransition(
 			Event:                 event,
 		}
 
-		//----- Executions -----
-		// execute constants transition actions
 		if err := u.constantsLawsExecutor.ExecuteTransitionAction(ctx, &args); err != nil {
 			return errors.Join(fmt.Errorf("error executing constants transition actions for reality '%s'", *u.currentReality), err)
 		}
 
-		// execute universe transition actions (nil emittedEvents — transition actions cannot emit)
+		if err := u.executeUniverseConstantActions(ctx, instrumentation.ActionTypeTransition, event, nil); err != nil {
+			return errors.Join(fmt.Errorf("error executing universe constant transition actions for reality '%s'", *u.currentReality), err)
+		}
+
 		if err := u.executeActions(ctx, approvedTransition.Actions, event, instrumentation.ActionTypeTransition, nil); err != nil {
 			return errors.Join(fmt.Errorf("error executing transition actions for reality '%s'", *u.currentReality), err)
 		}
 
-		// execute constants transition invokes
 		u.constantsLawsExecutor.ExecuteTransitionInvokes(ctx, &args)
-
-		// execute universe transition invokes
+		u.executeUniverseConstantInvokes(ctx, "transition", event)
 		u.executeInvokes(ctx, approvedTransition.Invokes, event)
-		//-----------------------
 
-		// if approvedTransition is a notification transition -> set external targets and break
 		if approvedTransition.IsNotification() {
 			u.externalTargets = approvedTransition.Targets
 			return nil
 		}
 
-		// execute on exit process
 		if err := u.executeOnExitProcess(ctx, event); err != nil {
 			return errors.Join(fmt.Errorf("error executing on exit process for universe '%s' and reality '%s'", u.model.ID, *u.currentReality), err)
 		}
 
-		// len(targets) > 1 -> set superposition
 		if len(approvedTransition.Targets) > 1 {
 			return u.initSuperposition(approvedTransition.Targets)
 		}
 
-		// len(targets) == 1 && target points to another universe -> set superposition
 		refTyp, _, err := processReference(approvedTransition.Targets[0])
 		if err != nil {
 			return errors.Join(fmt.Errorf("error processing reference '%s'", approvedTransition.Targets[0]), err)
@@ -585,28 +602,39 @@ func (u *ExUniverse) doCyclicTransition(
 			return u.initSuperposition(approvedTransition.Targets)
 		}
 
-		// set current reality
+		next := approvedTransition.Targets[0]
+		visitedTargets[next]++
+		if visitedTargets[next] > 1 {
+			return fmt.Errorf(
+				"cyclic transition detected in universe '%s': reality '%s' visited more than once in the same cascade",
+				u.model.ID, next,
+			)
+		}
+
+		previousReality := u.currentReality
+		previousFinal := u.isFinalReality
+
 		u.currentReality = &approvedTransition.Targets[0]
 		u.addStateToTracking(u.currentReality)
 
-		// execute on entry process of the new reality
 		if err := u.executeOnEntry(ctx, event); err != nil {
-			return errors.Join(fmt.Errorf(errorExecutingOnEntryProcessMsgTemplate, u.model.ID, *u.currentReality), err)
+			u.currentReality = previousReality
+			u.isFinalReality = previousFinal
+			u.realityInitialized = previousReality != nil
+			u.popTrackingIfLast(next)
+			return errors.Join(fmt.Errorf(errorExecutingOnEntryProcessMsgTemplate, u.model.ID, next), err)
 		}
 
-		// emitted events during entry may have changed currentReality or triggered superposition
 		if u.currentReality == nil || u.inSuperposition {
 			return nil
 		}
 
-		// read reality model post-entry (emitted events may have changed currentReality)
 		realityModel, err := u.getRealityModel(*u.currentReality)
 		if err != nil {
 			return err
 		}
 		u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
 
-		// execute current reality always transitions
 		if approvedTransition, err = u.getApprovedTransition(ctx, realityModel.Always, event); err != nil {
 			return errors.Join(fmt.Errorf(errorExecutingAlwaysTransitionsMsgTemplate, realityModel.ID), err)
 		}
@@ -740,7 +768,14 @@ func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrument
 		)
 	}
 
-	// execute on entry universe actions (pass emittedEvents collector)
+	if err = u.executeUniverseConstantActions(ctx, instrumentation.ActionTypeEntry, event, &emittedEvents); err != nil {
+		return errors.Join(
+			fmt.Errorf("error executing on entry universe constant actions for reality '%s'", realityModel.ID),
+			err,
+		)
+	}
+
+	// execute on entry reality actions (pass emittedEvents collector)
 	if err = u.executeActions(ctx, realityModel.EntryActions, event, instrumentation.ActionTypeEntry, &emittedEvents); err != nil {
 		return errors.Join(
 			fmt.Errorf("error executing on entry actions for reality '%s'", realityModel.ID),
@@ -751,7 +786,9 @@ func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrument
 	// execute on entry constants invokes, invokes are executed asynchronously
 	u.constantsLawsExecutor.ExecuteEntryInvokes(ctx, args)
 
-	// execute on entry universe invokes, invokes are executed asynchronously
+	u.executeUniverseConstantInvokes(ctx, "entry", event)
+
+	// execute on entry reality invokes, invokes are executed asynchronously
 	u.executeInvokes(ctx, realityModel.EntryInvokes, event)
 
 	u.realityInitialized = true
@@ -861,7 +898,13 @@ func (u *ExUniverse) executeOnExitProcess(ctx context.Context, event instrumenta
 		)
 	}
 
-	// execute on exit universe actions (nil emittedEvents — exit actions cannot emit)
+	if err = u.executeUniverseConstantActions(ctx, instrumentation.ActionTypeExit, event, nil); err != nil {
+		return errors.Join(
+			fmt.Errorf("error executing on exit universe constant actions for reality '%s'", realityModel.ID),
+			err,
+		)
+	}
+
 	if err = u.executeActions(ctx, realityModel.ExitActions, event, instrumentation.ActionTypeExit, nil); err != nil {
 		return errors.Join(
 			fmt.Errorf("error executing on exit actions for reality '%s'", realityModel.ID),
@@ -869,10 +912,8 @@ func (u *ExUniverse) executeOnExitProcess(ctx context.Context, event instrumenta
 		)
 	}
 
-	// execute on exit constants invokes, invokes are executed asynchronously
 	u.constantsLawsExecutor.ExecuteExitInvokes(ctx, args)
-
-	// execute on exit universe invokes, invokes are executed asynchronously
+	u.executeUniverseConstantInvokes(ctx, "exit", event)
 	u.executeInvokes(ctx, realityModel.ExitInvokes, event)
 
 	u.realityInitialized = false
@@ -901,7 +942,7 @@ func (u *ExUniverse) executeActions(
 			event:                 event,
 			action:                *action,
 			actionType:            actionType,
-			getSnapshotFn:         u.constantsLawsExecutor.GetSnapshot,
+			getSnapshotFn:         u.snapshotProvider(),
 			emittedEvents:         emittedEvents,
 		}
 		if err := u.runActionExecutor(ctx, action.Src, args); err != nil {
@@ -963,7 +1004,7 @@ func (u *ExUniverse) accumulateEventForReality(
 }
 
 func (u *ExUniverse) accumulateEventForAllRealities(ctx context.Context, event instrumentation.Event) (bool, string, error) {
-	for reality := range u.model.Realities {
+	for _, reality := range sortedMapKeys(u.model.Realities) {
 		isNewReality, err := u.accumulateEventForReality(ctx, reality, event, false)
 		if err != nil {
 			return false, "", errors.Join(fmt.Errorf("error accumulating Event for reality '%s'", reality), err)
@@ -980,6 +1021,8 @@ func (u *ExUniverse) accumulateEventForAllRealities(ctx context.Context, event i
 func (u *ExUniverse) executeObservers(
 	ctx context.Context, realityModel *theoretical.RealityModel, event instrumentation.Event,
 ) (bool, error) {
+	var firstErr error
+
 	for _, observer := range realityModel.Observers {
 		args := &observerExecutorArgs{
 			context:               u.universeContext,
@@ -993,7 +1036,11 @@ func (u *ExUniverse) executeObservers(
 		}
 		isApproved, err := u.runObserverExecutor(ctx, observer.Src, args)
 		if err != nil {
-			return false, errors.Join(fmt.Errorf("error executing observer '%s'", observer.Src), err)
+			joined := errors.Join(fmt.Errorf("error executing observer '%s'", observer.Src), err)
+			if firstErr == nil {
+				firstErr = joined
+			}
+			continue
 		}
 
 		if isApproved {
@@ -1001,7 +1048,7 @@ func (u *ExUniverse) executeObservers(
 		}
 	}
 
-	return false, nil
+	return false, firstErr
 }
 
 func (u *ExUniverse) canRealityHandleEvent(realityName string, evt instrumentation.Event) bool {
@@ -1078,4 +1125,67 @@ func (u *ExUniverse) getRealityModel(realityName string) (*theoretical.RealityMo
 		return nil, fmt.Errorf("reality '%s' does not exist in universe '%s'", realityName, u.model.ID)
 	}
 	return realityModel, nil
+}
+
+func (u *ExUniverse) snapshotProvider() func() *instrumentation.MachineSnapshot {
+	if u.getSnapshotFn != nil {
+		return u.getSnapshotFn
+	}
+	if u.constantsLawsExecutor != nil {
+		return u.constantsLawsExecutor.GetSnapshot
+	}
+	return func() *instrumentation.MachineSnapshot { return nil }
+}
+
+func (u *ExUniverse) universeConstants() *theoretical.UniversalConstantsModel {
+	if u.model == nil {
+		return nil
+	}
+	return u.model.UniversalConstants
+}
+
+func (u *ExUniverse) executeUniverseConstantActions(
+	ctx context.Context,
+	actionType instrumentation.ActionType,
+	event instrumentation.Event,
+	emittedEvents *[]instrumentation.EmittedEvent,
+) error {
+	uc := u.universeConstants()
+	if uc == nil {
+		return nil
+	}
+
+	var actions []*theoretical.ActionModel
+	switch actionType {
+	case instrumentation.ActionTypeEntry:
+		actions = uc.EntryActions
+	case instrumentation.ActionTypeExit:
+		actions = uc.ExitActions
+	case instrumentation.ActionTypeTransition:
+		actions = uc.ActionsOnTransition
+	}
+
+	if err := u.executeActions(ctx, actions, event, actionType, emittedEvents); err != nil {
+		return errors.Join(fmt.Errorf("error executing universe constant %s actions", actionType), err)
+	}
+	return nil
+}
+
+func (u *ExUniverse) executeUniverseConstantInvokes(ctx context.Context, kind string, event instrumentation.Event) {
+	uc := u.universeConstants()
+	if uc == nil {
+		return
+	}
+
+	var invokes []*theoretical.InvokeModel
+	switch kind {
+	case "entry":
+		invokes = uc.EntryInvokes
+	case "exit":
+		invokes = uc.ExitInvokes
+	case "transition":
+		invokes = uc.InvokesOnTransition
+	}
+
+	u.executeInvokes(ctx, invokes, event)
 }
