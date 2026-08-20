@@ -472,6 +472,7 @@ func (qm *ExQuantumMachine) executeInvoke(ctx context.Context, invoke theoretica
 		universeCanonicalName: args.UniverseCanonicalName,
 		universeID:            args.UniverseID,
 		universeMetadata:      u.metadata,
+		metadataMu:            &u.metadataMu,
 		event:                 args.Event,
 		invoke:                invoke,
 	}
@@ -500,6 +501,7 @@ func (qm *ExQuantumMachine) executeAction(ctx context.Context, model *theoretica
 		universeCanonicalName: args.UniverseCanonicalName,
 		universeID:            args.UniverseID,
 		universeMetadata:      u.metadata,
+		metadataMu:            &u.metadataMu,
 		event:                 args.Event,
 		action:                *model,
 		actionType:            actionType,
@@ -519,6 +521,14 @@ func (qm *ExQuantumMachine) getLazyActiveUniverses(event instrumentation.Event) 
 	var activeUniverses []*ExUniverse
 	for _, u := range qm.universes {
 		if u.canHandleEvent(event) {
+			activeUniverses = append(activeUniverses, u)
+		}
+	}
+	if len(activeUniverses) > 0 {
+		return activeUniverses
+	}
+	for _, u := range qm.universes {
+		if u.canAccumulateInSuperposition() {
 			activeUniverses = append(activeUniverses, u)
 		}
 	}

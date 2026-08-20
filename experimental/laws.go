@@ -2,10 +2,73 @@ package experimental
 
 import (
 	"log/slog"
+	"sync"
 
 	"github.com/rendis/statepro/v3/instrumentation"
 	"github.com/rendis/statepro/v3/theoretical"
 )
+
+func cloneAnyMap(src map[string]any) map[string]any {
+	if src == nil {
+		return map[string]any{}
+	}
+	dst := make(map[string]any, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
+}
+
+func withMetadataLock(mu *sync.Mutex, fn func()) {
+	if mu != nil {
+		mu.Lock()
+		defer mu.Unlock()
+	}
+	fn()
+}
+
+func metaGet(mu *sync.Mutex, md map[string]any) map[string]any {
+	var out map[string]any
+	withMetadataLock(mu, func() {
+		out = cloneAnyMap(md)
+	})
+	return out
+}
+
+func metaAdd(mu *sync.Mutex, md *map[string]any, key string, value any) {
+	withMetadataLock(mu, func() {
+		if *md == nil {
+			*md = make(map[string]any)
+		}
+		(*md)[key] = value
+	})
+}
+
+func metaDelete(mu *sync.Mutex, md map[string]any, key string) (any, bool) {
+	var value any
+	var ok bool
+	withMetadataLock(mu, func() {
+		value, ok = md[key]
+		if ok {
+			delete(md, key)
+		}
+	})
+	return value, ok
+}
+
+func metaUpdate(mu *sync.Mutex, md *map[string]any, src map[string]any) {
+	withMetadataLock(mu, func() {
+		if *md == nil {
+			*md = make(map[string]any)
+		}
+		for k := range *md {
+			delete(*md, k)
+		}
+		for k, v := range src {
+			(*md)[k] = v
+		}
+	})
+}
 
 // --------- ObserverExecutorArgs ---------//
 
@@ -15,6 +78,7 @@ type observerExecutorArgs struct {
 	universeCanonicalName string
 	universeID            string
 	universeMetadata      map[string]any
+	metadataMu            *sync.Mutex
 	accumulatorStatistics instrumentation.AccumulatorStatistics
 	event                 instrumentation.Event
 	observer              theoretical.ObserverModel
@@ -49,31 +113,19 @@ func (o *observerExecutorArgs) GetObserver() theoretical.ObserverModel {
 }
 
 func (o *observerExecutorArgs) GetUniverseMetadata() map[string]any {
-	return o.universeMetadata
+	return metaGet(o.metadataMu, o.universeMetadata)
 }
 
 func (o *observerExecutorArgs) AddToUniverseMetadata(key string, value any) {
-	if o.universeMetadata == nil {
-		o.universeMetadata = make(map[string]any)
-	}
-	o.universeMetadata[key] = value
+	metaAdd(o.metadataMu, &o.universeMetadata, key, value)
 }
 
 func (o *observerExecutorArgs) DeleteFromUniverseMetadata(key string) (any, bool) {
-	value, ok := o.universeMetadata[key]
-	if ok {
-		delete(o.universeMetadata, key)
-	}
-	return value, ok
+	return metaDelete(o.metadataMu, o.universeMetadata, key)
 }
 
 func (o *observerExecutorArgs) UpdateUniverseMetadata(md map[string]any) {
-	for k := range o.universeMetadata {
-		delete(o.universeMetadata, k)
-	}
-	for k, v := range md {
-		o.universeMetadata[k] = v
-	}
+	metaUpdate(o.metadataMu, &o.universeMetadata, md)
 }
 
 // --------- ActionExecutorArgs ---------//
@@ -84,6 +136,7 @@ type actionExecutorArgs struct {
 	universeCanonicalName string
 	universeID            string
 	universeMetadata      map[string]any
+	metadataMu            *sync.Mutex
 	event                 instrumentation.Event
 	action                theoretical.ActionModel
 	actionType            instrumentation.ActionType
@@ -124,31 +177,19 @@ func (a *actionExecutorArgs) GetSnapshot() *instrumentation.MachineSnapshot {
 }
 
 func (a *actionExecutorArgs) GetUniverseMetadata() map[string]any {
-	return a.universeMetadata
+	return metaGet(a.metadataMu, a.universeMetadata)
 }
 
 func (a *actionExecutorArgs) AddToUniverseMetadata(key string, value any) {
-	if a.universeMetadata == nil {
-		a.universeMetadata = make(map[string]any)
-	}
-	a.universeMetadata[key] = value
+	metaAdd(a.metadataMu, &a.universeMetadata, key, value)
 }
 
 func (a *actionExecutorArgs) DeleteFromUniverseMetadata(key string) (any, bool) {
-	value, ok := a.universeMetadata[key]
-	if ok {
-		delete(a.universeMetadata, key)
-	}
-	return value, ok
+	return metaDelete(a.metadataMu, a.universeMetadata, key)
 }
 
 func (a *actionExecutorArgs) UpdateUniverseMetadata(md map[string]any) {
-	for k := range a.universeMetadata {
-		delete(a.universeMetadata, k)
-	}
-	for k, v := range md {
-		a.universeMetadata[k] = v
-	}
+	metaUpdate(a.metadataMu, &a.universeMetadata, md)
 }
 
 func (a *actionExecutorArgs) EmitEvent(eventName string, data map[string]any) {
@@ -174,6 +215,7 @@ type invokeExecutorArgs struct {
 	universeCanonicalName string
 	universeID            string
 	universeMetadata      map[string]any
+	metadataMu            *sync.Mutex
 	event                 instrumentation.Event
 	invoke                theoretical.InvokeModel
 }
@@ -203,31 +245,19 @@ func (i *invokeExecutorArgs) GetInvoke() theoretical.InvokeModel {
 }
 
 func (i *invokeExecutorArgs) GetUniverseMetadata() map[string]any {
-	return i.universeMetadata
+	return metaGet(i.metadataMu, i.universeMetadata)
 }
 
 func (i *invokeExecutorArgs) AddToUniverseMetadata(key string, value any) {
-	if i.universeMetadata == nil {
-		i.universeMetadata = make(map[string]any)
-	}
-	i.universeMetadata[key] = value
+	metaAdd(i.metadataMu, &i.universeMetadata, key, value)
 }
 
 func (i *invokeExecutorArgs) DeleteFromUniverseMetadata(key string) (any, bool) {
-	value, ok := i.universeMetadata[key]
-	if ok {
-		delete(i.universeMetadata, key)
-	}
-	return value, ok
+	return metaDelete(i.metadataMu, i.universeMetadata, key)
 }
 
 func (i *invokeExecutorArgs) UpdateUniverseMetadata(md map[string]any) {
-	for k := range i.universeMetadata {
-		delete(i.universeMetadata, k)
-	}
-	for k, v := range md {
-		i.universeMetadata[k] = v
-	}
+	metaUpdate(i.metadataMu, &i.universeMetadata, md)
 }
 
 //--------- ConditionExecutorArgs ---------//
@@ -238,6 +268,7 @@ type conditionExecutorArgs struct {
 	universeCanonicalName string
 	universeID            string
 	universeMetadata      map[string]any
+	metadataMu            *sync.Mutex
 	event                 instrumentation.Event
 	condition             theoretical.ConditionModel
 }
@@ -267,29 +298,17 @@ func (c *conditionExecutorArgs) GetCondition() theoretical.ConditionModel {
 }
 
 func (c *conditionExecutorArgs) GetUniverseMetadata() map[string]any {
-	return c.universeMetadata
+	return metaGet(c.metadataMu, c.universeMetadata)
 }
 
 func (c *conditionExecutorArgs) AddToUniverseMetadata(key string, value any) {
-	if c.universeMetadata == nil {
-		c.universeMetadata = make(map[string]any)
-	}
-	c.universeMetadata[key] = value
+	metaAdd(c.metadataMu, &c.universeMetadata, key, value)
 }
 
 func (c *conditionExecutorArgs) DeleteFromUniverseMetadata(key string) (any, bool) {
-	value, ok := c.universeMetadata[key]
-	if ok {
-		delete(c.universeMetadata, key)
-	}
-	return value, ok
+	return metaDelete(c.metadataMu, c.universeMetadata, key)
 }
 
 func (c *conditionExecutorArgs) UpdateUniverseMetadata(md map[string]any) {
-	for k := range c.universeMetadata {
-		delete(c.universeMetadata, k)
-	}
-	for k, v := range md {
-		c.universeMetadata[k] = v
-	}
+	metaUpdate(c.metadataMu, &c.universeMetadata, md)
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/rendis/statepro/v3/builtin"
 	"github.com/rendis/statepro/v3/instrumentation"
@@ -95,7 +96,8 @@ type ExUniverse struct {
 	tracking []string
 
 	// metadata
-	metadata map[string]any
+	metadata   map[string]any
+	metadataMu sync.Mutex
 
 	// emitDepth tracks the current nesting depth of processEmittedEvents calls.
 	// Used to prevent infinite loops when emitted events cause transitions whose
@@ -180,6 +182,10 @@ func (u *ExUniverse) startOnReality(ctx context.Context, realityName string, uni
 
 // getSnapshot returns a snapshot of the universe
 func (u *ExUniverse) getSnapshot() instrumentation.SerializedUniverseSnapshot {
+	u.metadataMu.Lock()
+	metadataCopy := cloneAnyMap(u.metadata)
+	u.metadataMu.Unlock()
+
 	var infoSnapshot = UniverseInfoSnapshot{
 		ID:                         u.model.ID,
 		CanonicalName:              u.model.CanonicalName,
@@ -189,7 +195,7 @@ func (u *ExUniverse) getSnapshot() instrumentation.SerializedUniverseSnapshot {
 		RealityInitialized:         u.realityInitialized,
 		InSuperposition:            u.inSuperposition,
 		RealityBeforeSuperposition: u.realityBeforeSuperposition,
-		Metadata:                   u.metadata,
+		Metadata:                   metadataCopy,
 	}
 
 	if u.eventAccumulator != nil {
@@ -237,22 +243,22 @@ func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUni
 	return nil
 }
 
-// canHandleEvent returns true if the universe can handle the given Event
-// A universe can handle an Event if all the following conditions are met:
-// - the universe is initialized
-// - not in superposition
-// - the current reality is not a final reality
-// - the current reality has an On handler for the event
+// canHandleEvent returns true if a concrete (non-superposition, non-final) reality
+// has an On handler for the event. Superposition universes are selected separately
+// by getLazyActiveUniverses when no concrete handler exists, so a directed
+// cross-universe transition does not also broadcast into the target.
 func (u *ExUniverse) canHandleEvent(evt instrumentation.Event) bool {
 	if !u.initialized || u.inSuperposition || u.isFinalReality {
 		return false
 	}
-
 	if u.currentReality != nil && u.canRealityHandleEvent(*u.currentReality, evt) {
 		return true
 	}
-
 	return false
+}
+
+func (u *ExUniverse) canAccumulateInSuperposition() bool {
+	return u.initialized && u.inSuperposition
 }
 
 // replayOnEntry replays the on entry process for the current reality
@@ -692,6 +698,7 @@ func (u *ExUniverse) executeConditions(
 		universeCanonicalName: u.model.CanonicalName,
 		universeID:            u.model.ID,
 		universeMetadata:      u.metadata,
+		metadataMu:            &u.metadataMu,
 		event:                 event,
 	}
 
@@ -939,6 +946,7 @@ func (u *ExUniverse) executeActions(
 			universeCanonicalName: u.model.CanonicalName,
 			universeID:            u.model.ID,
 			universeMetadata:      u.metadata,
+			metadataMu:            &u.metadataMu,
 			event:                 event,
 			action:                *action,
 			actionType:            actionType,
@@ -968,6 +976,7 @@ func (u *ExUniverse) executeInvokes(
 			universeCanonicalName: u.model.CanonicalName,
 			universeID:            u.model.ID,
 			universeMetadata:      u.metadata,
+			metadataMu:            &u.metadataMu,
 			event:                 event,
 			invoke:                *invoke,
 		}
@@ -1030,6 +1039,7 @@ func (u *ExUniverse) executeObservers(
 			universeCanonicalName: u.model.CanonicalName,
 			universeID:            u.model.ID,
 			universeMetadata:      u.metadata,
+			metadataMu:            &u.metadataMu,
 			accumulatorStatistics: u.eventAccumulator.GetStatistics(),
 			event:                 event,
 			observer:              *observer,

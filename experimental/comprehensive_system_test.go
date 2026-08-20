@@ -715,7 +715,7 @@ func TestDispatch_ActiveUniverse(t *testing.T) {
 	assertReality(t, u, "stateB")
 }
 
-func TestDispatch_SuperpositionUniverse_Rejected(t *testing.T) {
+func TestDispatch_SuperpositionUniverse_AcceptsEvent(t *testing.T) {
 	// Build universe that transitions to superposition
 	u1Model := &theoretical.UniverseModel{
 		ID: "u1", CanonicalName: "Universe1", Initial: strPtr("stateA"),
@@ -753,15 +753,17 @@ func TestDispatch_SuperpositionUniverse_Rejected(t *testing.T) {
 	}
 	assertSuperposition(t, u1)
 
-	// Now send an event - u1 can't handle (superposition), u2 in superposition too
+	// u1 is in superposition: SendEvent must still accumulate (docs/runtime.md).
+	// u1 has no observers, so it stays in superposition; the event is handled.
 	evt2 := NewEventBuilder("something").Build()
 	handled, err := exQM.SendEvent(context.Background(), evt2)
 	if err != nil {
 		t.Fatalf("SendEvent(something) failed: %v", err)
 	}
-	if handled {
-		t.Fatal("expected handled=false for superposition universe")
+	if !handled {
+		t.Fatal("expected handled=true for superposition universe")
 	}
+	assertSuperposition(t, u1)
 }
 
 func TestDispatch_FinalizedUniverse_Rejected(t *testing.T) {

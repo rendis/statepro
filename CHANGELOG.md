@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Experimental runtime: superposition collapse iterates realities in sorted-id order (deterministic).
 - Experimental runtime: always-transition cycles and notify/external-target cascades fail with an error instead of hanging.
 - Experimental runtime: invalid external targets return an error instead of panicking; single-character IDs match the JSON schema.
+- Experimental runtime: `SendEvent` accumulates into superposition universes when no concrete `On` handler exists, without double-delivering events that are already routed as external targets.
+- Experimental runtime: invoke/action metadata mutations are synchronized so concurrent `GetSnapshot` is race-free.
 
 ### Added
 

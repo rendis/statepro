@@ -789,3 +789,135 @@ func TestGap_GetSnapshotFromAction_NoDeadlock(t *testing.T) {
 		t.Fatal("expected GetSnapshot from entry action to return a snapshot")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// TDD follow-up: SendEvent → superposición, e invokes vs metadata
+// ---------------------------------------------------------------------------
+
+func TestTDD_SendEvent_ColapsaUniversoEnSuperposicion(t *testing.T) {
+	um := &theoretical.UniverseModel{
+		ID:            "u1",
+		CanonicalName: "TestUniverse",
+		Realities: map[string]*theoretical.RealityModel{
+			"stateA": newTransitionReality("stateA",
+				withObserver("builtin:observer:alwaysTrue", nil),
+			),
+		},
+	}
+	qmm := &theoretical.QuantumMachineModel{
+		ID:            "qm1",
+		CanonicalName: "TestQM",
+		Version:       "1.0.0",
+		Universes:     map[string]*theoretical.UniverseModel{"u1": um},
+		Initials:      []string{"U:u1"},
+	}
+	u := NewExUniverse(um)
+	qm, err := NewExQuantumMachine(qmm, []*ExUniverse{u})
+	if err != nil {
+		t.Fatalf("build failed: %v", err)
+	}
+	if err := qm.Init(context.Background(), nil); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	assertSuperposition(t, u)
+
+	handled, err := qm.SendEvent(context.Background(), NewEventBuilder("go").Build())
+	if err != nil {
+		t.Fatalf("SendEvent failed: %v", err)
+	}
+	if !handled {
+		t.Fatal("docs/runtime.md: SendEvent must accumulate events for superposition universes")
+	}
+	assertReality(t, u, "stateA")
+	if u.inSuperposition {
+		t.Fatal("expected observer alwaysTrue to collapse superposition after SendEvent")
+	}
+}
+
+func TestTDD_SendEvent_AcumulaEventosHastaObserver(t *testing.T) {
+	um := &theoretical.UniverseModel{
+		ID:            "u1",
+		CanonicalName: "TestUniverse",
+		Realities: map[string]*theoretical.RealityModel{
+			"stateA": newTransitionReality("stateA",
+				withObserver("builtin:observer:containsAllEvents", map[string]any{
+					"evt1": "tick",
+					"evt2": "tock",
+				}),
+			),
+		},
+	}
+	qmm := &theoretical.QuantumMachineModel{
+		ID:            "qm1",
+		CanonicalName: "TestQM",
+		Version:       "1.0.0",
+		Universes:     map[string]*theoretical.UniverseModel{"u1": um},
+		Initials:      []string{"U:u1"},
+	}
+	u := NewExUniverse(um)
+	qm, err := NewExQuantumMachine(qmm, []*ExUniverse{u})
+	if err != nil {
+		t.Fatalf("build failed: %v", err)
+	}
+	if err := qm.Init(context.Background(), nil); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+	assertSuperposition(t, u)
+
+	handled, err := qm.SendEvent(context.Background(), NewEventBuilder("tick").Build())
+	if err != nil {
+		t.Fatalf("SendEvent(tick) failed: %v", err)
+	}
+	if !handled {
+		t.Fatal("expected SendEvent to handle tick while in superposition")
+	}
+	assertSuperposition(t, u)
+
+	handled, err = qm.SendEvent(context.Background(), NewEventBuilder("tock").Build())
+	if err != nil {
+		t.Fatalf("SendEvent(tock) failed: %v", err)
+	}
+	if !handled {
+		t.Fatal("expected SendEvent to handle tock while in superposition")
+	}
+	assertReality(t, u, "stateA")
+}
+
+func TestTDD_InvokeMetadata_ConcurrentWithGetSnapshot(t *testing.T) {
+	started := make(chan struct{})
+	invokeName := "test:tdd:invoke-meta-race"
+	registerTestInvoke(t, invokeName, func(_ context.Context, args instrumentation.InvokeExecutorArgs) {
+		close(started)
+		for i := 0; i < 2000; i++ {
+			args.AddToUniverseMetadata("n", i)
+			_ = args.GetUniverseMetadata()
+			args.UpdateUniverseMetadata(map[string]any{"n": i, "ok": true})
+		}
+	})
+
+	stateA := newTransitionReality("stateA")
+	stateA.EntryInvokes = []*theoretical.InvokeModel{{Src: invokeName}}
+	realities := map[string]*theoretical.RealityModel{"stateA": stateA}
+	qm, _ := buildQM(t, "stateA", realities)
+	if err := qm.Init(context.Background(), nil); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("invoke did not start")
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 32; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 50; j++ {
+				_ = qm.GetSnapshot()
+			}
+		}()
+	}
+	wg.Wait()
+}
