@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Experimental runtime: universe-level `UniversalConstants` now execute between machine-level constants and reality-level actions/invokes.
 - Adversarial / hostile test suite across runtime, definition validation, builtin observers, debugger bot, and Studio validation (races, cascade depth limits, invoke panic isolation, malformed payloads, fuzz for `processReference`).
+- Mutation testing tooling: Gremlins (Go) via `.gremlins.yaml` + `make test-mutation`, and Stryker+Vitest (Studio editor-core) via `make test-mutation-studio`.
+- Expanded native Go fuzz targets (`FuzzValidateDefinitionBinary`, `FuzzDeserializeQuantumMachine`, `FuzzBuiltinObserverArgs`, `FuzzEventBuilder`) with `make test-fuzz` / `make test-fuzz-smoke`.
 
 ### Changed
 

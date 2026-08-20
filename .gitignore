@@ -29,6 +29,15 @@ tmp/
 # Editor / IDE settings
 .vscode/
 
+# Mutation / fuzz artifacts
+reports/
+.stryker-tmp/
+studio/**/reports/
+**/mutation.html
+**/mutation.json
+testdata/fuzz/
+**/testdata/fuzz/
+
 # Agent workspaces — only track skills/, ignore everything else (worktrees, caches, etc.)
 .claude/*
 !.claude/skills/
