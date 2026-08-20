@@ -50,3 +50,15 @@ make test-mutation-studio
 ```
 
 Mutates `validateStatePro`, `identifiers`, and `transitionRules` by default. Expand the `mutate` glob as the suite hardens.
+
+## Interpreting scores
+
+Aim to kill **observable** survivors (wrong branch, wrong sentinel, off-by-one on a documented boundary). Do **not** chase arithmetic on buffer capacity, loop-control on uniquely named maps, or sort comparator `<` vs `<=` when IDs are unique — those are usually equivalent mutants.
+
+Approximate baselines after survivor hardening:
+
+| Package | Tool | Score (ballpark) |
+|---------|------|------------------|
+| `builtin/` | Gremlins | ~92% (remaining LIVED: capacity arithmetic) |
+| `experimental/` | Gremlins | ~89%+ |
+| editor-core validators | Stryker | ~45% (narrow suite; raise by expanding mutate + tests) |

@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adversarial / hostile test suite across runtime, definition validation, builtin observers, debugger bot, and Studio validation (races, cascade depth limits, invoke panic isolation, malformed payloads, fuzz for `processReference`).
 - Mutation testing tooling: Gremlins (Go) via `.gremlins.yaml` + `make test-mutation`, and Stryker+Vitest (Studio editor-core) via `make test-mutation-studio`.
 - Expanded native Go fuzz targets (`FuzzValidateDefinitionBinary`, `FuzzDeserializeQuantumMachine`, `FuzzBuiltinObserverArgs`, `FuzzEventBuilder`) with `make test-fuzz` / `make test-fuzz-smoke`.
+- Mutation-survivor tests: exact observer boundaries (`GreaterThanEqualCounter`, `TotalEventsBetweenLimits`), experimental helpers/routing/emit-depth/snapshot/metadata cases, and additional Studio `validateStatePro` assertions that kill clear Stryker survivors.
 
 ### Changed
 
