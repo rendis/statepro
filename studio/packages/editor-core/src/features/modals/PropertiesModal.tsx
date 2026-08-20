@@ -239,9 +239,6 @@ const PropertiesModal = ({
     transitionPosition >= 0 && transitionPosition < transitionSiblings.length - 1;
   const errorIssues = issues.filter((issue) => issue.severity === "error");
   const warningIssues = issues.filter((issue) => issue.severity === "warning");
-  const universeConstantsRuntimeWarning = issues.find(
-    (issue) => issue.messageKey === "issue.universeConstantsRuntimeIgnored",
-  );
 
   const getTabs = () => {
     if (element.type === "universe") {
@@ -664,11 +661,6 @@ const PropertiesModal = ({
 
               return (
                 <div className="space-y-4 animate-in fade-in">
-                  {universeConstantsRuntimeWarning && (
-                    <div className="text-xs bg-amber-950/30 border border-amber-700/60 text-amber-200 rounded-lg p-3">
-                      {resolveSerializeIssueMessage(universeConstantsRuntimeWarning, t)}
-                    </div>
-                  )}
                   <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-800/50">
                     <label
                       className={`block text-[10px] ${entryPhaseColorClass} mb-2 font-mono uppercase tracking-wider flex items-center gap-1`}

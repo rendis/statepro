@@ -40,7 +40,7 @@ describe("validateStateProMachine", () => {
     ).toBe(true);
   });
 
-  it("emite warning no bloqueante cuando universe.universalConstants está configurado", () => {
+  it("no advierte que el runtime ignore universe.universalConstants", () => {
     const machine: StateProMachine = {
       id: "machine",
       canonicalName: "machine",
@@ -73,14 +73,14 @@ describe("validateStateProMachine", () => {
     const result = validateStateProMachine(machine);
 
     expect(result.canExport).toBe(true);
+    expect(result.issues).toEqual([]);
     expect(
       result.issues.some(
         (issue) =>
-          issue.severity === "warning" &&
-          issue.field === "universes.main-universe.universalConstants" &&
+          issue.field === "universes.main-universe.universalConstants" ||
           issue.messageKey === "issue.universeConstantsRuntimeIgnored",
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("bloquea export cuando una transición repite la misma condition en conditions", () => {

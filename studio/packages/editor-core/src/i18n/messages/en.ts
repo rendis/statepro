@@ -376,7 +376,6 @@ export const STUDIO_I18N_EN = {
   "issue.initialUnknownReality": "Unknown reality '{{realityId}}' for universe '{{universeId}}' in initials",
   "issue.conditionMissingSrc": "Condition must have src",
   "issue.duplicatedTransitionCondition": "Condition '{{src}}' is duplicated in transition conditions.",
-  "issue.universeConstantsRuntimeIgnored": "Universe universalConstants are configured, but current runtime ignores them.",
   "issue.machineIdInvalid": "Machine id has invalid format",
   "issue.machineCanonicalInvalid": "Machine canonicalName has invalid format",
   "issue.universeKeyInvalid": "Universe key has invalid format",

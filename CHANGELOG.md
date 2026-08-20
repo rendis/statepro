@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Experimental runtime: universe-level `UniversalConstants` now execute between machine-level constants and reality-level actions/invokes.
 
+### Changed
+
+- Studio: validation no longer warns that the runtime ignores `universe.universalConstants`; those constants are executed by the experimental runtime.
+
 
 ## [3.2.2] - 2026-04-25
 
