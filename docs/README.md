@@ -17,6 +17,7 @@ Welcome to the comprehensive StatePro documentation. This collection of guides w
 - ⚙️ **[API Reference](api-reference.md)** - Complete Go API documentation with examples
 - 🔧 **[Instrumentation Reference](instrumentation.md)** - Custom executors and extension points
 - 🐛 **[Debugging & Tooling](debugging.md)** - Interactive CLI, automation bot, and inspection tools
+- 🧬 **[Mutation testing & fuzzing](mutation-fuzzing.md)** - Gremlins (Go), Stryker (Studio), native Go fuzz targets
 - 🚨 **[Troubleshooting Guide](troubleshooting.md)** - Common issues and solutions
 
 ## 🎯 Quick Navigation

@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-08-20
+
+### Fixed
+
+- Experimental runtime: `LoadSnapshot` now restores per-universe tracking history.
+- Experimental runtime: `GetSnapshot` copies tracking slices and serializes under the machine mutex (actions use an unlocked snapshot path to avoid deadlock).
+- Experimental runtime: machine-level constant actions report the correct `ActionType` (`entry` / `exit` / `transition`).
+- Experimental runtime: final realities ignore `On` handlers; `ReplayOnEntry` skips finalized universes.
+- Experimental runtime: failed entry actions roll back the previous reality instead of leaving a half-applied state.
+- Experimental runtime: observer errors are ignored when another observer approves (matches documented semantics).
+- Experimental runtime: superposition collapse iterates realities in sorted-id order (deterministic).
+- Experimental runtime: always-transition cycles and notify/external-target cascades fail with an error instead of hanging.
+- Experimental runtime: invalid external targets return an error instead of panicking; single-character IDs match the JSON schema.
+- Experimental runtime: `SendEvent` accumulates into superposition universes when no concrete `On` handler exists, without double-delivering events that are already routed as external targets.
+- Experimental runtime: invoke/action metadata mutations are synchronized so concurrent `GetSnapshot` is race-free.
+
+### Added
+
+- Experimental runtime: universe-level `UniversalConstants` now execute between machine-level constants and reality-level actions/invokes.
+- Adversarial / hostile test suite across runtime, definition validation, builtin observers, debugger bot, and Studio validation (races, cascade depth limits, invoke panic isolation, malformed payloads, fuzz for `processReference`).
+- Mutation testing tooling: Gremlins (Go) via `.gremlins.yaml` + `make test-mutation`, and Stryker+Vitest (Studio editor-core) via `make test-mutation-studio`.
+- Expanded native Go fuzz targets (`FuzzValidateDefinitionBinary`, `FuzzDeserializeQuantumMachine`, `FuzzBuiltinObserverArgs`, `FuzzEventBuilder`) with `make test-fuzz` / `make test-fuzz-smoke`.
+- Mutation-survivor tests: exact observer boundaries (`GreaterThanEqualCounter`, `TotalEventsBetweenLimits`), experimental helpers/routing/emit-depth/snapshot/metadata cases, and additional Studio `validateStatePro` assertions that kill clear Stryker survivors.
+
+### Changed
+
+- Studio: validation no longer warns that the runtime ignores `universe.universalConstants`; those constants are executed by the experimental runtime.
+- Experimental runtime: invoke goroutines recover from panics so a crashing invoke cannot take down the process.
+- Studio: `@rendis/statepro-studio-react` bumped to `0.1.3`.
+
+
 ## [3.2.2] - 2026-04-25
 
 ### Changed
@@ -133,7 +164,8 @@ universes, realities, superposition, observers, and accumulators.
 
 See the GitHub release page for the full v3.0.0 release notes.
 
-[Unreleased]: https://github.com/rendis/statepro/compare/v3.2.2...HEAD
+[Unreleased]: https://github.com/rendis/statepro/compare/v3.3.0...HEAD
+[3.3.0]: https://github.com/rendis/statepro/compare/v3.2.2...v3.3.0
 [3.2.2]: https://github.com/rendis/statepro/compare/v3.2.1...v3.2.2
 [3.2.1]: https://github.com/rendis/statepro/compare/v3.2.0...v3.2.1
 [3.2.0]: https://github.com/rendis/statepro/compare/v3.1.1...v3.2.0

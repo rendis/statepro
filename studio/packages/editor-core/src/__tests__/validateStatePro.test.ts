@@ -40,7 +40,7 @@ describe("validateStateProMachine", () => {
     ).toBe(true);
   });
 
-  it("emite warning no bloqueante cuando universe.universalConstants está configurado", () => {
+  it("no advierte que el runtime ignore universe.universalConstants", () => {
     const machine: StateProMachine = {
       id: "machine",
       canonicalName: "machine",
@@ -73,14 +73,14 @@ describe("validateStateProMachine", () => {
     const result = validateStateProMachine(machine);
 
     expect(result.canExport).toBe(true);
+    expect(result.issues).toEqual([]);
     expect(
       result.issues.some(
         (issue) =>
-          issue.severity === "warning" &&
-          issue.field === "universes.main-universe.universalConstants" &&
+          issue.field === "universes.main-universe.universalConstants" ||
           issue.messageKey === "issue.universeConstantsRuntimeIgnored",
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("bloquea export cuando una transición repite la misma condition en conditions", () => {
@@ -129,6 +129,228 @@ describe("validateStateProMachine", () => {
           issue.messageKey === "issue.duplicatedTransitionCondition" &&
           issue.field === "universes.main-universe.realities.idle.on.GO[0].conditions",
       ),
+    ).toBe(true);
+  });
+
+  it("rechaza máquinas hostiles: refs rotas, notify interno y universo vacío", () => {
+    const brokenTargets: StateProMachine = {
+      id: "machine",
+      canonicalName: "machine",
+      version: "1.0.0",
+      initials: ["U:ghost"],
+      universes: {
+        main: {
+          id: "main",
+          canonicalName: "main",
+          version: "1.0.0",
+          initial: "idle",
+          realities: {
+            idle: {
+              id: "idle",
+              type: "transition",
+              on: {
+                GO: [{ targets: ["U:ghost"], type: "notify" }],
+              },
+            },
+            done: { id: "done", type: "final" },
+          },
+        },
+      },
+    };
+
+    const broken = validateStateProMachine(brokenTargets);
+    expect(broken.canExport).toBe(false);
+    expect(
+      broken.issues.some(
+        (issue) =>
+          issue.messageKey === "issue.initialUnknownUniverse" ||
+          issue.messageKey === "issue.unknownUniverse",
+      ),
+    ).toBe(true);
+
+    const emptyUniverses: StateProMachine = {
+      id: "machine",
+      canonicalName: "machine",
+      version: "1.0.0",
+      initials: [],
+      universes: {},
+    };
+    const empty = validateStateProMachine(emptyUniverses);
+    expect(empty.canExport).toBe(false);
+    expect(
+      empty.issues.some((issue) => issue.messageKey === "issue.machineNeedsUniverse"),
+    ).toBe(true);
+
+    const notifyInternal: StateProMachine = {
+      id: "machine",
+      canonicalName: "machine",
+      version: "1.0.0",
+      initials: ["U:main"],
+      universes: {
+        main: {
+          id: "main",
+          canonicalName: "main",
+          version: "1.0.0",
+          initial: "idle",
+          realities: {
+            idle: {
+              id: "idle",
+              type: "transition",
+              on: {
+                GO: [{ targets: ["done"], type: "notify" }],
+              },
+            },
+            done: { id: "done", type: "final" },
+          },
+        },
+      },
+    };
+    const notify = validateStateProMachine(notifyInternal);
+    expect(notify.canExport).toBe(false);
+    expect(
+      notify.issues.some((issue) => issue.messageKey === "issue.notifyInternalTarget"),
+    ).toBe(true);
+  });
+
+  it("detecta target vacío, realidad interna desconocida y mismatch de keys", () => {
+    const emptyTarget: StateProMachine = {
+      id: "machine",
+      canonicalName: "machine",
+      version: "1.0.0",
+      initials: ["U:main"],
+      universes: {
+        main: {
+          id: "main",
+          canonicalName: "main",
+          version: "1.0.0",
+          initial: "idle",
+          realities: {
+            idle: {
+              id: "idle",
+              type: "transition",
+              on: { GO: [{ targets: [] }] },
+            },
+            done: { id: "done", type: "final" },
+          },
+        },
+      },
+    };
+    const empty = validateStateProMachine(emptyTarget);
+    expect(empty.canExport).toBe(false);
+    expect(
+      empty.issues.some((issue) => issue.messageKey === "issue.transitionNeedsTarget"),
+    ).toBe(true);
+
+    const unknownInternal: StateProMachine = {
+      id: "machine",
+      canonicalName: "machine",
+      version: "1.0.0",
+      initials: ["U:main"],
+      universes: {
+        main: {
+          id: "main",
+          canonicalName: "main",
+          version: "1.0.0",
+          initial: "idle",
+          realities: {
+            idle: {
+              id: "idle",
+              type: "transition",
+              on: { GO: [{ targets: ["missing"] }] },
+            },
+            done: { id: "done", type: "final" },
+          },
+        },
+      },
+    };
+    const unknown = validateStateProMachine(unknownInternal);
+    expect(unknown.canExport).toBe(false);
+    expect(
+      unknown.issues.some((issue) => issue.messageKey === "issue.unknownInternalReality"),
+    ).toBe(true);
+
+    const keyMismatch: StateProMachine = {
+      id: "machine",
+      canonicalName: "machine",
+      version: "1.0.0",
+      initials: ["U:main"],
+      universes: {
+        main: {
+          id: "other",
+          canonicalName: "main",
+          version: "1.0.0",
+          initial: "idle",
+          realities: {
+            idle: {
+              id: "idle",
+              type: "transition",
+              always: [{ targets: ["done"] }],
+            },
+            done: { id: "done", type: "final" },
+          },
+        },
+      },
+    };
+    const mismatch = validateStateProMachine(keyMismatch);
+    expect(mismatch.canExport).toBe(false);
+    expect(
+      mismatch.issues.some((issue) => issue.messageKey === "issue.universeKeyMismatch"),
+    ).toBe(true);
+
+    const badInitialFormat: StateProMachine = {
+      id: "machine",
+      canonicalName: "machine",
+      version: "1.0.0",
+      initials: ["not-a-ref"],
+      universes: {
+        main: {
+          id: "main",
+          canonicalName: "main",
+          version: "1.0.0",
+          initial: "idle",
+          realities: {
+            idle: {
+              id: "idle",
+              type: "transition",
+              always: [{ targets: ["done"] }],
+            },
+            done: { id: "done", type: "final" },
+          },
+        },
+      },
+    };
+    const badInitial = validateStateProMachine(badInitialFormat);
+    expect(badInitial.canExport).toBe(false);
+    expect(
+      badInitial.issues.some((issue) => issue.messageKey === "issue.initialReferenceFormat"),
+    ).toBe(true);
+
+    const unknownExternalReality: StateProMachine = {
+      id: "machine",
+      canonicalName: "machine",
+      version: "1.0.0",
+      initials: ["U:main"],
+      universes: {
+        main: {
+          id: "main",
+          canonicalName: "main",
+          version: "1.0.0",
+          initial: "idle",
+          realities: {
+            idle: {
+              id: "idle",
+              type: "transition",
+              on: { GO: [{ targets: ["U:main:ghost"] }] },
+            },
+            done: { id: "done", type: "final" },
+          },
+        },
+      },
+    };
+    const ext = validateStateProMachine(unknownExternalReality);
+    expect(ext.canExport).toBe(false);
+    expect(
+      ext.issues.some((issue) => issue.messageKey === "issue.unknownRealityInUniverse"),
     ).toBe(true);
   });
 });

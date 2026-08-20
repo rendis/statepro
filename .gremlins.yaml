@@ -1,0 +1,43 @@
+# Gremlins mutation testing — https://gremlins.dev
+# Run: make test-mutation   or   gremlins unleash ./experimental ./builtin .
+silent: false
+
+unleash:
+  integration: false
+  dry-run: false
+  workers: 2
+  timeout-coefficient: 3
+  threshold:
+    # Soft floor while the adversarial suite matures; raise over time.
+    efficacy: 60
+    mutant-coverage: 50
+  # Skip TUI / examples; package selection is handled by Makefile targets.
+  exclude-files:
+    - "debugger/cli/.*"
+    - "example/.*"
+    - ".*_test\\.go"
+    - "package_test\\.go"
+
+mutants:
+  arithmetic-base:
+    enabled: true
+  conditionals-boundary:
+    enabled: true
+  conditionals-negation:
+    enabled: true
+  increment-decrement:
+    enabled: true
+  invert-assignments:
+    enabled: true
+  invert-bitwise:
+    enabled: false
+  invert-bwassign:
+    enabled: false
+  invert-negatives:
+    enabled: true
+  invert-logical:
+    enabled: true
+  invert-loopctrl:
+    enabled: true
+  remove-self-assignments:
+    enabled: true

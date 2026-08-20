@@ -515,3 +515,62 @@ describe("PropertiesModal transition behavior", () => {
     expect(updateTransitionData).toHaveBeenCalledWith("eventName", "NEXT_EVENT");
   });
 });
+
+describe("PropertiesModal universe constants", () => {
+  it("abre constantes del universo sin advertir que el runtime las ignore", async () => {
+    const user = userEvent.setup();
+    const universe = nodes.find(
+      (node): node is Extract<EditorNode, { type: "universe" }> => node.type === "universe",
+    );
+    if (!universe) {
+      throw new Error("Universe fixture not found");
+    }
+
+    const universeWithConstants: Extract<EditorNode, { type: "universe" }> = {
+      ...universe,
+      data: {
+        ...universe.data,
+        universalConstants: {
+          entryActions: [{ src: "action:boot" }],
+          exitActions: [],
+          entryInvokes: [],
+          exitInvokes: [],
+          actionsOnTransition: [],
+          invokesOnTransition: [],
+        },
+      },
+    };
+
+    render(
+      <PropertiesModal
+        element={universeWithConstants}
+        nodes={nodes}
+        transitions={[transition]}
+        onClose={vi.fn()}
+        updateNodeData={vi.fn()}
+        commitUniverseIdRename={noopRenameHandlers.commitUniverseIdRename}
+        commitUniverseCanonicalRename={noopRenameHandlers.commitUniverseCanonicalRename}
+        commitRealityIdRename={noopRenameHandlers.commitRealityIdRename}
+        updateTransitionData={vi.fn()}
+        moveTransition={vi.fn()}
+        openBehaviorModal={vi.fn() as never}
+        registry={[]}
+        metadataPackRegistry={[]}
+        metadataPackBindings={{
+          machine: [],
+          universe: [],
+          reality: [],
+          transition: [],
+        }}
+        setMetadataPackBindings={vi.fn() as never}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /universal constants/i }));
+
+    expect(screen.getByText("Entry Phase (Global)")).toBeInTheDocument();
+    expect(screen.getByText("action:boot")).toBeInTheDocument();
+    expect(screen.queryByText(/runtime ignores/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/runtime actual los ignora/i)).not.toBeInTheDocument();
+  });
+});

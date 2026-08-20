@@ -2050,6 +2050,52 @@ func TestInvoke_DoesNotBlock(t *testing.T) {
 	}
 }
 
+// E06b: Invoke sigue corriendo después de salir de la reality (fire-and-forget)
+func TestInvoke_ContinuesAfterLeavingReality(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	finished := make(chan string, 1)
+	invokeName := "test:core:e06b-invoke-after-exit"
+	registerTestInvoke(t, invokeName, func(_ context.Context, args instrumentation.InvokeExecutorArgs) {
+		close(started)
+		<-release
+		finished <- args.GetRealityName()
+	})
+
+	realities := map[string]*theoretical.RealityModel{
+		"stateA": newTransitionReality("stateA",
+			withEntryInvoke(invokeName),
+			withOnTransition("go", []string{"stateB"}, nil),
+		),
+		"stateB": newTransitionReality("stateB"),
+	}
+	qm, u := buildQM(t, "stateA", realities)
+	if err := qm.Init(context.Background(), nil); err != nil {
+		t.Fatalf("Init failed: %v", err)
+	}
+
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("invoke did not start")
+	}
+
+	if _, err := qm.SendEvent(context.Background(), NewEventBuilder("go").Build()); err != nil {
+		t.Fatalf("SendEvent failed while invoke still running: %v", err)
+	}
+	assertReality(t, u, "stateB")
+	close(release)
+
+	select {
+	case reality := <-finished:
+		if reality != "stateA" {
+			t.Fatalf("invoke captured reality %q, want stateA (started on entry of A)", reality)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("invoke did not finish after the universe left its reality")
+	}
+}
+
 // E07: Invoke args accessible
 func TestInvoke_ArgsAccessible(t *testing.T) {
 	ch := make(chan map[string]any, 1)

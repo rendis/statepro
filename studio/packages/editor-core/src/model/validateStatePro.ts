@@ -114,23 +114,6 @@ const hasEffectiveTransitionFlow = (reality: StateProReality): boolean => {
   return Object.values(reality.on).some((transitionGroup) => (transitionGroup?.length || 0) > 0);
 };
 
-const hasNonEmptyUniversalConstants = (
-  constants: StateProMachine["universalConstants"] | undefined,
-): boolean => {
-  if (!constants) {
-    return false;
-  }
-
-  return (
-    (constants.entryActions?.length || 0) > 0 ||
-    (constants.exitActions?.length || 0) > 0 ||
-    (constants.entryInvokes?.length || 0) > 0 ||
-    (constants.exitInvokes?.length || 0) > 0 ||
-    (constants.actionsOnTransition?.length || 0) > 0 ||
-    (constants.invokesOnTransition?.length || 0) > 0
-  );
-};
-
 const validateTransitionTargetsSemantics = (
   machine: StateProMachine,
   universeId: string,
@@ -265,16 +248,6 @@ const validateSemantic = (machine: StateProMachine): SerializeIssue[] => {
           universeKey,
           universeId: universe.id,
         },
-      });
-    }
-
-    if (hasNonEmptyUniversalConstants(universe.universalConstants)) {
-      issues.push({
-        code: "SEMANTIC_ERROR",
-        severity: "warning",
-        field: `universes.${universeKey}.universalConstants`,
-        message: "Universe universalConstants are defined but current runtime ignores them",
-        messageKey: "issue.universeConstantsRuntimeIgnored",
       });
     }
 

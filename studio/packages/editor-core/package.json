@@ -1,6 +1,6 @@
 {
   "name": "@rendis/statepro-studio-react",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": false,
   "type": "module",
   "main": "dist/index.cjs",
@@ -26,6 +26,7 @@
     "dev": "tsup --watch",
     "build": "pnpm run generate:builtin-catalog && tsup --clean",
     "test": "pnpm run generate:builtin-catalog && vitest run",
+    "test:mutation": "pnpm run generate:builtin-catalog && stryker run",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'lint: pendiente de reglas'"
   },
@@ -41,6 +42,8 @@
     "react-zoom-pan-pinch": "^3.7.0"
   },
   "devDependencies": {
+    "@stryker-mutator/core": "^10.0.0",
+    "@stryker-mutator/vitest-runner": "^10.0.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",
