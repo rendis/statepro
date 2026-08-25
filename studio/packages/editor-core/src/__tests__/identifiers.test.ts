@@ -15,6 +15,8 @@ describe("identifiers utils", () => {
     expect(cleanIdentifier("main---")).toBe("main");
     expect(cleanIdentifier("123---")).toBe("");
     expect(cleanIdentifier("__99Machine--")).toBe("machine");
+    expect(formatIdentifier("main---")).toBe("main-");
+    expect(cleanIdentifier(`${"a"}${"-".repeat(4000)}`)).toBe("a");
   });
 
   it("normaliza eventos en SCREAMING_SNAKE_CASE", () => {

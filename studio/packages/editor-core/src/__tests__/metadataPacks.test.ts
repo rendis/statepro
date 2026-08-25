@@ -18,6 +18,7 @@ import {
   findBindingOwnershipCollisions,
   findFieldPathCollisionsDetailed,
   mergePackBindingsToMetadata,
+  normalizeJsonPointer,
   replacePackIdInBindings,
 } from "../utils";
 
@@ -282,5 +283,14 @@ describe("metadata packs", () => {
         issue.message.includes("/profile"),
     );
     expect(serializeCollision).toBeDefined();
+  });
+
+  it("normaliza JSON Pointers recortando barras finales sin regex cuantificado", () => {
+    expect(normalizeJsonPointer("")).toBe("");
+    expect(normalizeJsonPointer("/profile")).toBe("/profile");
+    expect(normalizeJsonPointer("profile")).toBe("/profile");
+    expect(normalizeJsonPointer("/profile///")).toBe("/profile");
+    expect(normalizeJsonPointer("/")).toBe("");
+    expect(normalizeJsonPointer(`/${"x"}${"/".repeat(4000)}`)).toBe("/x");
   });
 });

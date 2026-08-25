@@ -333,7 +333,11 @@ export const normalizeJsonPointer = (pointer: string): string => {
     return "";
   }
   const prefixed = pointer.startsWith("/") ? pointer : `/${pointer}`;
-  return prefixed.replace(/\/+$/, "");
+  let end = prefixed.length;
+  while (end > 0 && prefixed.charCodeAt(end - 1) === 47) {
+    end -= 1;
+  }
+  return prefixed.slice(0, end);
 };
 
 export const pointerTokens = (pointer: string): string[] =>
