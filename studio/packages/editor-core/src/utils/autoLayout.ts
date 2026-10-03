@@ -1,4 +1,3 @@
-import * as ELKBundle from "elkjs/lib/elk.bundled.js";
 import type { ELK as ElkInstance, ELKConstructorArguments, ElkExtendedEdge, ElkNode } from "elkjs/lib/elk-api";
 
 import type { EditorNode, EditorTransition, NodeSizeMap } from "../types";
@@ -29,8 +28,8 @@ const DISCONNECTED_COMPONENT_GAP = 180;
 
 type ElkConstructorLike = new (args?: ELKConstructorArguments) => ElkInstance;
 
-const resolveElkConstructor = (): ElkConstructorLike => {
-  const moduleShape = ELKBundle as unknown as {
+const resolveElkConstructor = (bundle: unknown): ElkConstructorLike => {
+  const moduleShape = bundle as {
     default?: ElkConstructorLike;
     ELK?: ElkConstructorLike;
   };
@@ -46,12 +45,19 @@ const resolveElkConstructor = (): ElkConstructorLike => {
   return elkCtor;
 };
 
-const createElk = () => {
-  const ElkConstructor = resolveElkConstructor();
-  return new ElkConstructor();
-};
+let elkPromise: Promise<ElkInstance> | undefined;
 
-const elk = createElk();
+const getElk = (): Promise<ElkInstance> => {
+  if (!elkPromise) {
+    elkPromise = import("elkjs/lib/elk.bundled.js")
+      .then((bundle) => new (resolveElkConstructor(bundle))())
+      .catch((error) => {
+        elkPromise = undefined;
+        throw error;
+      });
+  }
+  return elkPromise;
+};
 
 type UniverseNode = Extract<EditorNode, { type: "universe" }>;
 type RealityNode = Extract<EditorNode, { type: "reality" }>;
@@ -338,6 +344,7 @@ const computeInternalUniverseLayout = async (
     edges,
   };
 
+  const elk = await getElk();
   const result = await elk.layout(graph, { measureExecutionTime: true });
   const childById = new Map((result.children || []).map((child) => [child.id, child]));
 
@@ -592,6 +599,7 @@ export const computeAutoLayout = async (
     edges: externalEdges,
   };
 
+  const elk = await getElk();
   const externalLayout = await elk.layout(externalGraph, { measureExecutionTime: true });
   const externalById = new Map((externalLayout.children || []).map((child) => [child.id, child]));
 
