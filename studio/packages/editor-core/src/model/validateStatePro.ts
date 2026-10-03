@@ -403,34 +403,8 @@ const validateTransitionShape = (transition: StateProTransition, fieldPrefix: st
     });
   }
 
-  if (Array.isArray(transition.conditions) && transition.conditions.length > 0) {
-    const seen = new Set<string>();
-    const duplicates = new Set<string>();
-
-    transition.conditions.forEach((condition) => {
-      const src = condition?.src || "";
-      if (!src) {
-        return;
-      }
-      if (seen.has(src)) {
-        duplicates.add(src);
-        return;
-      }
-      seen.add(src);
-    });
-
-    duplicates.forEach((src) => {
-      issues.push({
-        code: "SEMANTIC_ERROR",
-        severity: "error",
-        field: `${fieldPrefix}.conditions`,
-        message: `Duplicated condition '${src}' in conditions`,
-        messageKey: "issue.duplicatedTransitionCondition",
-        messageParams: { src },
-      });
-    });
-  }
-
+  // Repeated condition sources are valid: the runtime evaluates each entry,
+  // whose args (and position in the list) may differ.
   return issues;
 };
 

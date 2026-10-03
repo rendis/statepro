@@ -38,18 +38,8 @@ const mergeDeprecatedConditionToConditions = (
     ...toBehaviorArray(transition.conditions),
   ];
 
-  const seen = new Set<string>();
-  const unique: BehaviorRef[] = [];
-  merged.forEach((condition) => {
-    const src = condition?.src || "";
-    if (!src || seen.has(src)) {
-      return;
-    }
-    seen.add(src);
-    unique.push(condition);
-  });
-
-  return unique;
+  // Runtime evaluates every condition in order, including repeated executors.
+  return merged.filter((condition) => condition?.src);
 };
 
 const normalizeDeprecatedConditionModel = (machine: StateProMachine): StateProMachine => {

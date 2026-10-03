@@ -17,13 +17,14 @@ export const METADATA_PACK_MACHINE_ENTITY_REF = "machine";
 
 const METADATA_SCOPES: MetadataScope[] = ["machine", "universe", "reality", "transition"];
 
-const ajv = new Ajv2020({
+const createValidatorCompiler = () => new Ajv2020({
   allErrors: true,
   strict: false,
   allowUnionTypes: true,
 });
 
-const validatorCache = new Map<string, ReturnType<typeof ajv.compile>>();
+const VALIDATOR_CACHE_LIMIT = 128;
+const validatorCache = new Map<string, ReturnType<Ajv2020["compile"]>>();
 
 export type PointerCollisionRelation = "exact" | "ancestor" | "descendant";
 
@@ -91,6 +92,13 @@ const decodePointerSegment = (segment: string): string =>
   segment.replace(/~1/g, "/").replace(/~0/g, "~");
 
 const cloneJson = <T>(value: T): T => structuredClone(value);
+
+const hasOwn = (value: object, key: string): boolean => Object.hasOwn(value, key);
+
+// JSON keys are data, including names which have setters on Object.prototype.
+const setOwnValue = (target: Record<string, unknown>, key: string, value: unknown): void => {
+  Object.defineProperty(target, key, { value, enumerable: true, writable: true, configurable: true });
+};
 
 const isFiniteIndex = (token: string): boolean => {
   if (!/^\d+$/.test(token)) {
@@ -567,17 +575,17 @@ export const deepMergeJsonObjects = (base: JsonObject, override: JsonObject): Js
   const result: JsonObject = cloneJson(base);
 
   Object.entries(override).forEach(([key, value]) => {
-    const previous = result[key];
+    const previous = hasOwn(result, key) ? result[key] : undefined;
     if (
       isRecord(previous) &&
       isRecord(value) &&
       !Array.isArray(previous) &&
       !Array.isArray(value)
     ) {
-      result[key] = deepMergeJsonObjects(previous as JsonObject, value as JsonObject);
+      setOwnValue(result, key, deepMergeJsonObjects(previous as JsonObject, value as JsonObject));
       return;
     }
-    result[key] = cloneJson(value);
+    setOwnValue(result, key, cloneJson(value));
   });
 
   return result;
@@ -595,10 +603,10 @@ export const getValueAtPointer = (
   let cursor: unknown = value;
   for (const token of tokens) {
     if (Array.isArray(cursor) && isFiniteIndex(token)) {
-      cursor = cursor[Number.parseInt(token, 10)];
+      cursor = hasOwn(cursor, token) ? cursor[Number.parseInt(token, 10)] : undefined;
       continue;
     }
-    if (!isRecord(cursor)) {
+    if (!isRecord(cursor) || !hasOwn(cursor, token)) {
       return undefined;
     }
     cursor = cursor[token];
@@ -627,13 +635,13 @@ export const setValueAtPointer = (
       continue;
     }
     if (isLast) {
-      cursor[token] = cloneJson(value);
+      setOwnValue(cursor, token, cloneJson(value));
       continue;
     }
 
-    const nextValue = cursor[token];
+    const nextValue = hasOwn(cursor, token) ? cursor[token] : undefined;
     if (!isRecord(nextValue)) {
-      cursor[token] = {};
+      setOwnValue(cursor, token, {});
     }
     cursor = cursor[token] as Record<string, unknown>;
   }
@@ -686,11 +694,18 @@ export const validateBindingWithPack = (
   binding: MetadataPackBinding,
   pack: MetadataPackDefinition,
 ): MetadataBindingValidationError[] => {
-  const cacheKey = pack.id;
+  // IDs are editable and shared between editor instances. Cache schema content.
+  const cacheKey = JSON.stringify(pack.schema);
   let validator = validatorCache.get(cacheKey);
   if (!validator) {
-    validator = ajv.compile(pack.schema as object);
-    validatorCache.set(cacheKey, validator);
+    // Isolate $id registrations so edited schemas can reuse their previous ID.
+    validator = createValidatorCompiler().compile(pack.schema as object);
+  } else {
+    validatorCache.delete(cacheKey);
+  }
+  validatorCache.set(cacheKey, validator);
+  if (validatorCache.size > VALIDATOR_CACHE_LIMIT) {
+    validatorCache.delete(validatorCache.keys().next().value!);
   }
 
   const ok = validator(binding.values);

@@ -83,7 +83,7 @@ describe("validateStateProMachine", () => {
     ).toBe(false);
   });
 
-  it("bloquea export cuando una transición repite la misma condition en conditions", () => {
+  it("permite conditions repetidas como admite el runtime", () => {
     const machine: StateProMachine = {
       id: "machine",
       canonicalName: "machine",
@@ -122,14 +122,8 @@ describe("validateStateProMachine", () => {
 
     const result = validateStateProMachine(machine);
 
-    expect(result.canExport).toBe(false);
-    expect(
-      result.issues.some(
-        (issue) =>
-          issue.messageKey === "issue.duplicatedTransitionCondition" &&
-          issue.field === "universes.main-universe.realities.idle.on.GO[0].conditions",
-      ),
-    ).toBe(true);
+    expect(result.canExport).toBe(true);
+    expect(result.issues).toEqual([]);
   });
 
   it("rechaza máquinas hostiles: refs rotas, notify interno y universo vacío", () => {
