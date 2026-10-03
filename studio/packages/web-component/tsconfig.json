@@ -1,4 +1,4 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src"]
+  "include": ["src", "../editor-core/src/types/svg.d.ts"]
 }

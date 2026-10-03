@@ -183,6 +183,8 @@ export const editorHistoryReducer = (
         : basePresent;
       const nextPresent = editorReducer(presentWithDirty, action.action);
 
+      if (nextPresent === basePresent) return state;
+
       if (mode === "silent") {
         return {
           ...state,

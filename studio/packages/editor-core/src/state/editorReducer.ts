@@ -188,6 +188,7 @@ export const editorReducer = (state: EditorState, action: EditorAction): EditorS
     }
 
     case "set-node-sizes": {
+      if (action.payload === state.nodeSizes) return state;
       return {
         ...state,
         nodeSizes: action.payload,
@@ -195,9 +196,11 @@ export const editorReducer = (state: EditorState, action: EditorAction): EditorS
     }
 
     case "update-node-sizes": {
+      const nodeSizes = action.payload(state.nodeSizes);
+      if (nodeSizes === state.nodeSizes) return state;
       return {
         ...state,
-        nodeSizes: action.payload(state.nodeSizes),
+        nodeSizes,
       };
     }
 
