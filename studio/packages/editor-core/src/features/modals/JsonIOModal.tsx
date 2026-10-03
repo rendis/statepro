@@ -69,10 +69,6 @@ export const JsonIOModal = ({
     return tabs;
   }, [allowExport, allowImport]);
 
-  if (visibleTabs.length === 0) {
-    return null;
-  }
-
   const importValidation = useMemo<ImportValidationResult>(() => {
     if (!jsonText.trim()) {
       return {
@@ -113,12 +109,12 @@ export const JsonIOModal = ({
   }, [documentType, jsonText]);
 
   useEffect(() => {
-    if (!visibleTabs.includes(activeTab)) {
+    if (visibleTabs.length > 0 && !visibleTabs.includes(activeTab)) {
       setActiveTab(visibleTabs[0]);
     }
   }, [activeTab, visibleTabs]);
 
-  if (!isOpen) return null;
+  if (!isOpen || visibleTabs.length === 0) return null;
 
   const exportIssues = documentType === "model" ? modelIssues : [];
   const exportErrorIssues = exportIssues.filter((issue) => issue.severity === "error");
