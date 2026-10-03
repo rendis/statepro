@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"sync"
 
 	"github.com/rendis/statepro/v3/builtin"
@@ -32,6 +33,9 @@ var qmInitFunctions = map[refType]initFunc{
 }
 
 func NewExQuantumMachine(qmm *theoretical.QuantumMachineModel, universes []*ExUniverse) (instrumentation.QuantumMachine, error) {
+	if qmm == nil {
+		return nil, fmt.Errorf("quantum machine model must not be nil")
+	}
 
 	qm := &ExQuantumMachine{
 		model:     qmm,
@@ -41,6 +45,9 @@ func NewExQuantumMachine(qmm *theoretical.QuantumMachineModel, universes []*ExUn
 	for _, u := range universes {
 		if u == nil {
 			continue
+		}
+		if u.model == nil {
+			return nil, fmt.Errorf("universe model must not be nil")
 		}
 
 		// check if universe already exists
@@ -82,8 +89,17 @@ func (qm *ExQuantumMachine) InitWithEvent(ctx context.Context, machineContext an
 }
 
 func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation.Event) (bool, error) {
+	if event == nil || isNilEvent(event) {
+		return false, fmt.Errorf("event must not be nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
 	qm.quantumMachineMtx.Lock()
 	defer qm.quantumMachineMtx.Unlock()
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
 
 	var pairs []util.Pair[instrumentation.Event, []string]
 
@@ -110,6 +126,16 @@ func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation
 	return true, qm.executeExternalTargetPairs(ctx, pairs)
 }
 
+func isNilEvent(event instrumentation.Event) bool {
+	value := reflect.ValueOf(event)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return value.IsNil()
+	default:
+		return false
+	}
+}
+
 func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapshot, machineContext any) error {
 	qm.quantumMachineMtx.Lock()
 	defer qm.quantumMachineMtx.Unlock()
@@ -118,6 +144,8 @@ func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapsh
 		return nil
 	}
 
+	// Decode and validate every included universe before changing any live state.
+	prepared := make(map[*ExUniverse]*UniverseInfoSnapshot)
 	for _, u := range qm.universes {
 		universeSnapshot, ok := snapshot.Snapshots[u.model.ID]
 
@@ -125,16 +153,15 @@ func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapsh
 			continue
 		}
 
-		if snapshot.Tracking != nil {
-			if tr, ok := snapshot.Tracking[u.model.ID]; ok {
-				u.tracking = cloneStringSlice(tr)
-			}
-		}
-
-		err := u.loadSnapshot(universeSnapshot)
+		decoded, err := u.decodeSnapshot(universeSnapshot)
 		if err != nil {
 			return err
 		}
+		prepared[u] = decoded
+	}
+	for u, decoded := range prepared {
+		u.applySnapshot(decoded)
+		u.tracking = cloneStringSlice(snapshot.Tracking[u.model.ID])
 	}
 
 	qm.machineContext = machineContext

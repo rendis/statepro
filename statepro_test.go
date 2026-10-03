@@ -6,6 +6,17 @@ import (
 	"github.com/rendis/statepro/v3/theoretical"
 )
 
+func TestNewQuantumMachine_ModelosNilDevuelvenError(t *testing.T) {
+	for _, model := range []*theoretical.QuantumMachineModel{
+		nil,
+		{Universes: map[string]*theoretical.UniverseModel{"missing": nil}},
+	} {
+		if machine, err := NewQuantumMachine(model); err == nil || machine != nil {
+			t.Fatal("un modelo nil debe devolver error en lugar de panic")
+		}
+	}
+}
+
 func TestNewQuantumMachine_ValidInput(t *testing.T) {
 	model := &theoretical.QuantumMachineModel{
 		ID:            "qm1",
@@ -24,15 +35,6 @@ func TestNewQuantumMachine_ValidInput(t *testing.T) {
 	if qm == nil {
 		t.Fatal("Expected non-nil QuantumMachine")
 	}
-}
-
-func TestNewQuantumMachine_NilModel(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("Expected panic for nil model")
-		}
-	}()
-	NewQuantumMachine(nil)
 }
 
 func TestNewEventBuilder(t *testing.T) {

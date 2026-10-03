@@ -4,7 +4,7 @@ import { deserializeStatePro } from "../model";
 import type { StateProMachine } from "../types";
 
 describe("deserializeStatePro condition migration", () => {
-  it("migrates legacy condition into conditions for editor state and imported snapshot", () => {
+  it("migra condition preservando el orden y multiplicidad del runtime", () => {
     const legacyMachine: StateProMachine = {
       id: "machine",
       canonicalName: "machine",
@@ -49,12 +49,14 @@ describe("deserializeStatePro condition migration", () => {
     expect(editorTransition?.conditions.map((condition) => condition.src)).toEqual([
       "condition:primary",
       "condition:secondary",
+      "condition:primary",
     ]);
 
     expect(importedTransition).not.toHaveProperty("condition");
     expect(importedTransition?.conditions?.map((condition) => condition.src)).toEqual([
       "condition:primary",
       "condition:secondary",
+      "condition:primary",
     ]);
 
     expect(legacyMachine.universes.main.realities.idle.on?.GO[0].condition?.src).toBe(
