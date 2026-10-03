@@ -208,39 +208,95 @@ func (u *ExUniverse) getSnapshot() instrumentation.SerializedUniverseSnapshot {
 	return m
 }
 
-// loadSnapshot loads a snapshot of the universe
-func (u *ExUniverse) loadSnapshot(universeSnapshot instrumentation.SerializedUniverseSnapshot) error {
+// decodeSnapshot validates a detached snapshot without changing live state.
+func (u *ExUniverse) decodeSnapshot(universeSnapshot instrumentation.SerializedUniverseSnapshot) (*UniverseInfoSnapshot, error) {
+	if universeSnapshot == nil {
+		return nil, fmt.Errorf("snapshot for universe '%s' must not be nil", u.model.ID)
+	}
 	snapshot, err := util.MapToStruct[UniverseInfoSnapshot](universeSnapshot)
 	if err != nil {
-		return errors.Join(fmt.Errorf("error loading snapshot for universe '%s'", u.model.ID), err)
+		return nil, errors.Join(fmt.Errorf("error loading snapshot for universe '%s'", u.model.ID), err)
 	}
+	invalid := func(reason string) (*UniverseInfoSnapshot, error) {
+		return nil, fmt.Errorf("invalid snapshot for universe '%s': %s", u.model.ID, reason)
+	}
+	if snapshot.ID != "" && snapshot.ID != u.model.ID {
+		return invalid("universe ID does not match")
+	}
+	if snapshot.InSuperposition && (!snapshot.Initialized || snapshot.CurrentReality != nil) {
+		return invalid("superposition requires an initialized universe without a current reality")
+	}
+	if snapshot.Initialized && !snapshot.InSuperposition && snapshot.CurrentReality == nil {
+		return invalid("initialized universe requires a current reality or superposition")
+	}
+	if !snapshot.Initialized && (snapshot.CurrentReality != nil || snapshot.RealityInitialized || snapshot.RealityBeforeSuperposition != nil) {
+		return invalid("uninitialized universe cannot contain an active reality")
+	}
+	for _, reality := range []*string{snapshot.CurrentReality, snapshot.RealityBeforeSuperposition} {
+		if reality == nil {
+			continue
+		}
+		model, err := u.getRealityModel(*reality)
+		if err != nil {
+			return nil, err
+		}
+		if model == nil {
+			return invalid("reality does not exist")
+		}
+	}
+	if snapshot.Accumulator != nil {
+		for reality, events := range snapshot.Accumulator.RealitiesEvents {
+			model, err := u.getRealityModel(reality)
+			if err != nil {
+				return nil, err
+			}
+			if model == nil {
+				return invalid("accumulator reality does not exist")
+			}
+			for _, event := range events {
+				if event == nil {
+					return invalid("accumulator contains a nil event")
+				}
+			}
+		}
+	}
+	// Older/empty superposition snapshots may omit their empty accumulator.
+	if snapshot.InSuperposition && snapshot.Accumulator == nil {
+		snapshot.Accumulator = &eventAccumulator{RealitiesEvents: make(map[string][]*Event)}
+	}
+	return snapshot, nil
+}
 
+func (u *ExUniverse) applySnapshot(snapshot *UniverseInfoSnapshot) {
 	u.initialized = snapshot.Initialized
 	u.currentReality = snapshot.CurrentReality
 	u.realityInitialized = snapshot.RealityInitialized
 	u.inSuperposition = snapshot.InSuperposition
 	u.realityBeforeSuperposition = snapshot.RealityBeforeSuperposition
-	u.eventAccumulator = snapshot.Accumulator
+	u.eventAccumulator = nil
+	if snapshot.Accumulator != nil {
+		u.eventAccumulator = snapshot.Accumulator
+	}
+	// Keep the map identity: in-flight invoke arguments share this map and mutex.
+	u.metadataMu.Lock()
 	if len(snapshot.Metadata) > 0 && u.metadata == nil {
 		u.metadata = make(map[string]any)
 	}
+	clear(u.metadata)
 	for k, v := range snapshot.Metadata {
 		u.metadata[k] = v
 	}
+	u.metadataMu.Unlock()
 
-	if u.currentReality != nil {
-		realityModel, err := u.getRealityModel(*u.currentReality)
-		if err != nil {
-			return errors.Join(fmt.Errorf("error loading snapshot for universe '%s'", u.model.ID), err)
-		}
-
-		if realityModel == nil {
-			return fmt.Errorf(realitiesNotExistErrMsgTemplate, u.model.ID, *u.currentReality)
-		}
+	u.isFinalReality = false
+	reality := u.currentReality
+	if u.inSuperposition {
+		reality = u.realityBeforeSuperposition
+	}
+	if reality != nil {
+		realityModel, _ := u.getRealityModel(*reality) // already validated
 		u.isFinalReality = theoretical.IsFinalState(realityModel.Type)
 	}
-
-	return nil
 }
 
 // canHandleEvent returns true if a concrete (non-superposition, non-final) reality
