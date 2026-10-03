@@ -1,6 +1,27 @@
 package instrumentation
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+
+	"github.com/rendis/statepro/v3/internal/util"
+)
+
+// SnapshotProvider is an optional capability for callers that need capture errors.
+// QuantumMachine and executor interfaces remain compatible with existing implementations.
+type SnapshotProvider interface {
+	GetSnapshotWithError() (*MachineSnapshot, error)
+}
+
+// GetSnapshotWithError captures from a machine or synchronous action args exposing
+// SnapshotProvider. It returns an error for providers without that capability.
+func GetSnapshotWithError(source interface{ GetSnapshot() *MachineSnapshot }) (*MachineSnapshot, error) {
+	if provider, ok := source.(SnapshotProvider); ok {
+		return provider.GetSnapshotWithError()
+	}
+	return nil, errors.New("snapshot provider does not support capture errors")
+}
 
 type SerializedUniverseSnapshot map[string]any
 
@@ -15,6 +36,22 @@ type MachineSnapshot struct {
 	// Tracking is the map of the universe status tracking
 	// key: universe id, value: list of states the universe has been through
 	Tracking map[string][]string `json:"tracking,omitempty" bson:"tracking,omitempty" xml:"tracking,omitempty"`
+}
+
+// UnmarshalJSON preserves numeric values that cannot round-trip through float64.
+func (ms *MachineSnapshot) UnmarshalJSON(data []byte) error {
+	type snapshotJSON MachineSnapshot
+	var decoded snapshotJSON
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	if err := decoder.Decode(&decoded); err != nil {
+		return err
+	}
+	for _, snapshot := range decoded.Snapshots {
+		util.NormalizeJSONNumbers(map[string]any(snapshot))
+	}
+	*ms = MachineSnapshot(decoded)
+	return nil
 }
 
 type UniversesResume struct {
