@@ -102,10 +102,8 @@ const PropertiesModal = ({
     setActiveTab("general");
   }, [element?.id]);
 
-  if (!element) return null;
-
-  const universeElement = element.type === "universe" ? element : null;
-  const realityElement = element.type === "reality" ? element : null;
+  const universeElement = element?.type === "universe" ? element : null;
+  const realityElement = element?.type === "reality" ? element : null;
 
   useEffect(() => {
     if (universeElement) {
@@ -128,6 +126,8 @@ const PropertiesModal = ({
     universeElement?.data.id,
     universeElement?.id,
   ]);
+
+  if (!element) return null;
 
   const commitUniverseIdDraft = () => {
     if (!universeElement || universeIdCanonicalLinked) {

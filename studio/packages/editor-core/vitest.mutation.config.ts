@@ -12,11 +12,7 @@ export default defineConfig({
       "src/__tests__/issueMapping.test.ts",
     ],
     pool: "forks",
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
+    maxWorkers: 1,
     fileParallelism: false,
   },
 });

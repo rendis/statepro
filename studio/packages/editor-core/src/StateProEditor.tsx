@@ -4,7 +4,6 @@ import {
   Copy,
   Info,
   Maximize,
-  Play,
   PlusCircle,
   Settings2,
   StickyNote,
@@ -122,7 +121,6 @@ import {
 import { MachineGlobalPanel } from "./features/machine";
 import {
   resolveInitialStudioLocale,
-  resolveSerializeIssueMessage,
   StudioI18nProvider,
   useI18n,
   type StudioLocale,
@@ -1915,7 +1913,7 @@ function StateProEditorInner({
       ? (viewport.height / 2 - transform.positionY) / transform.scale - height / 2
       : 1000;
 
-    let newX = centerX;
+    const newX = centerX;
     let newY = centerY;
     let overlaps = true;
 
@@ -3804,7 +3802,7 @@ function StateProEditorInner({
     if (!r) return;
 
     const newId = `reality-${Date.now()}`;
-    let newX = r.x;
+    const newX = r.x;
     let newY = r.y + 170;
     let overlaps = true;
 
@@ -3903,7 +3901,7 @@ function StateProEditorInner({
     );
 
     const newUniverseId = `universe-${Date.now()}`;
-    let newX = universe.x;
+    const newX = universe.x;
     let newY = universe.y + universe.h + 30;
     let overlaps = true;
 

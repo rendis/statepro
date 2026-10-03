@@ -54,7 +54,7 @@ export const StudioTooltip = ({
 }: StudioTooltipProps) => {
   const [isVisible, setIsVisible] = useState(false);
 
-  const { refs, floatingStyles, context } = useFloating({
+  const { refs, floatingStyles } = useFloating({
     open: isVisible,
     onOpenChange: setIsVisible,
     placement: TOOLTIP_SIDE_TO_PLACEMENT[side],
