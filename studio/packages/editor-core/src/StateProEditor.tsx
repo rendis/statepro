@@ -506,13 +506,13 @@ function StateProEditorInner({
     applyRecord(action, markDirty);
   };
 
-  const setNodeSizes = (value: NodeSizeMap | ((prev: NodeSizeMap) => NodeSizeMap)) => {
+  const setNodeSizes = useCallback((value: NodeSizeMap | ((prev: NodeSizeMap) => NodeSizeMap)) => {
     if (typeof value === "function") {
       applySilent({ type: "update-node-sizes", payload: value }, false);
       return;
     }
     applySilent({ type: "set-node-sizes", payload: value }, false);
-  };
+  }, [applySilent]);
 
   const setRegistry = (
     value:

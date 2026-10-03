@@ -63,17 +63,7 @@ const normalizeTransitionConditions = (
     return undefined;
   }
 
-  const seen = new Set<string>();
-  const dedupedConditions = cleanedConditions.filter((candidate) => {
-    const src = candidate?.src || "";
-    if (!src || seen.has(src)) {
-      return false;
-    }
-    seen.add(src);
-    return true;
-  });
-
-  return dedupedConditions.length > 0 ? dedupedConditions : undefined;
+  return cleanedConditions;
 };
 
 const compactUC = (uc?: UniversalConstants): Partial<UniversalConstants> | undefined => {

@@ -37,7 +37,13 @@ func (ea *eventAccumulator) Accumulate(realityName string, evt instrumentation.E
 		ea.RealitiesEvents[realityName] = []*Event{}
 	}
 
-	ea.RealitiesEvents[realityName] = append(ea.RealitiesEvents[realityName], evt.(*Event))
+	event, ok := evt.(*Event)
+	if !ok {
+		// Event is a public interface; preserve custom implementations in the
+		// concrete representation used by serialized accumulators.
+		event = &Event{Name: evt.GetEventName(), Data: evt.GetData(), EvtType: evt.GetEvtType(), Flags: evt.GetFlags()}
+	}
+	ea.RealitiesEvents[realityName] = append(ea.RealitiesEvents[realityName], event)
 }
 
 func (ea *eventAccumulator) GetStatistics() instrumentation.AccumulatorStatistics {

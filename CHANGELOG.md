@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Studio: metadata pointer writes and object merges use own data properties, preserving JSON keys without traversing inherited properties.
+- Studio: update compatible dependency overrides, including `fast-uri` to `^3.1.8`.
+
+### Fixed
+
+- Runtime: validate all included universe snapshots before applying them; restore metadata and tracking instead of retaining newer entries, synchronize metadata restoration with invokes, and reconstruct empty superposition accumulators and final-state flags.
+- Runtime: synchronize custom executor registration and lookup; accept custom implementations of the public `Event` interface in accumulators.
+- Runtime: return errors for nil machine/universe models and nil events; reject already-canceled `SendEvent` calls before event admission, including cancellation while waiting for the machine lock.
+- Studio: preserve condition order, arguments, and repeated executors during import/export and validation, matching runtime semantics.
+- Studio: prevent unchanged node measurements from creating render cycles; stabilize the measurement callback and preserve reducer identity for no-op updates.
+- Studio: recompile changed metadata schemas even when pack IDs are reused, isolate schema IDs, and bound the validator cache to 128 entries.
+- Studio: include SVG declarations when typechecking the Web Component against editor-core source.
+
 ## [3.3.1] - 2026-08-25
 
 ### Security
