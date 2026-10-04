@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Runtime: optional shared invoke concurrency budgets, cooperative cancellation on exit and shutdown, per-universe accumulator and tracking limits, and strict observer registration checks. Existing constructors preserve zero-value policies.
+- Runtime: optional context-aware snapshot capture/restoration and invoke lifecycle interfaces; reject synchronous callback reentry when callers preserve the callback context.
+- Debugger bot: cancellable event processing, checked snapshot errors, and an optional history retention limit.
+
 ### Security
 
 - Studio: metadata pointer writes and object merges use own data properties, preserving JSON keys without traversing inherited properties.
@@ -14,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Runtime: honor cancellation while waiting for execution locks and between synchronous callbacks; preserve bounded tracking during failed entry rollback.
+- CLI: avoid reflection panics when copying contexts with private fields or typed nil pointers; handle empty lists and history independently of saved checkpoints.
+- Studio: reject malformed JSON without throwing and resolve definition references only from own properties, while allowing explicitly declared names such as `constructor`.
+- Web Component: support registering multiple tag names and cover attributes, properties, lifecycle, and DOM events with integration tests.
+- Studio: fit header, machine panel, and search controls within mobile viewports. Keep Babel 7 overrides scoped to Babel 7 so the Stryker 10 instrumenter can use Babel 8.
+- Studio tests: exclude Stryker sandboxes from normal Vitest discovery to prevent duplicate or instrumented suites from running as application tests.
 - Runtime: validate all included universe snapshots before applying them; restore metadata and tracking instead of retaining newer entries, synchronize metadata restoration with invokes, and reconstruct empty superposition accumulators and final-state flags.
 - Runtime: synchronize custom executor registration and lookup; accept custom implementations of the public `Event` interface in accumulators.
 - Runtime: return errors for nil machine/universe models and nil events; reject already-canceled `SendEvent` calls before event admission, including cancellation while waiting for the machine lock.

@@ -4321,25 +4321,25 @@ function StateProEditorInner({
 
   return (
     <div className="flex flex-col h-screen bg-slate-950 text-slate-200 font-sans overflow-hidden relative">
-      <header className="absolute top-0 w-full h-14 bg-slate-900/80 backdrop-blur border-b border-slate-800 flex items-center justify-between px-6 z-[60]">
-        <div className="flex items-center gap-3">
+      <header className="absolute top-0 w-full h-14 bg-slate-900/80 backdrop-blur border-b border-slate-800 flex items-center justify-between gap-2 px-3 sm:px-6 z-[60]">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {logoSrc ? (
             <img
               src={logoSrc}
               alt={logoAlt ?? "Studio logo"}
-              className="w-8 h-8 object-contain"
+              className="w-6 h-6 sm:w-8 sm:h-8 object-contain shrink-0"
             />
           ) : (
-            <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 shrink-0 bg-blue-600 rounded flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20">
               SP
             </div>
           )}
-          <h1 className="font-semibold text-lg tracking-wide">
+          <h1 className="font-semibold text-sm sm:text-lg tracking-wide truncate">
             {t("editor.header.title")}
           </h1>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {showLocaleSwitcher && (
             <StudioTooltip
               label={
@@ -4380,16 +4380,20 @@ function StateProEditorInner({
           {showLocaleSwitcher && <div className="w-px h-5 bg-slate-700" />}
           <button
             onClick={() => setIsLibraryOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md text-sm font-medium border border-slate-700 transition-colors"
+            aria-label={t("editor.header.library")}
+            title={t("editor.header.library")}
+            className="flex items-center gap-2 px-2 sm:px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md text-sm font-medium border border-slate-700 transition-colors whitespace-nowrap"
           >
-            <BookOpen size={16} /> {t("editor.header.library")}
+            <BookOpen size={16} /> <span className="hidden sm:inline">{t("editor.header.library")}</span>
           </button>
           {canOpenJsonModal && (
             <button
               onClick={() => setShowJsonModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-sm font-medium shadow-md shadow-blue-900/20 transition-all"
+              aria-label={`${t("editor.header.importJson")} / ${t("editor.header.exportJson")}`}
+              title={`${t("editor.header.importJson")} / ${t("editor.header.exportJson")}`}
+              className="flex items-center gap-2 px-2 sm:px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-sm font-medium shadow-md shadow-blue-900/20 transition-all whitespace-nowrap"
             >
-              <Code2 size={16} /> {t("editor.header.importJson")} / {t("editor.header.exportJson")}
+              <Code2 size={16} /> <span className="hidden sm:inline">{t("editor.header.importJson")} / {t("editor.header.exportJson")}</span>
             </button>
           )}
         </div>

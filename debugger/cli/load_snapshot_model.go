@@ -63,6 +63,9 @@ func loadSnapshotModelView(m *model) string {
 	v1 := appStyle.Render(hm.View())
 
 	item, _ := hm.SelectedItem().(*choice)
+	if item == nil {
+		return v1
+	}
 	h := item.obj.(*debuggerSnapshot)
 	part := buildSnapshotPart(h, "m")
 
@@ -85,11 +88,17 @@ func loadSnapshotModelUpdate(m *model, teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 			item, _ := hm.SelectedItem().(*choice)
+			if item == nil {
+				return m, nil
+			}
 			dn := item.obj.(*debuggerSnapshot)
 			v := buildSnapshotPart(dn, msg.String())
 			return buildJsonViewerModel(m, v.title, v.content)
 		case "l":
 			item, _ := hm.SelectedItem().(*choice)
+			if item == nil {
+				return m, nil
+			}
 			dn := item.obj.(*debuggerSnapshot)
 			if err := m.container.qm.LoadSnapshot(dn.Snapshot, m.container.smContext); err != nil {
 				return m, nil

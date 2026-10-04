@@ -20,6 +20,10 @@ const ajv = new Ajv2020({
 
 const validateSchema = ajv.compile(schema as object);
 
+// Definition references resolve only declared data, never inherited JS properties.
+const getOwn = <T>(record: Record<string, T> | undefined, key: string): T | undefined =>
+  record && Object.hasOwn(record, key) ? record[key] : undefined;
+
 type AjvSchemaError = {
   instancePath?: string;
   schemaPath?: string;
@@ -133,10 +137,11 @@ const validateTransitionTargetsSemantics = (
     return;
   }
 
-  const sourceUniverse = machine.universes[universeId];
+  const sourceUniverse = getOwn(machine.universes, universeId);
 
   transition.targets.forEach((target, targetIndex) => {
     const targetPath = `${transitionPath}.targets[${targetIndex}]`;
+    if (typeof target !== "string") return;
     const parsed = parseTargetReference(target);
     if (!parsed) {
       issues.push({
@@ -162,7 +167,7 @@ const validateTransitionTargetsSemantics = (
 
     if (parsed.kind === "reality") {
       const targetRealityId = parsed.realityId || "";
-      if (!sourceUniverse?.realities?.[targetRealityId]) {
+      if (!getOwn(sourceUniverse?.realities, targetRealityId)) {
         issues.push({
           code: "SEMANTIC_ERROR",
           severity: "error",
@@ -179,7 +184,7 @@ const validateTransitionTargetsSemantics = (
     }
 
     const targetUniverseId = parsed.universeId || "";
-    const targetUniverse = machine.universes[targetUniverseId];
+    const targetUniverse = getOwn(machine.universes, targetUniverseId);
     if (!targetUniverse) {
       issues.push({
         code: "SEMANTIC_ERROR",
@@ -194,7 +199,7 @@ const validateTransitionTargetsSemantics = (
 
     if (parsed.kind === "universeReality") {
       const targetRealityId = parsed.realityId || "";
-      if (!targetUniverse.realities?.[targetRealityId]) {
+      if (!getOwn(targetUniverse.realities, targetRealityId)) {
         issues.push({
           code: "SEMANTIC_ERROR",
           severity: "error",
@@ -237,7 +242,7 @@ const validateSemantic = (machine: StateProMachine): SerializeIssue[] => {
       return;
     }
 
-    if (universe.id !== universeKey) {
+    if (typeof universe.id === "string" && universe.id !== universeKey) {
       issues.push({
         code: "SEMANTIC_ERROR",
         severity: "error",
@@ -274,7 +279,7 @@ const validateSemantic = (machine: StateProMachine): SerializeIssue[] => {
         return;
       }
 
-      if (reality.id !== realityKey) {
+      if (typeof reality.id === "string" && reality.id !== realityKey) {
         issues.push({
           code: "SEMANTIC_ERROR",
           severity: "error",
@@ -298,7 +303,7 @@ const validateSemantic = (machine: StateProMachine): SerializeIssue[] => {
         });
       }
 
-      (reality.always || []).forEach((transition, transitionIndex) => {
+      (Array.isArray(reality.always) ? reality.always : []).forEach((transition, transitionIndex) => {
         validateTransitionTargetsSemantics(
           machine,
           universeKey,
@@ -310,7 +315,7 @@ const validateSemantic = (machine: StateProMachine): SerializeIssue[] => {
       });
 
       Object.entries(reality.on || {}).forEach(([eventName, transitions]) => {
-        (transitions || []).forEach((transition, transitionIndex) => {
+        (Array.isArray(transitions) ? transitions : []).forEach((transition, transitionIndex) => {
           validateTransitionTargetsSemantics(
             machine,
             universeKey,
@@ -323,7 +328,7 @@ const validateSemantic = (machine: StateProMachine): SerializeIssue[] => {
       });
     });
 
-    if (universe.initial && !universe.realities[universe.initial]) {
+    if (typeof universe.initial === "string" && universe.initial && !getOwn(universe.realities, universe.initial)) {
       issues.push({
         code: "SEMANTIC_ERROR",
         severity: "error",
@@ -338,7 +343,7 @@ const validateSemantic = (machine: StateProMachine): SerializeIssue[] => {
     }
   });
 
-  (machine.initials || []).forEach((initial, initialIndex) => {
+  (Array.isArray(machine.initials) ? machine.initials : []).forEach((initial, initialIndex) => {
     const parsed = parseTargetReference(initial);
     const field = `initials[${initialIndex}]`;
 
@@ -354,7 +359,7 @@ const validateSemantic = (machine: StateProMachine): SerializeIssue[] => {
     }
 
     const universeId = parsed.universeId || "";
-    const universe = machine.universes[universeId];
+    const universe = getOwn(machine.universes, universeId);
     if (!universe) {
       issues.push({
         code: "SEMANTIC_ERROR",
@@ -371,7 +376,7 @@ const validateSemantic = (machine: StateProMachine): SerializeIssue[] => {
 
     if (parsed.kind === "universeReality") {
       const realityId = parsed.realityId || "";
-      if (!universe.realities[realityId]) {
+      if (!getOwn(universe.realities, realityId)) {
         issues.push({
           code: "SEMANTIC_ERROR",
           severity: "error",
@@ -392,6 +397,7 @@ const validateSemantic = (machine: StateProMachine): SerializeIssue[] => {
 
 const validateTransitionShape = (transition: StateProTransition, fieldPrefix: string): SerializeIssue[] => {
   const issues: SerializeIssue[] = [];
+  if (!transition || typeof transition !== "object") return issues;
 
   if (transition.condition && !transition.condition.src) {
     issues.push({
@@ -432,6 +438,7 @@ const validateIdentifiers = (machine: StateProMachine): SerializeIssue[] => {
   }
 
   Object.entries(machine.universes || {}).forEach(([universeId, universe]) => {
+    if (!universe || typeof universe !== "object") return;
     if (!isValidIdentifier(universeId)) {
       issues.push({
         code: "SEMANTIC_ERROR",
@@ -443,6 +450,7 @@ const validateIdentifiers = (machine: StateProMachine): SerializeIssue[] => {
     }
 
     Object.entries(universe.realities || {}).forEach(([realityId, reality]) => {
+      if (!reality || typeof reality !== "object") return;
       if (!isValidIdentifier(realityId)) {
         issues.push({
           code: "SEMANTIC_ERROR",
@@ -453,7 +461,7 @@ const validateIdentifiers = (machine: StateProMachine): SerializeIssue[] => {
         });
       }
 
-      (reality.always || []).forEach((transition, transitionIndex) => {
+      (Array.isArray(reality.always) ? reality.always : []).forEach((transition, transitionIndex) => {
         issues.push(
           ...validateTransitionShape(
             transition,
@@ -463,7 +471,7 @@ const validateIdentifiers = (machine: StateProMachine): SerializeIssue[] => {
       });
 
       Object.entries(reality.on || {}).forEach(([eventName, transitions]) => {
-        transitions.forEach((transition, transitionIndex) => {
+        (Array.isArray(transitions) ? transitions : []).forEach((transition, transitionIndex) => {
           issues.push(
             ...validateTransitionShape(
               transition,
@@ -501,8 +509,10 @@ export const validateStateProMachine = (
     });
   }
 
-  rawIssues.push(...validateIdentifiers(machine));
-  rawIssues.push(...validateSemantic(machine));
+  if (machine && typeof machine === "object" && !Array.isArray(machine)) {
+    rawIssues.push(...validateIdentifiers(machine));
+    rawIssues.push(...validateSemantic(machine));
+  }
 
   const issues = dedupeIssues(rawIssues);
 

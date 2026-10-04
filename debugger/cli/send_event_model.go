@@ -104,6 +104,9 @@ func sendEventModelView(m *model) string {
 	})
 	v1 := appStyle.Render(hm.View())
 
+	if len(m.container.history) == 0 {
+		return v1
+	}
 	h := m.container.history[len(m.container.history)-1]
 	part := buildSnapshotPartFromHistory(h, "m")
 
@@ -128,11 +131,17 @@ func sendEventModelUpdate(m *model, teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 			if isFiltering(hm) {
 				break
 			}
+			if len(m.container.history) == 0 {
+				return m, nil
+			}
 			h := m.container.history[len(m.container.history)-1]
 			v := buildSnapshotPartFromHistory(h, msg.String())
 			return buildJsonViewerModel(m, v.title, v.content)
 		case "enter":
 			item, _ := hm.SelectedItem().(*choice)
+			if item == nil {
+				return m, nil
+			}
 			event := item.obj.(*debuggerEvent)
 			evt := statepro.NewEventBuilder(event.Name).
 				SetData(event.Params).

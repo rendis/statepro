@@ -151,11 +151,13 @@ func copyStructPointer(v any) any {
 	}
 
 	val := reflect.ValueOf(v)
+	if val.IsNil() {
+		return nil
+	}
 	structValue := val.Elem()
 	structCopy := reflect.New(structValue.Type()).Elem()
-	for i := 0; i < structValue.NumField(); i++ {
-		structCopy.Field(i).Set(structValue.Field(i))
-	}
+	// Copy the complete value; setting unexported fields individually panics.
+	structCopy.Set(structValue)
 
 	return structCopy.Addr().Interface()
 }

@@ -57,8 +57,9 @@ superposition indefinitely.
 
 - **Actions** run synchronously. Any error stops the transition and the machine remains in the previous
   state.
-- **Invokes** run asynchronously on separate goroutines. They are "fire-and-forget" and do not affect
-  control flow.
+- **Invokes** run asynchronously on separate goroutines. Their function does not return an error
+  to the transition. With configured runtime limits, an admission failure does return an error
+  before the rejected invoke is started.
 - Both receive `instrumentation` executor arguments including the machine context, universe metadata,
   event payload, and snapshot accessors.
 
@@ -114,7 +115,7 @@ Zero changes to the JSON definition. The existing `on.create-form` transition wi
 
 ## Conditions & Observers
 
-- Observers run in parallel; the first success wins. Errors are propagated unless another observer has
+- Observers run sequentially; the first success wins. Errors are propagated unless another observer has
   already authorized the transition.
 - `TransitionModel.condition` and `conditions` arrays are evaluated sequentially. All must return `true`
   for the transition to proceed.
@@ -192,3 +193,71 @@ The experimental runtime implements all instrumentation interfaces. You can buil
 3. Re-registering actions/observers/invokes via the `builtin` package or custom registries.
 
 Consult [instrumentation.md](instrumentation.md) for the list of contracts you must satisfy.
+
+## Runtime policies and resource limits
+
+Existing constructors preserve unlimited numeric budgets, permissive unknown observers, and invokes
+that continue after their reality exits. Configure policies explicitly when those defaults do not
+fit an application's workload:
+
+```go
+qm, err := statepro.NewQuantumMachineWithOptions(model, instrumentation.RuntimeOptions{
+    MaxConcurrentInvokes: 8,
+    CancelInvokesOnExit:  true,
+    MaxAccumulatedEvents: 1_000,
+    MaxTrackingEntries:   100,
+    StrictObservers:      true,
+})
+if err != nil {
+    return err
+}
+```
+
+These are example budgets, not recommended values for every application. Options are copied at
+construction; negative numeric limits are rejected. The experimental constructor also exposes
+`NewExQuantumMachineWithOptions`. The mandatory machine and executor interfaces are unchanged.
+
+| Policy | Behavior |
+| --- | --- |
+| `MaxConcurrentInvokes` | One pool for the entire machine, including machine constants, universe constants, and reality/transition invokes. At capacity, reject immediately with `*instrumentation.ResourceLimitError`; do not enqueue or spawn the rejected task. Slots release on completion or panic, not merely on a cancellation request. |
+| `CancelInvokesOnExit` | Request cancellation of existing invokes associated with a successfully exited reality, before launching exit invokes. Also cancel affected universes on valid snapshot replacement or static positioning. Rejected snapshot restoration does not cancel existing tasks. |
+| `MaxAccumulatedEvents` | Per-universe entry budget, counting separate copies for different realities. Reserve worst-case fan-out before callbacks or appending entries, even if an early observer might approve. Reject over-budget snapshots before applying them. This is an entry limit, not a byte limit. |
+| `MaxTrackingEntries` | Retain the most recent entries per universe, including restored tracking. Failed entry rollback preserves the previous bounded history. |
+| `StrictObservers` | Reject empty or unregistered observer sources with `ErrUnknownObserver` before accumulating the event. Every configured observer in a fan-out must be registered. The default still permits unknown sources. |
+
+The debugger bot independently supports `bot.WithHistoryLimit(n)`, retaining the latest event
+snapshots. Zero means unlimited; negative values are rejected. Bot runs check cancellation before
+restoration, between events, and after the event provider returns, and propagate checked snapshot
+errors. The provider's existing signature has no context argument; a provider that blocks must
+arrange its own cancellation. Serialize `Run` and history access at the application level.
+
+### Cancellation, reentry, and shutdown
+
+Operations with a context can cancel while waiting for the machine lock. Cancellation is checked
+between synchronous callbacks and after each returns. A running callback must cooperate with its
+context: Go cannot safely interrupt arbitrary user code or undo its external side effects.
+Earlier actions, events in other universes, or admitted invokes may already have executed when an
+operation returns an error. Resource admission and cancellation do not make execution transactional.
+
+Calling the owning machine from a synchronous callback using the callback context (or a derived
+context) returns `ErrReentrantCall`. This includes nested synchronous callbacks across machines.
+Asynchronous invokes receive a context without that synchronous scope marker, preserving caller
+values and cancellation; they can enqueue work on the machine normally. Reusing a callback context
+after its callback has completed is supported.
+
+For capture inside an action, use `instrumentation.GetSnapshotWithError(args)` or `args.GetSnapshot()`.
+The optional `instrumentation.ContextSnapshotProvider` adds `GetSnapshotContext(ctx)` and
+`LoadSnapshotContext(ctx, snapshot, machineContext)`, with cancellable lock waiting and reentry checks.
+The legacy context-free machine snapshot methods cannot identify a callback's caller and can still
+deadlock if called directly inside its owning synchronous callback. Replacing the callback context
+with `context.Background()` also bypasses reentry detection. Preserve the supplied context.
+
+The optional `instrumentation.RuntimeLifecycle` provides:
+
+- `Close()`: idempotently request cancellation of all invokes and reject new execution with
+  `ErrMachineClosed`. It returns without waiting for user code to stop. Snapshot reads remain available.
+- `WaitInvokes(ctx)`: wait for the pool to become idle or return the context error. Call `Close()` first
+  when a stable shutdown barrier is required; concurrent new admissions can otherwise start later.
+
+Always give shutdown waiting a deadline. An invoke that ignores cancellation occupies its slot
+until it exits and may outlive `Close()`.
