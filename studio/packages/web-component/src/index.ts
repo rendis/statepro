@@ -206,7 +206,14 @@ export const defineStateProStudioElement = (
   tagName: string = STUDIO_WEB_COMPONENT_TAG,
 ): void => {
   if (!customElements.get(tagName)) {
-    customElements.define(tagName, StateProStudioElement);
+    // A constructor can be registered only once in a CustomElementRegistry.
+    // Each alternate tag needs its own subclass, with the same public behavior.
+    customElements.define(
+      tagName,
+      tagName === STUDIO_WEB_COMPONENT_TAG
+        ? StateProStudioElement
+        : class extends StateProStudioElement {},
+    );
   }
 };
 

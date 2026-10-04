@@ -11,11 +11,11 @@ export interface ParsedTargetReference {
 const identifierPattern = /^[A-Za-z](?:[A-Za-z0-9_-]*[A-Za-z0-9])?$/;
 
 export const isValidIdentifier = (value: string): boolean => {
-  return identifierPattern.test(value);
+  return typeof value === "string" && identifierPattern.test(value);
 };
 
 export const parseTargetReference = (ref: string): ParsedTargetReference | null => {
-  if (!ref) {
+  if (typeof ref !== "string" || !ref) {
     return null;
   }
 

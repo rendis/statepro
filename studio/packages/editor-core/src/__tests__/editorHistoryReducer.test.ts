@@ -5,6 +5,7 @@ import {
   COALESCE_WINDOW_MS,
   HISTORY_LIMIT,
   createInitialEditorHistoryState,
+  createHistorySnapshot,
   editorHistoryReducer,
 } from "../state";
 import type { EditorHistoryState } from "../state";
@@ -32,6 +33,20 @@ const applyMachineId = (
 };
 
 describe("editorHistoryReducer", () => {
+  it("aisla checkpoints y undo de mutaciones en datos del consumidor", () => {
+    const initial = createInitialEditorState();
+    const universe = (nodes: typeof initial.nodes) => nodes.find(node => node.type === "universe")!;
+    const originalId = universe(initial.nodes).data.id;
+    const captured = createHistorySnapshot(initial);
+    const edited = applyMachineId(createInitialEditorHistoryState(initial), "edited");
+    universe(initial.nodes).data.id = "caller-mutated";
+    expect(universe(captured.nodes).data.id).toBe(originalId);
+    const restored = editorHistoryReducer(edited, { type: "undo" });
+    expect(universe(restored.present.nodes).data.id).toBe(originalId);
+    universe(restored.present.nodes).data.id = "restored-mutated";
+    expect(universe(edited.past[0].nodes).data.id).toBe(originalId);
+  });
+
   it("permite cambios visuales sin marcar dirty-from-import cuando se indica explícitamente", () => {
     const imported = createInitialEditorState();
     imported.lastImportedMachine = {

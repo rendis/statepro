@@ -294,17 +294,17 @@ export const MachineGlobalPanel = ({
   };
 
   return (
-    <div className="absolute top-20 left-6 z-[60] flex flex-col gap-2 w-96">
+    <div className="absolute top-20 left-3 sm:left-6 z-[60] flex flex-col gap-2 w-[calc(100%_-_1.5rem)] sm:w-96">
       <div
         onClick={handleToggleExpanded}
         className="bg-slate-900/80 backdrop-blur-md border border-slate-700 hover:border-slate-500 rounded-xl p-3 shadow-xl cursor-pointer flex justify-between items-center transition-colors group"
       >
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="text-[10px] text-blue-400 font-bold uppercase tracking-wider flex items-center gap-1.5 mb-0.5">
             <Settings2 size={12} /> {t("machine.title")}
           </div>
-          <div className="text-sm font-semibold text-slate-200 truncate w-72 flex items-center gap-2">
-            <span>{config.id || t("machine.unnamed")}</span>
+          <div className="text-sm font-semibold text-slate-200 sm:w-72 flex items-center gap-2">
+            <span className="truncate">{config.id || t("machine.unnamed")}</span>
             {machineErrorCount > 0 && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-600 text-white font-mono">
                 {machineErrorCount}
@@ -312,7 +312,7 @@ export const MachineGlobalPanel = ({
             )}
           </div>
         </div>
-        <div className="bg-slate-800 p-1 rounded-md group-hover:bg-slate-700 transition-colors">
+        <div className="bg-slate-800 p-1 rounded-md group-hover:bg-slate-700 transition-colors shrink-0">
           <ChevronDown
             className={`text-slate-400 transition-transform duration-300 ${expanded ? "rotate-180" : ""}`}
             size={16}
