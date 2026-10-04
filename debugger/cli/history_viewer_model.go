@@ -39,7 +39,7 @@ var historySnapshotKeys = map[string]snapshotExtractor{
 }
 
 func buildHistoryViewerModel(prevModel *model, container *smContainer) (tea.Model, tea.Cmd) {
-	if len(container.snapshots) == 0 {
+	if len(container.history) == 0 {
 		return prevModel, nil
 	}
 
@@ -79,6 +79,9 @@ func historyViewerModelView(m *model) string {
 	hm := m.helperModel.(*list.Model)
 	item, _ := hm.SelectedItem().(*choice)
 	v1 := appStyle.Render(hm.View())
+	if item == nil {
+		return v1
+	}
 
 	h := item.obj.(*containerHistory)
 	part := buildSnapshotPartFromHistory(h, "m")
@@ -102,6 +105,9 @@ func historyViewerModelUpdate(m *model, teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.prevModel, nil
 		case "r":
 			item, _ := hm.SelectedItem().(*choice)
+			if item == nil {
+				return m, nil
+			}
 			h := item.obj.(*containerHistory)
 			if err := m.container.qm.LoadSnapshot(h.snapshot, m.container.smContext); err != nil {
 				m.err = err
@@ -115,6 +121,9 @@ func historyViewerModelUpdate(m *model, teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 			item, _ := hm.SelectedItem().(*choice)
+			if item == nil {
+				return m, nil
+			}
 			h := item.obj.(*containerHistory)
 			v := buildSnapshotPartFromHistory(h, msg.String())
 			return buildJsonViewerModel(m, v.title, v.content)
