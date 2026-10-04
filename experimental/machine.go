@@ -57,6 +57,7 @@ func NewExQuantumMachine(qmm *theoretical.QuantumMachineModel, universes []*ExUn
 
 		u.constantsLawsExecutor = qm
 		u.getSnapshotFn = qm.snapshotUnlocked
+		u.getSnapshotWithErrorFn = qm.snapshotUnlockedWithError
 		qm.universes[u.model.ID] = u
 	}
 
@@ -169,16 +170,39 @@ func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapsh
 }
 
 func (qm *ExQuantumMachine) GetSnapshot() *instrumentation.MachineSnapshot {
+	snapshot, err := qm.GetSnapshotWithError()
+	if err != nil {
+		slog.Error("snapshot capture failed", "error", err)
+	}
+	return snapshot
+}
+
+// GetSnapshotWithError returns a complete snapshot or an error, never a partial snapshot.
+func (qm *ExQuantumMachine) GetSnapshotWithError() (*instrumentation.MachineSnapshot, error) {
+	if qm == nil {
+		return nil, fmt.Errorf("quantum machine must not be nil")
+	}
 	qm.quantumMachineMtx.Lock()
 	defer qm.quantumMachineMtx.Unlock()
-	return qm.snapshotUnlocked()
+	return qm.snapshotUnlockedWithError()
 }
 
 func (qm *ExQuantumMachine) snapshotUnlocked() *instrumentation.MachineSnapshot {
+	snapshot, err := qm.snapshotUnlockedWithError()
+	if err != nil {
+		slog.Error("snapshot capture failed", "error", err)
+	}
+	return snapshot
+}
+
+func (qm *ExQuantumMachine) snapshotUnlockedWithError() (*instrumentation.MachineSnapshot, error) {
 	var machineSnapshot = &instrumentation.MachineSnapshot{}
 
 	for _, u := range qm.universes {
-		universeSnapshot := u.getSnapshot()
+		universeSnapshot, err := u.getSnapshotWithError()
+		if err != nil {
+			return nil, fmt.Errorf("capture snapshot for universe '%s': %w", u.model.ID, err)
+		}
 
 		// add snapshot
 		machineSnapshot.AddUniverseSnapshot(u.model.ID, universeSnapshot)
@@ -205,7 +229,7 @@ func (qm *ExQuantumMachine) snapshotUnlocked() *instrumentation.MachineSnapshot 
 		machineSnapshot.AddTracking(u.model.ID, cloneStringSlice(u.tracking))
 	}
 
-	return machineSnapshot
+	return machineSnapshot, nil
 }
 
 func (qm *ExQuantumMachine) ReplayOnEntry(ctx context.Context) error {
@@ -531,17 +555,18 @@ func (qm *ExQuantumMachine) executeAction(ctx context.Context, model *theoretica
 	}
 
 	a := &actionExecutorArgs{
-		context:               args.Context,
-		realityName:           args.RealityName,
-		universeCanonicalName: args.UniverseCanonicalName,
-		universeID:            args.UniverseID,
-		universeMetadata:      u.metadata,
-		metadataMu:            &u.metadataMu,
-		event:                 args.Event,
-		action:                *model,
-		actionType:            actionType,
-		getSnapshotFn:         qm.snapshotUnlocked,
-		emittedEvents:         args.EmittedEvents,
+		context:                args.Context,
+		realityName:            args.RealityName,
+		universeCanonicalName:  args.UniverseCanonicalName,
+		universeID:             args.UniverseID,
+		universeMetadata:       u.metadata,
+		metadataMu:             &u.metadataMu,
+		event:                  args.Event,
+		action:                 *model,
+		actionType:             actionType,
+		getSnapshotFn:          qm.snapshotUnlocked,
+		getSnapshotWithErrorFn: qm.snapshotUnlockedWithError,
+		emittedEvents:          args.EmittedEvents,
 	}
 
 	if fn := builtin.GetAction(model.Src); fn != nil {

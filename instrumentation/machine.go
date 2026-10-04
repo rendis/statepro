@@ -52,6 +52,8 @@ type QuantumMachine interface {
 	LoadSnapshot(snapshot *MachineSnapshot, machineContext any) error
 
 	// GetSnapshot captures the current complete state of the quantum machine.
+	// The experimental runtime logs serialization failures and returns nil. Use
+	// GetSnapshotWithError for checked capture when the provider supports it.
 	// The snapshot includes for each universe: current reality, superposition state, tracking history,
 	// and categorization into active universes (running), finalized universes (in final state),
 	// or superposition universes (awaiting collapse).

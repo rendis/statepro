@@ -327,7 +327,7 @@ export const MetadataPackBindingsEditor = ({
               onClick={() =>
                 setCollapsedByBindingId((previous) => ({
                   ...previous,
-                  [binding.id]: !Boolean(previous[binding.id]),
+                  [binding.id]: !previous[binding.id],
                 }))
               }
               className="absolute top-2 right-2 inline-flex items-center justify-center w-5 h-5 rounded border border-slate-700 text-slate-300 hover:bg-slate-900/50"

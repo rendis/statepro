@@ -900,8 +900,6 @@ export const LibraryModal = ({
   const [showPackGeneratedPreview, setShowPackGeneratedPreview] = useState(false);
   const resolveBehaviorOrigin = (src: string): BehaviorRegistrySource =>
     behaviorSourceIndex[src] || "user";
-  const isBuiltinBehavior = (src: string): boolean =>
-    resolveBehaviorOrigin(src) === "builtin";
   const packFieldValidation = useMemo(
     () => buildVisualFieldValidation(packForm?.fields || [], t),
     [packForm?.fields, t],

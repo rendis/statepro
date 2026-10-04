@@ -134,13 +134,13 @@ export const buildIssueIndex = (
     const field = issue.field || "";
     let assigned = false;
 
-    const transitionById = field.match(/^transition:([^.\[]+)/);
+    const transitionById = field.match(/^transition:([^.[]+)/);
     if (transitionById?.[1]) {
       pushIssue(index.transitions, transitionById[1], issue);
       assigned = true;
     }
 
-    const universeMeta = field.match(/^universe:([^.\[]+)/);
+    const universeMeta = field.match(/^universe:([^.[]+)/);
     if (universeMeta?.[1]) {
       const universeNode = universeByDataId.get(universeMeta[1]);
       if (universeNode) {
@@ -149,7 +149,7 @@ export const buildIssueIndex = (
       }
     }
 
-    const realityMeta = field.match(/^reality:([^.\[]+)\.([^.\[]+)/);
+    const realityMeta = field.match(/^reality:([^.[]+)\.([^.[]+)/);
     if (realityMeta?.[1] && realityMeta[2]) {
       const universeNode = universeByDataId.get(realityMeta[1]);
       const realityNode = universeNode

@@ -292,21 +292,21 @@ describe("serializeStatePro", () => {
       throw new Error("Missing fixtures");
     }
 
-    universe.data.metadata = '{\"origin\":\"manual\",\"_ui_note\":{\"text\":\"stale\",\"colorIndex\":4}}';
+    universe.data.metadata = '{"origin":"manual","_ui_note":{"text":"stale","colorIndex":4}}';
     universe.data.note = { text: "Universe note", colorIndex: 2 };
-    reality.data.metadata = '{\"hint\":\"manual reality\",\"_ui_note\":{\"text\":\"stale\"}}';
+    reality.data.metadata = '{"hint":"manual reality","_ui_note":{"text":"stale"}}';
     reality.data.note = { text: "Reality note", colorIndex: 1 };
 
     state.transitions = [
       {
         ...state.transitions[0],
-        metadata: '{\"debug\":true,\"_ui_note\":{\"text\":\"stale transition\",\"colorIndex\":4}}',
+        metadata: '{"debug":true,"_ui_note":{"text":"stale transition","colorIndex":4}}',
         note: { text: "Transition note", colorIndex: 3 },
       },
     ];
 
     state.machineConfig.metadata =
-      '{\"author\":\"rendis\",\"_ui_notes\":[{\"x\":1,\"y\":2,\"text\":\"stale\",\"colorIndex\":4}]}';
+      '{"author":"rendis","_ui_notes":[{"x":1,"y":2,"text":"stale","colorIndex":4}]}';
     state.nodes.push({
       id: "note-1",
       type: "note",
@@ -351,12 +351,12 @@ describe("serializeStatePro", () => {
       throw new Error("Missing universe fixture");
     }
 
-    universe.data.metadata = '{\"custom\":true,\"_ui_note\":{\"text\":\"legacy\",\"colorIndex\":2}}';
-    state.machineConfig.metadata = '{\"name\":\"machine\",\"_ui_notes\":[{\"x\":1,\"y\":1,\"text\":\"legacy\"}]}';
+    universe.data.metadata = '{"custom":true,"_ui_note":{"text":"legacy","colorIndex":2}}';
+    state.machineConfig.metadata = '{"name":"machine","_ui_notes":[{"x":1,"y":1,"text":"legacy"}]}';
     state.transitions = [
       {
         ...state.transitions[0],
-        metadata: '{\"custom\":true,\"_ui_note\":{\"text\":\"legacy transition\"}}',
+        metadata: '{"custom":true,"_ui_note":{"text":"legacy transition"}}',
       },
     ];
 

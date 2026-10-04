@@ -130,6 +130,31 @@ Zero changes to the JSON definition. The existing `on.create-form` transition wi
 Use `qm.LoadSnapshot(snapshot, machineContext)` to restore a machine. Snapshots capture the latest
 machine context metadata but you must provide any external context objects when reloading.
 
+For persistence, use the optional checked capture capability:
+
+```go
+snapshot, err := instrumentation.GetSnapshotWithError(qm)
+if err != nil {
+    return err
+}
+encoded, err := snapshot.ToJson()
+```
+
+The experimental runtime returns a complete snapshot or an error. Unsupported JSON values in
+metadata or event data (such as channels, functions, cycles, or non-finite floats) fail capture.
+The legacy `GetSnapshot()` method logs the failure and returns `nil`; check that result before use.
+Existing third-party implementations do not need to add a method to the machine interface. The
+checked helper returns an unsupported-capability error when a provider lacks `SnapshotProvider`.
+
+Snapshot capture, `json.Unmarshal` into `MachineSnapshot`, and `LoadSnapshot` preserve numeric
+values through JSON round-trips. Ordinary values retain the previous `float64` representation;
+integers and decimals whose value would change through that conversion retain `json.Number`.
+Consumers of untyped metadata must support both representations. This includes integers above
+the exact float64 range and long decimal fractions. Captured maps remain detached from live data.
+
+Inside a synchronous action, call `instrumentation.GetSnapshotWithError(args)` using the callback
+arguments. Calling the owning machine directly would try to reacquire its execution lock.
+
 `qm.ReplayOnEntry(ctx)` re-executes entry actions and invokes for every active universe without
 changing reality assignments. This is useful when you need to re-run side effects after downtime.
 
