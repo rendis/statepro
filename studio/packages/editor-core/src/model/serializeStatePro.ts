@@ -409,6 +409,12 @@ export const serializeStatePro = (state: EditorState): SerializeResult => {
   }
 
   const orderedTransitions = normalizeTransitionsOrder(transitions);
+  const transitionsBySource = new Map<string, EditorTransition[]>();
+  orderedTransitions.forEach((transition) => {
+    const outgoing = transitionsBySource.get(transition.sourceRealityId) || [];
+    outgoing.push(transition);
+    transitionsBySource.set(transition.sourceRealityId, outgoing);
+  });
   const universeNodes = nodes.filter((node) => node.type === "universe");
   const realityNodes = nodes.filter((node) => node.type === "reality");
   const universeByNodeId = new Map(universeNodes.map((universe) => [universe.id, universe]));
@@ -610,9 +616,7 @@ export const serializeStatePro = (state: EditorState): SerializeResult => {
           : undefined,
     });
 
-    const outgoingTransitions = orderedTransitions.filter(
-      (transition) => transition.sourceRealityId === reality.id,
-    );
+    const outgoingTransitions = transitionsBySource.get(reality.id) || [];
 
     const alwaysTransitions = outgoingTransitions.filter(
       (transition) => transition.triggerKind === "always",

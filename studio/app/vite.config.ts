@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 const appRoot = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(appRoot, "..");
@@ -23,7 +24,7 @@ export default defineConfig(({ mode }) => {
   const useSourceAlias = isSourceAliasEnabled(mode);
 
   return {
-    plugins: [react()],
+    plugins: [react(), tailwindcss()],
     resolve: {
       alias: useSourceAlias
         ? [

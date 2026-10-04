@@ -79,6 +79,33 @@ const noopRenameHandlers = {
 };
 
 describe("PropertiesModal transition behavior", () => {
+  it("permite abrir, cerrar y volver a abrir sin cambiar el orden de hooks", () => {
+    const universe = nodes.find(node => node.type === "universe")!;
+    const reality = nodes.find(node => node.type === "reality")!;
+    const props = {
+      nodes,
+      transitions: [transition],
+      onClose: vi.fn(),
+      updateNodeData: vi.fn(),
+      ...noopRenameHandlers,
+      updateTransitionData: vi.fn(),
+      moveTransition: vi.fn(),
+      openBehaviorModal: vi.fn(),
+      registry: [],
+      metadataPackRegistry: [],
+      metadataPackBindings: { machine: [], universe: [], reality: [], transition: [] },
+      setMetadataPackBindings: vi.fn(),
+    };
+    const { container, rerender } = render(<PropertiesModal {...props} element={null} />);
+    expect(container).toBeEmptyDOMElement();
+    rerender(<PropertiesModal {...props} element={universe} />);
+    expect(screen.getAllByDisplayValue("main").length).toBeGreaterThan(0);
+    rerender(<PropertiesModal {...props} element={null} />);
+    expect(container).toBeEmptyDOMElement();
+    rerender(<PropertiesModal {...props} element={reality} />);
+    expect(screen.getByDisplayValue("idle")).toBeInTheDocument();
+  });
+
   it("en universo emparejado bloquea id y edita canonical con syncId", () => {
     const universe = nodes.find(
       (node): node is Extract<EditorNode, { type: "universe" }> => node.type === "universe",

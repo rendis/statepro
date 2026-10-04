@@ -23,7 +23,7 @@
     "build": "tsup src/index.ts --format esm,cjs --dts --sourcemap --clean",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
-    "lint": "echo 'lint: pendiente de reglas'"
+    "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
     "@rendis/statepro-studio-react": "workspace:*",
@@ -35,6 +35,6 @@
     "@types/react-dom": "^19.2.3",
     "tsup": "^8.5.0",
     "typescript": "^5.7.3",
-    "vitest": "^3.2.6"
+    "vitest": "^4.1.11"
   }
 }

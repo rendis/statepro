@@ -11,6 +11,7 @@ import type {
   StateProMachine,
 } from "../types";
 import { editorReducer, type EditorAction } from "./editorReducer";
+import deepEqual from "fast-deep-equal";
 
 export const HISTORY_LIMIT = 100;
 export const COALESCE_WINDOW_MS = 600;
@@ -66,13 +67,15 @@ const toSnapshot = (state: EditorState): EditorHistorySnapshot => ({
   isDirtyFromImport: state.isDirtyFromImport,
 });
 
-const serializeSnapshot = (snapshot: EditorHistorySnapshot): string => JSON.stringify(snapshot);
-
 const snapshotsEqual = (
   left: EditorHistorySnapshot,
   right: EditorHistorySnapshot,
 ): boolean => {
-  return serializeSnapshot(left) === serializeSnapshot(right);
+  // Unchanged graph sections keep their identity across immutable reducer edits.
+  // Only traverse sections which actually changed, rather than serializing the graph.
+  return (Object.keys(left) as Array<keyof EditorHistorySnapshot>).every(
+    (key) => Object.is(left[key], right[key]) || deepEqual(left[key], right[key]),
+  );
 };
 
 const pushPast = (

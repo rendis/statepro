@@ -1,6 +1,7 @@
 package experimental
 
 import (
+	"fmt"
 	"log/slog"
 	"sync"
 
@@ -131,17 +132,18 @@ func (o *observerExecutorArgs) UpdateUniverseMetadata(md map[string]any) {
 // --------- ActionExecutorArgs ---------//
 
 type actionExecutorArgs struct {
-	context               any
-	realityName           string
-	universeCanonicalName string
-	universeID            string
-	universeMetadata      map[string]any
-	metadataMu            *sync.Mutex
-	event                 instrumentation.Event
-	action                theoretical.ActionModel
-	actionType            instrumentation.ActionType
-	getSnapshotFn         func() *instrumentation.MachineSnapshot
-	emittedEvents         *[]instrumentation.EmittedEvent
+	context                any
+	realityName            string
+	universeCanonicalName  string
+	universeID             string
+	universeMetadata       map[string]any
+	metadataMu             *sync.Mutex
+	event                  instrumentation.Event
+	action                 theoretical.ActionModel
+	actionType             instrumentation.ActionType
+	getSnapshotFn          func() *instrumentation.MachineSnapshot
+	getSnapshotWithErrorFn func() (*instrumentation.MachineSnapshot, error)
+	emittedEvents          *[]instrumentation.EmittedEvent
 }
 
 func (a *actionExecutorArgs) GetContext() any {
@@ -174,6 +176,13 @@ func (a *actionExecutorArgs) GetActionType() instrumentation.ActionType {
 
 func (a *actionExecutorArgs) GetSnapshot() *instrumentation.MachineSnapshot {
 	return a.getSnapshotFn()
+}
+
+func (a *actionExecutorArgs) GetSnapshotWithError() (*instrumentation.MachineSnapshot, error) {
+	if a.getSnapshotWithErrorFn == nil {
+		return nil, fmt.Errorf("snapshot provider does not support capture errors")
+	}
+	return a.getSnapshotWithErrorFn()
 }
 
 func (a *actionExecutorArgs) GetUniverseMetadata() map[string]any {

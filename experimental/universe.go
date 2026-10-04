@@ -106,7 +106,8 @@ type ExUniverse struct {
 
 	// getSnapshotFn returns a snapshot without taking the machine mutex.
 	// Used from actions that already run under quantumMachineMtx.
-	getSnapshotFn func() *instrumentation.MachineSnapshot
+	getSnapshotFn          func() *instrumentation.MachineSnapshot
+	getSnapshotWithErrorFn func() (*instrumentation.MachineSnapshot, error)
 }
 
 //------------------------------- External Operations -------------------------------//
@@ -182,6 +183,14 @@ func (u *ExUniverse) startOnReality(ctx context.Context, realityName string, uni
 
 // getSnapshot returns a snapshot of the universe
 func (u *ExUniverse) getSnapshot() instrumentation.SerializedUniverseSnapshot {
+	snapshot, err := u.getSnapshotWithError()
+	if err != nil {
+		slog.Error("snapshot capture failed", "universe", u.model.ID, "error", err)
+	}
+	return snapshot
+}
+
+func (u *ExUniverse) getSnapshotWithError() (instrumentation.SerializedUniverseSnapshot, error) {
 	u.metadataMu.Lock()
 	metadataCopy := cloneAnyMap(u.metadata)
 	u.metadataMu.Unlock()
@@ -204,8 +213,8 @@ func (u *ExUniverse) getSnapshot() instrumentation.SerializedUniverseSnapshot {
 		}
 	}
 
-	m, _ := util.StructToMap(infoSnapshot)
-	return m
+	m, err := util.StructToMap(infoSnapshot)
+	return m, err
 }
 
 // decodeSnapshot validates a detached snapshot without changing live state.
@@ -213,9 +222,19 @@ func (u *ExUniverse) decodeSnapshot(universeSnapshot instrumentation.SerializedU
 	if universeSnapshot == nil {
 		return nil, fmt.Errorf("snapshot for universe '%s' must not be nil", u.model.ID)
 	}
-	snapshot, err := util.MapToStruct[UniverseInfoSnapshot](universeSnapshot)
+	snapshot, err := util.MapToStructWithNumbers[UniverseInfoSnapshot](universeSnapshot)
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("error loading snapshot for universe '%s'", u.model.ID), err)
+	}
+	util.NormalizeJSONNumbers(snapshot.Metadata)
+	if snapshot.Accumulator != nil {
+		for _, events := range snapshot.Accumulator.RealitiesEvents {
+			for _, event := range events {
+				if event != nil {
+					util.NormalizeJSONNumbers(event.Data)
+				}
+			}
+		}
 	}
 	invalid := func(reason string) (*UniverseInfoSnapshot, error) {
 		return nil, fmt.Errorf("invalid snapshot for universe '%s': %s", u.model.ID, reason)
@@ -997,17 +1016,18 @@ func (u *ExUniverse) executeActions(
 	// execute actions
 	for _, action := range actionModels {
 		args := &actionExecutorArgs{
-			context:               u.universeContext,
-			realityName:           *u.currentReality,
-			universeCanonicalName: u.model.CanonicalName,
-			universeID:            u.model.ID,
-			universeMetadata:      u.metadata,
-			metadataMu:            &u.metadataMu,
-			event:                 event,
-			action:                *action,
-			actionType:            actionType,
-			getSnapshotFn:         u.snapshotProvider(),
-			emittedEvents:         emittedEvents,
+			context:                u.universeContext,
+			realityName:            *u.currentReality,
+			universeCanonicalName:  u.model.CanonicalName,
+			universeID:             u.model.ID,
+			universeMetadata:       u.metadata,
+			metadataMu:             &u.metadataMu,
+			event:                  event,
+			action:                 *action,
+			actionType:             actionType,
+			getSnapshotFn:          u.snapshotProvider(),
+			getSnapshotWithErrorFn: u.snapshotWithErrorProvider(),
+			emittedEvents:          emittedEvents,
 		}
 		if err := u.runActionExecutor(ctx, action.Src, args); err != nil {
 			return errors.Join(fmt.Errorf("error executing action '%s'", action.Src), err)
@@ -1209,6 +1229,15 @@ func (u *ExUniverse) snapshotProvider() func() *instrumentation.MachineSnapshot 
 		return u.constantsLawsExecutor.GetSnapshot
 	}
 	return func() *instrumentation.MachineSnapshot { return nil }
+}
+
+func (u *ExUniverse) snapshotWithErrorProvider() func() (*instrumentation.MachineSnapshot, error) {
+	if u.getSnapshotWithErrorFn != nil {
+		return u.getSnapshotWithErrorFn
+	}
+	return func() (*instrumentation.MachineSnapshot, error) {
+		return instrumentation.GetSnapshotWithError(u.constantsLawsExecutor)
+	}
 }
 
 func (u *ExUniverse) universeConstants() *theoretical.UniversalConstantsModel {
