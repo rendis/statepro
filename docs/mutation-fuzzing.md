@@ -55,10 +55,23 @@ Mutates `validateStatePro`, `identifiers`, and `transitionRules` by default. Exp
 
 Aim to kill **observable** survivors (wrong branch, wrong sentinel, off-by-one on a documented boundary). Do **not** chase arithmetic on buffer capacity, loop-control on uniquely named maps, or sort comparator `<` vs `<=` when IDs are unique — those are usually equivalent mutants.
 
-Approximate baselines after survivor hardening:
+Complete campaign measurements on 2026-10-04:
 
-| Package | Tool | Score (ballpark) |
-|---------|------|------------------|
-| `builtin/` | Gremlins | ~92% (remaining LIVED: capacity arithmetic) |
-| `experimental/` | Gremlins | ~89%+ |
-| editor-core validators | Stryker | ~45% (narrow suite; raise by expanding mutate + tests) |
+| Target | Tool | Efficacy / mutation score | Mutant coverage / covered score |
+| --- | --- | --- | --- |
+| `builtin/` | Gremlins | 92.00% | 100.00% |
+| `debugger/bot/` | Gremlins | 96.00% | 100.00% |
+| root package and covered dependencies | Gremlins | 83.11% | 85.43% |
+| `experimental/` and covered dependencies | Gremlins | 87.31% | 96.50% |
+| editor-core configured three source files | Stryker | 58.11% | 65.12% |
+
+Stryker ran the expanded 59-test suite against 845 mutants: 489 killed, 2 timed out,
+263 survived, and 91 uncovered, with no runner errors. The prior 16-test suite scored 48.88%
+on 804 mutants; both test scope and guarded source changed, so the totals differ.
+Gremlins efficacy excludes timeout results; Stryker includes timeouts in detected mutants.
+Covered scores exclude uncovered mutants and are not comparable to statement coverage.
+
+The normal Vitest configuration excludes `.stryker-tmp` to avoid discovering duplicated or
+instrumented test files. Babel overrides retain the major version required by the Stryker
+instrumenter. See the [follow-up report](reviews/2026-10-04-runtime-controls.md) for counts,
+reproduction methods, performance measurements, and remaining limits.
