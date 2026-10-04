@@ -50,9 +50,13 @@ func NewBot(
 		return nil, fmt.Errorf("event provider cannot be nil")
 	}
 
+	initial, err := captureSnapshot(context.Background(), qm)
+	if err != nil {
+		return nil, fmt.Errorf("error capturing initial snapshot: %w", err)
+	}
 	b := &bot{
 		qm:                 qm,
-		initialSnapshot:    qm.GetSnapshot(),
+		initialSnapshot:    initial,
 		eventProvider:      eventProvider,
 		initQuantumMachine: initQuantumMachine,
 	}
@@ -60,7 +64,9 @@ func NewBot(
 	for _, opt := range opts {
 		opt(b)
 	}
-
+	if b.historyLimit < 0 {
+		return nil, fmt.Errorf("history limit must not be negative")
+	}
 	return b, nil
 }
 
@@ -71,6 +77,7 @@ type bot struct {
 	initQuantumMachine    bool
 	history               []*EventHistory
 	ignoreUnhandledEvents bool
+	historyLimit          int
 }
 
 type BotOption func(*bot)
@@ -81,10 +88,46 @@ func WithIgnoreUnhandledEvents(ignore bool) BotOption {
 	}
 }
 
+// WithHistoryLimit retains the latest entries; zero preserves unlimited history.
+func WithHistoryLimit(limit int) BotOption {
+	return func(b *bot) { b.historyLimit = limit }
+}
+
+func captureSnapshot(ctx context.Context, qm instrumentation.QuantumMachine) (*instrumentation.MachineSnapshot, error) {
+	var snapshot *instrumentation.MachineSnapshot
+	var err error
+	if contextual, ok := qm.(instrumentation.ContextSnapshotProvider); ok {
+		snapshot, err = contextual.GetSnapshotContext(ctx)
+	} else if checked, ok := qm.(instrumentation.SnapshotProvider); ok {
+		snapshot, err = checked.GetSnapshotWithError()
+	} else {
+		snapshot = qm.GetSnapshot()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if snapshot == nil {
+		return nil, fmt.Errorf("snapshot capture returned nil")
+	}
+	return snapshot, nil
+}
+
 func (b *bot) Run(ctx context.Context, machineContext any) error {
+	if ctx == nil {
+		return fmt.Errorf("context must not be nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	b.history = nil
-	if err := b.qm.LoadSnapshot(b.initialSnapshot, machineContext); err != nil {
-		return fmt.Errorf("error loading initial snapshot: %w", err)
+	var restoreErr error
+	if contextual, ok := b.qm.(instrumentation.ContextSnapshotProvider); ok {
+		restoreErr = contextual.LoadSnapshotContext(ctx, b.initialSnapshot, machineContext)
+	} else {
+		restoreErr = b.qm.LoadSnapshot(b.initialSnapshot, machineContext)
+	}
+	if restoreErr != nil {
+		return fmt.Errorf("error loading initial snapshot: %w", restoreErr)
 	}
 
 	if b.initQuantumMachine {
@@ -94,8 +137,18 @@ func (b *bot) Run(ctx context.Context, machineContext any) error {
 	}
 
 	for {
-		event, err := b.eventProvider(b.qm.GetSnapshot())
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		snapshot, err := captureSnapshot(ctx, b.qm)
 		if err != nil {
+			return fmt.Errorf("error capturing snapshot: %w", err)
+		}
+		event, err := b.eventProvider(snapshot)
+		if err != nil {
+			return err
+		}
+		if err := ctx.Err(); err != nil {
 			return err
 		}
 		if event == nil {
@@ -114,10 +167,19 @@ func (b *bot) Run(ctx context.Context, machineContext any) error {
 			return fmt.Errorf("event '%s' was not handled", event.GetEventName())
 		}
 
+		snapshot, err = captureSnapshot(ctx, b.qm)
+		if err != nil {
+			return fmt.Errorf("error capturing event snapshot: %w", err)
+		}
 		b.history = append(b.history, &EventHistory{
 			Event:    event,
-			Snapshot: b.qm.GetSnapshot(),
+			Snapshot: snapshot,
 		})
+		if b.historyLimit > 0 && len(b.history) > b.historyLimit {
+			copy(b.history, b.history[len(b.history)-b.historyLimit:])
+			clear(b.history[b.historyLimit:])
+			b.history = b.history[:b.historyLimit]
+		}
 	}
 
 	return nil

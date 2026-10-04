@@ -8,6 +8,14 @@ import (
 )
 
 func NewQuantumMachine(qmModel *theoretical.QuantumMachineModel) (instrumentation.QuantumMachine, error) {
+	return NewQuantumMachineWithOptions(qmModel, instrumentation.RuntimeOptions{})
+}
+
+// NewQuantumMachineWithOptions creates a machine with explicit runtime policies.
+func NewQuantumMachineWithOptions(qmModel *theoretical.QuantumMachineModel, options instrumentation.RuntimeOptions) (instrumentation.QuantumMachine, error) {
+	if err := options.Validate(); err != nil {
+		return nil, err
+	}
 	if qmModel == nil {
 		return nil, fmt.Errorf("quantum machine model must not be nil")
 	}
@@ -18,7 +26,7 @@ func NewQuantumMachine(qmModel *theoretical.QuantumMachineModel) (instrumentatio
 		}
 		universes = append(universes, experimental.NewExUniverse(model))
 	}
-	return experimental.NewExQuantumMachine(qmModel, universes)
+	return experimental.NewExQuantumMachineWithOptions(qmModel, universes, options)
 }
 
 func NewEventBuilder(eventName string) instrumentation.EventBuilder {

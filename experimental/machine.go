@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
-	"sync"
 
 	"github.com/rendis/statepro/v3/builtin"
 	"github.com/rendis/statepro/v3/instrumentation"
@@ -33,12 +32,21 @@ var qmInitFunctions = map[refType]initFunc{
 }
 
 func NewExQuantumMachine(qmm *theoretical.QuantumMachineModel, universes []*ExUniverse) (instrumentation.QuantumMachine, error) {
+	return NewExQuantumMachineWithOptions(qmm, universes, instrumentation.RuntimeOptions{})
+}
+
+func NewExQuantumMachineWithOptions(qmm *theoretical.QuantumMachineModel, universes []*ExUniverse, options instrumentation.RuntimeOptions) (instrumentation.QuantumMachine, error) {
+	if err := options.Validate(); err != nil {
+		return nil, err
+	}
 	if qmm == nil {
 		return nil, fmt.Errorf("quantum machine model must not be nil")
 	}
 
 	qm := &ExQuantumMachine{
 		model:     qmm,
+		options:   options,
+		invokes:   newInvokeManager(options.MaxConcurrentInvokes),
 		universes: map[string]*ExUniverse{},
 	}
 
@@ -55,6 +63,9 @@ func NewExQuantumMachine(qmm *theoretical.QuantumMachineModel, universes []*ExUn
 			return nil, fmt.Errorf("universe '%s' already exists", u.model.ID)
 		}
 
+		u.options = options
+		u.invokes = qm.invokes
+		u.owner = qm
 		u.constantsLawsExecutor = qm
 		u.getSnapshotFn = qm.snapshotUnlocked
 		u.getSnapshotWithErrorFn = qm.snapshotUnlockedWithError
@@ -76,7 +87,9 @@ type ExQuantumMachine struct {
 	universes map[string]*ExUniverse
 
 	// quantumMachineMtx is the mutex for the quantum machine
-	quantumMachineMtx sync.Mutex
+	quantumMachineMtx contextMutex
+	options           instrumentation.RuntimeOptions
+	invokes           *invokeManager
 }
 
 //--------- QuantumMachine interface implementation ---------
@@ -93,14 +106,10 @@ func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation
 	if event == nil || isNilEvent(event) {
 		return false, fmt.Errorf("event must not be nil")
 	}
-	if err := ctx.Err(); err != nil {
+	if err := qm.lockContext(ctx); err != nil {
 		return false, err
 	}
-	qm.quantumMachineMtx.Lock()
 	defer qm.quantumMachineMtx.Unlock()
-	if err := ctx.Err(); err != nil {
-		return false, err
-	}
 
 	var pairs []util.Pair[instrumentation.Event, []string]
 
@@ -111,6 +120,9 @@ func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation
 	}
 
 	for _, u := range activeUniverses {
+		if err := ctx.Err(); err != nil {
+			return true, err
+		}
 		externalTargets, err := u.handleEvent(ctx, nil, event, qm.machineContext)
 		if err != nil {
 			return true, err
@@ -140,6 +152,21 @@ func isNilEvent(event instrumentation.Event) bool {
 func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapshot, machineContext any) error {
 	qm.quantumMachineMtx.Lock()
 	defer qm.quantumMachineMtx.Unlock()
+	if qm.invokes != nil && qm.invokes.isClosed() {
+		return instrumentation.ErrMachineClosed
+	}
+	return qm.loadSnapshotUnlocked(context.Background(), snapshot, machineContext)
+}
+
+func (qm *ExQuantumMachine) LoadSnapshotContext(ctx context.Context, snapshot *instrumentation.MachineSnapshot, machineContext any) error {
+	if err := qm.lockContext(ctx); err != nil {
+		return err
+	}
+	defer qm.quantumMachineMtx.Unlock()
+	return qm.loadSnapshotUnlocked(ctx, snapshot, machineContext)
+}
+
+func (qm *ExQuantumMachine) loadSnapshotUnlocked(ctx context.Context, snapshot *instrumentation.MachineSnapshot, machineContext any) error {
 
 	if snapshot == nil {
 		return nil
@@ -148,6 +175,9 @@ func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapsh
 	// Decode and validate every included universe before changing any live state.
 	prepared := make(map[*ExUniverse]*UniverseInfoSnapshot)
 	for _, u := range qm.universes {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		universeSnapshot, ok := snapshot.Snapshots[u.model.ID]
 
 		if !ok {
@@ -160,9 +190,15 @@ func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapsh
 		}
 		prepared[u] = decoded
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	for u, decoded := range prepared {
+		if qm.options.CancelInvokesOnExit {
+			qm.invokes.cancel(u.model.ID, "")
+		}
 		u.applySnapshot(decoded)
-		u.tracking = cloneStringSlice(snapshot.Tracking[u.model.ID])
+		u.tracking = u.retainTracking(cloneStringSlice(snapshot.Tracking[u.model.ID]))
 	}
 
 	qm.machineContext = machineContext
@@ -233,7 +269,9 @@ func (qm *ExQuantumMachine) snapshotUnlockedWithError() (*instrumentation.Machin
 }
 
 func (qm *ExQuantumMachine) ReplayOnEntry(ctx context.Context) error {
-	qm.quantumMachineMtx.Lock()
+	if err := qm.lockContext(ctx); err != nil {
+		return err
+	}
 	defer qm.quantumMachineMtx.Unlock()
 
 	var evt = NewEventBuilder("replayOnEntry").
@@ -254,7 +292,9 @@ func (qm *ExQuantumMachine) ReplayOnEntry(ctx context.Context) error {
 }
 
 func (qm *ExQuantumMachine) PositionMachine(ctx context.Context, machineContext any, universeID string, realityID string, executeFlow bool) error {
-	qm.quantumMachineMtx.Lock()
+	if err := qm.lockContext(ctx); err != nil {
+		return err
+	}
 	defer qm.quantumMachineMtx.Unlock()
 
 	// Validate parameters
@@ -319,7 +359,9 @@ func (qm *ExQuantumMachine) PositionMachineOnInitial(ctx context.Context, machin
 	}
 
 	// Get target universe (without lock - PositionMachine will handle locking)
-	qm.quantumMachineMtx.Lock()
+	if err := qm.lockContext(ctx); err != nil {
+		return err
+	}
 	universe, ok := qm.universes[universeID]
 	qm.quantumMachineMtx.Unlock()
 
@@ -344,7 +386,9 @@ func (qm *ExQuantumMachine) PositionMachineByCanonicalName(ctx context.Context, 
 	}
 
 	// Find universe by canonical name
-	qm.quantumMachineMtx.Lock()
+	if err := qm.lockContext(ctx); err != nil {
+		return err
+	}
 	var universeID string
 	for id, universe := range qm.universes {
 		if universe.model.CanonicalName == universeCanonicalName {
@@ -369,7 +413,9 @@ func (qm *ExQuantumMachine) PositionMachineOnInitialByCanonicalName(ctx context.
 	}
 
 	// Find universe by canonical name
-	qm.quantumMachineMtx.Lock()
+	if err := qm.lockContext(ctx); err != nil {
+		return err
+	}
 	var universeID string
 	for id, universe := range qm.universes {
 		if universe.model.CanonicalName == universeCanonicalName {
@@ -461,7 +507,9 @@ func (qm *ExQuantumMachine) ExecuteTransitionAction(ctx context.Context, args *i
 //-----------------------------------------------------------
 
 func (qm *ExQuantumMachine) init(ctx context.Context, machineContext any, event instrumentation.Event) error {
-	qm.quantumMachineMtx.Lock()
+	if err := qm.lockContext(ctx); err != nil {
+		return err
+	}
 	defer qm.quantumMachineMtx.Unlock()
 
 	// guard: prevent double initialization
@@ -476,6 +524,9 @@ func (qm *ExQuantumMachine) init(ctx context.Context, machineContext any, event 
 	var pairs []util.Pair[instrumentation.Event, []string]
 
 	for _, ref := range qm.model.Initials {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		// get reference type and parts
 		refT, parts, err := processReference(ref)
 		if err != nil {
@@ -528,20 +579,7 @@ func (qm *ExQuantumMachine) executeInvoke(ctx context.Context, invoke theoretica
 		invoke:                invoke,
 	}
 
-	if fn := builtin.GetInvoke(invoke.Src); fn != nil {
-		src := invoke.Src
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					slog.ErrorContext(ctx, "invoke panicked", "src", src, "panic", r)
-				}
-			}()
-			fn(ctx, a)
-		}()
-		return
-	}
-
-	slog.WarnContext(ctx, "invoke not found", "src", invoke.Src)
+	u.runInvokeExecutor(ctx, a)
 }
 
 func (qm *ExQuantumMachine) executeAction(ctx context.Context, model *theoretical.ActionModel, args *instrumentation.QuantumMachineExecutorArgs, actionType instrumentation.ActionType) error {
@@ -570,7 +608,16 @@ func (qm *ExQuantumMachine) executeAction(ctx context.Context, model *theoretica
 	}
 
 	if fn := builtin.GetAction(model.Src); fn != nil {
-		return fn(ctx, a)
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		callbackCtx, done := qm.callbackContext(ctx)
+		defer done()
+		err := fn(callbackCtx, a)
+		if err != nil {
+			return err
+		}
+		return ctx.Err()
 	}
 
 	slog.WarnContext(ctx, "action not found", "src", model.Src)
@@ -615,6 +662,9 @@ func (qm *ExQuantumMachine) executeExternalTargetPairs(ctx context.Context, pair
 
 	var jobs []cascadeJob
 	for _, pair := range pairs {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		evt, targets := pair.GetAll()
 		if len(targets) == 0 {
 			continue
@@ -653,6 +703,9 @@ func (qm *ExQuantumMachine) executeTransitions(ctx context.Context, event instru
 	var newTargets []string
 
 	for _, target := range targets {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		refT, parts, err := processReference(target)
 		if err != nil {
 			return nil, err

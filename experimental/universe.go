@@ -106,6 +106,10 @@ type ExUniverse struct {
 
 	// getSnapshotFn returns a snapshot without taking the machine mutex.
 	// Used from actions that already run under quantumMachineMtx.
+	options                instrumentation.RuntimeOptions
+	invokes                *invokeManager
+	owner                  *ExQuantumMachine
+	invokeError            error // Written only by synchronous admission under the machine lock.
 	getSnapshotFn          func() *instrumentation.MachineSnapshot
 	getSnapshotWithErrorFn func() (*instrumentation.MachineSnapshot, error)
 }
@@ -264,6 +268,9 @@ func (u *ExUniverse) decodeSnapshot(universeSnapshot instrumentation.SerializedU
 		}
 	}
 	if snapshot.Accumulator != nil {
+		if limit := u.options.MaxAccumulatedEvents; limit > 0 && snapshot.Accumulator.CountAllEvents() > limit {
+			return nil, &instrumentation.ResourceLimitError{Resource: "accumulated events", Limit: limit}
+		}
 		for reality, events := range snapshot.Accumulator.RealitiesEvents {
 			model, err := u.getRealityModel(reality)
 			if err != nil {
@@ -359,6 +366,9 @@ func (u *ExUniverse) positionStatic(realityID string, universeContext any) error
 	u.initialized = true
 
 	// Set current reality directly
+	if u.options.CancelInvokesOnExit && u.invokes != nil {
+		u.invokes.cancel(u.model.ID, "")
+	}
 	u.currentReality = &realityID
 	u.addStateToTracking(u.currentReality)
 
@@ -389,7 +399,15 @@ func (u *ExUniverse) addStateToTracking(state *string) {
 	if state == nil {
 		return
 	}
-	u.tracking = append(u.tracking, *state)
+	u.tracking = u.retainTracking(append(u.tracking, *state))
+}
+
+func (u *ExUniverse) retainTracking(entries []string) []string {
+	limit := u.options.MaxTrackingEntries
+	if limit > 0 && len(entries) > limit {
+		return append([]string(nil), entries[len(entries)-limit:]...)
+	}
+	return entries
 }
 
 func (u *ExUniverse) popTrackingIfLast(state string) {
@@ -554,6 +572,7 @@ func (u *ExUniverse) initializeUniverseOn(ctx context.Context, realityName strin
 }
 
 func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, event instrumentation.Event) error {
+	previousTracking := u.tracking
 	previousReality := u.currentReality
 	previousFinal := u.isFinalReality
 	previousRealityInitialized := u.realityInitialized
@@ -568,7 +587,7 @@ func (u *ExUniverse) establishNewReality(ctx context.Context, reality string, ev
 		u.realityInitialized = previousRealityInitialized
 		u.inSuperposition = previousSuperposition
 		u.realityBeforeSuperposition = previousBeforeSuperposition
-		u.popTrackingIfLast(reality)
+		u.tracking = previousTracking
 		return errors.Join(fmt.Errorf(errorExecutingOnEntryProcessMsgTemplate, u.model.ID, reality), err)
 	}
 	u.realityInitialized = true
@@ -634,6 +653,9 @@ func (u *ExUniverse) doCyclicTransition(
 	visitedTargets := map[string]int{}
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if approvedTransition == nil || len(approvedTransition.Targets) == 0 {
 			return nil
 		}
@@ -658,9 +680,9 @@ func (u *ExUniverse) doCyclicTransition(
 			return errors.Join(fmt.Errorf("error executing transition actions for reality '%s'", *u.currentReality), err)
 		}
 
-		u.constantsLawsExecutor.ExecuteTransitionInvokes(ctx, &args)
-		u.executeUniverseConstantInvokes(ctx, "transition", event)
-		u.executeInvokes(ctx, approvedTransition.Invokes, event)
+		if err := u.executeInvokeGroup(ctx, "transition", approvedTransition.Invokes, event, &args); err != nil {
+			return err
+		}
 
 		if approvedTransition.IsNotification() {
 			u.externalTargets = approvedTransition.Targets
@@ -692,6 +714,7 @@ func (u *ExUniverse) doCyclicTransition(
 			)
 		}
 
+		previousTracking := u.tracking
 		previousReality := u.currentReality
 		previousFinal := u.isFinalReality
 
@@ -702,7 +725,7 @@ func (u *ExUniverse) doCyclicTransition(
 			u.currentReality = previousReality
 			u.isFinalReality = previousFinal
 			u.realityInitialized = previousReality != nil
-			u.popTrackingIfLast(next)
+			u.tracking = previousTracking
 			return errors.Join(fmt.Errorf(errorExecutingOnEntryProcessMsgTemplate, u.model.ID, next), err)
 		}
 
@@ -730,6 +753,9 @@ func (u *ExUniverse) getApprovedTransition(
 	}
 
 	for _, transition := range transitionModels {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		var conditions []*theoretical.ConditionModel
 
 		if transition.Condition != nil {
@@ -866,12 +892,9 @@ func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrument
 	}
 
 	// execute on entry constants invokes, invokes are executed asynchronously
-	u.constantsLawsExecutor.ExecuteEntryInvokes(ctx, args)
-
-	u.executeUniverseConstantInvokes(ctx, "entry", event)
-
-	// execute on entry reality invokes, invokes are executed asynchronously
-	u.executeInvokes(ctx, realityModel.EntryInvokes, event)
+	if err := u.executeInvokeGroup(ctx, "entry", realityModel.EntryInvokes, event, args); err != nil {
+		return err
+	}
 
 	u.realityInitialized = true
 
@@ -924,6 +947,9 @@ func (u *ExUniverse) processEmittedEvents(
 	}
 
 	for _, emitted := range emittedEvents {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		transitions, ok := realityModel.On[emitted.Name]
 		if !ok {
 			continue
@@ -994,9 +1020,12 @@ func (u *ExUniverse) executeOnExitProcess(ctx context.Context, event instrumenta
 		)
 	}
 
-	u.constantsLawsExecutor.ExecuteExitInvokes(ctx, args)
-	u.executeUniverseConstantInvokes(ctx, "exit", event)
-	u.executeInvokes(ctx, realityModel.ExitInvokes, event)
+	if u.options.CancelInvokesOnExit && u.invokes != nil {
+		u.invokes.cancel(u.model.ID, realityModel.ID)
+	}
+	if err := u.executeInvokeGroup(ctx, "exit", realityModel.ExitInvokes, event, args); err != nil {
+		return err
+	}
 
 	u.realityInitialized = false
 	return nil
@@ -1015,6 +1044,9 @@ func (u *ExUniverse) executeActions(
 
 	// execute actions
 	for _, action := range actionModels {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		args := &actionExecutorArgs{
 			context:                u.universeContext,
 			realityName:            *u.currentReality,
@@ -1076,6 +1108,12 @@ func (u *ExUniverse) accumulateEventForReality(
 		return false, nil
 	}
 
+	if err := u.validateObservers(realityModel); err != nil {
+		return false, err
+	}
+	if err := u.checkAccumulatorBudget(1); err != nil {
+		return false, err
+	}
 	// accumulate Event
 	u.eventAccumulator.Accumulate(realityName, event)
 
@@ -1089,6 +1127,19 @@ func (u *ExUniverse) accumulateEventForReality(
 }
 
 func (u *ExUniverse) accumulateEventForAllRealities(ctx context.Context, event instrumentation.Event) (bool, string, error) {
+	// Reserve the worst-case fan-out before invoking observers or adding any copies.
+	copies := 0
+	for _, model := range u.model.Realities {
+		if err := u.validateObservers(model); err != nil {
+			return false, "", err
+		}
+		if len(model.Observers) > 0 {
+			copies++
+		}
+	}
+	if err := u.checkAccumulatorBudget(copies); err != nil {
+		return false, "", err
+	}
 	for _, reality := range sortedMapKeys(u.model.Realities) {
 		isNewReality, err := u.accumulateEventForReality(ctx, reality, event, false)
 		if err != nil {
@@ -1109,6 +1160,9 @@ func (u *ExUniverse) executeObservers(
 	var firstErr error
 
 	for _, observer := range realityModel.Observers {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
 		args := &observerExecutorArgs{
 			context:               u.universeContext,
 			realityName:           realityModel.ID,
@@ -1154,12 +1208,27 @@ func (u *ExUniverse) canRealityHandleEvent(realityName string, evt instrumentati
 //------------- executors -------------
 
 func (u *ExUniverse) runObserverExecutor(ctx context.Context, src string, args *observerExecutorArgs) (bool, error) {
+	if u.options.StrictObservers && (src == "" || builtin.GetObserver(src) == nil) {
+		return false, fmt.Errorf("%w: %q", instrumentation.ErrUnknownObserver, src)
+	}
 	if src == "" {
 		return true, nil
 	}
 
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
 	if fn := builtin.GetObserver(src); fn != nil {
-		return fn(ctx, args)
+		callbackCtx, done := u.owner.callbackContext(ctx)
+		defer done()
+		approved, err := fn(callbackCtx, args)
+		if err != nil {
+			return false, err
+		}
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
+		return approved, nil
 	}
 
 	slog.WarnContext(ctx, "observer not found (default: return true)", "src", src)
@@ -1171,8 +1240,17 @@ func (u *ExUniverse) runActionExecutor(ctx context.Context, src string, args *ac
 		return nil
 	}
 
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if fn := builtin.GetAction(src); fn != nil {
-		return fn(ctx, args)
+		callbackCtx, done := u.owner.callbackContext(ctx)
+		defer done()
+		err := fn(callbackCtx, args)
+		if err != nil {
+			return err
+		}
+		return ctx.Err()
 	}
 
 	slog.WarnContext(ctx, "action not found", "src", src)
@@ -1180,24 +1258,61 @@ func (u *ExUniverse) runActionExecutor(ctx context.Context, src string, args *ac
 }
 
 func (u *ExUniverse) runInvokeExecutor(ctx context.Context, args *invokeExecutorArgs) {
-	if args.invoke.Src == "" {
+	if u.invokeError != nil || args.invoke.Src == "" {
 		return
 	}
-
 	if fn := builtin.GetInvoke(args.invoke.Src); fn != nil {
-		src := args.invoke.Src
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					slog.ErrorContext(ctx, "invoke panicked", "src", src, "panic", r)
-				}
-			}()
-			fn(ctx, args)
-		}()
+		if u.invokes == nil {
+			u.invokes = newInvokeManager(0)
+		}
+		u.invokeError = u.invokes.start(ctx, u.model.ID, args.realityName, args.invoke.Src, func(ctx context.Context) { fn(ctx, args) })
+		if u.invokeError != nil {
+			slog.ErrorContext(ctx, "invoke admission failed", "src", args.invoke.Src, "error", u.invokeError)
+		}
 		return
 	}
-
 	slog.WarnContext(ctx, "invoke not found", "src", args.invoke.Src)
+}
+
+func (u *ExUniverse) executeInvokeGroup(ctx context.Context, phase string, invokes []*theoretical.InvokeModel, event instrumentation.Event, args *instrumentation.QuantumMachineExecutorArgs) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	u.invokeError = nil
+	switch phase {
+	case "entry":
+		u.constantsLawsExecutor.ExecuteEntryInvokes(ctx, args)
+	case "exit":
+		u.constantsLawsExecutor.ExecuteExitInvokes(ctx, args)
+	case "transition":
+		u.constantsLawsExecutor.ExecuteTransitionInvokes(ctx, args)
+	}
+	u.executeUniverseConstantInvokes(ctx, phase, event)
+	u.executeInvokes(ctx, invokes, event)
+	return u.invokeError
+}
+
+func (u *ExUniverse) validateObservers(model *theoretical.RealityModel) error {
+	if !u.options.StrictObservers {
+		return nil
+	}
+	for _, observer := range model.Observers {
+		if observer == nil || observer.Src == "" || builtin.GetObserver(observer.Src) == nil {
+			return fmt.Errorf("%w in universe %q, reality %q", instrumentation.ErrUnknownObserver, u.model.ID, model.ID)
+		}
+	}
+	return nil
+}
+
+func (u *ExUniverse) checkAccumulatorBudget(copies int) error {
+	limit := u.options.MaxAccumulatedEvents
+	if limit == 0 || u.eventAccumulator == nil {
+		return nil
+	}
+	if copies > limit-u.eventAccumulator.GetStatistics().CountAllEvents() {
+		return &instrumentation.ResourceLimitError{Resource: "accumulated events", Limit: limit}
+	}
+	return nil
 }
 
 func (u *ExUniverse) runConditionExecutor(ctx context.Context, args *conditionExecutorArgs) (bool, error) {
@@ -1205,8 +1320,20 @@ func (u *ExUniverse) runConditionExecutor(ctx context.Context, args *conditionEx
 		return true, nil
 	}
 
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
 	if fn := builtin.GetCondition(args.condition.Src); fn != nil {
-		return fn(ctx, args)
+		callbackCtx, done := u.owner.callbackContext(ctx)
+		defer done()
+		approved, err := fn(callbackCtx, args)
+		if err != nil {
+			return false, err
+		}
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
+		return approved, nil
 	}
 
 	slog.WarnContext(ctx, "condition not found (default: return false)", "src", args.condition.Src)
