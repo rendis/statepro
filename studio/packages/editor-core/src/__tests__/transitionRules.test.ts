@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildInvalidNotifyTransitionMap, isInternalTargetRef, isInvalidNotifyTransition } from "../utils";
+import { buildInvalidNotifyTransitionMap, isInternalTargetRef, isInvalidNotifyTransition, resolveTargetUniverseIdFromRef } from "../utils";
 import type { EditorNode, EditorTransition } from "../types";
 
 const baseNodes: EditorNode[] = [
@@ -90,6 +90,22 @@ const transition = (type: "default" | "notify", targets: string[]): EditorTransi
 });
 
 describe("transitionRules", () => {
+  it.each([
+    ["U:payments", "payments"], ["U:payments:ready", "payments"],
+    ["ready", null], ["U:", null], ["U::ready", null], ["U:payments:ready:extra", null],
+  ])("resuelve la referencia externa %s sin aceptar referencias ambiguas", (reference, universe) => {
+    expect(resolveTargetUniverseIdFromRef(reference)).toBe(universe);
+  });
+
+  it("no confunde ids repetidos entre universos ni nodos que no son realidades", () => {
+    expect(isInternalTargetRef("r-1", "r-3", baseNodes)).toBe(false);
+    expect(isInternalTargetRef("missing", "r-2", baseNodes)).toBe(false);
+    expect(isInternalTargetRef("u-1", "r-2", baseNodes)).toBe(false);
+    expect(isInternalTargetRef("r-1", "missing", baseNodes)).toBe(false);
+    const missingSource = { ...transition("notify", ["r-2"]), sourceRealityId: "missing" };
+    expect(buildInvalidNotifyTransitionMap([missingSource], baseNodes).get(missingSource.id)).toBe(false);
+  });
+
   it("detecta target interno por ref de realidad", () => {
     expect(isInternalTargetRef("r-1", "r-2", baseNodes)).toBe(true);
   });

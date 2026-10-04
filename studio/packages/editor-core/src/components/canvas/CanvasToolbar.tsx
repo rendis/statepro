@@ -309,8 +309,8 @@ export const CanvasToolbar = ({
     <>
       <div
         ref={searchRootRef}
-        className={`fixed top-20 right-8 z-[70] transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          showExpandedSearch ? "w-[440px]" : "w-11"
+        className={`fixed top-40 sm:top-20 right-3 sm:right-8 z-[70] transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          showExpandedSearch ? "w-[calc(100%_-_1.5rem)] sm:w-[440px]" : "w-11"
         }`}
         onKeyDownCapture={handleSearchKeyDown}
         onFocusCapture={() => setIsSearchFocusWithin(true)}
@@ -501,7 +501,7 @@ export const CanvasToolbar = ({
         )}
       </div>
 
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-xl p-1.5 shadow-2xl flex items-center gap-1 z-[60] animate-in slide-in-from-bottom-5">
+      <div className="fixed bottom-32 xl:bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-xl p-1.5 shadow-2xl flex items-center gap-1 z-[60] animate-in slide-in-from-bottom-5">
         <StudioTooltip label={t("toolbar.addBlankUniverse")}>
           <button
             onClick={onAddUniverse}
@@ -682,7 +682,7 @@ export const CanvasToolbar = ({
         </div>
       </div>
 
-      <div className="fixed bottom-6 right-8 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-xl p-1.5 shadow-2xl flex items-center gap-1 z-[60] animate-in slide-in-from-bottom-4">
+      <div className="fixed bottom-6 left-3 right-3 sm:left-auto sm:right-8 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-xl p-1.5 shadow-2xl flex flex-wrap sm:flex-nowrap justify-center items-center gap-1 z-[60] animate-in slide-in-from-bottom-4">
         <StudioTooltip
           label={isAutoLayouting ? t("toolbar.autoLayoutRunning") : t("toolbar.autoLayout")}
         >

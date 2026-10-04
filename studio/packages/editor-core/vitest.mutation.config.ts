@@ -7,9 +7,13 @@ export default defineConfig({
     globals: true,
     include: [
       "src/__tests__/validateStatePro.test.ts",
+      "src/__tests__/validateStatePro.inputs.test.ts",
       "src/__tests__/identifiers.test.ts",
       "src/__tests__/transitionRules.test.ts",
       "src/__tests__/issueMapping.test.ts",
+      "src/__tests__/serializeStatePro.test.ts",
+      "src/__tests__/deserializeStatePro.conditions.test.ts",
+      "src/__tests__/review.regression.test.ts",
     ],
     pool: "forks",
     maxWorkers: 1,
