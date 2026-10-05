@@ -5,12 +5,16 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Reused by the release workflow so releases run the same checks.
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: quality-${{ github.ref }}
+  # github.workflow is the caller's name when reused, so a release never
+  # shares (and gets cancelled with) the group of a regular push run.
+  group: ${{ github.workflow }}-quality-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
