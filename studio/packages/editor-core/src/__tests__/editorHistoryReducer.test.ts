@@ -73,6 +73,21 @@ describe("editorHistoryReducer", () => {
     expect(universe(edited.past[0].nodes).data.id).toBe(originalId);
   });
 
+  it("commit-snapshot toma propiedad del checkpoint desacoplado sin clonarlo de nuevo", () => {
+    const initial = createInitialEditorState();
+    const captured = createHistorySnapshot(initial);
+    const edited = applyMachineId(createInitialEditorHistoryState(initial), "edited", "silent");
+    const committed = editorHistoryReducer(edited, { type: "commit-snapshot", payload: captured });
+    expect(committed.past).toHaveLength(1);
+    expect(committed.past[0]).toBe(captured);
+
+    // Plain payloads are not owned by the history and are still cloned.
+    const external = { ...createHistorySnapshot(initial) };
+    const committedExternal = editorHistoryReducer(edited, { type: "commit-snapshot", payload: external });
+    expect(committedExternal.past[0]).not.toBe(external);
+    expect(committedExternal.past[0]).toEqual(external);
+  });
+
   it("permite cambios visuales sin marcar dirty-from-import cuando se indica explícitamente", () => {
     const imported = createInitialEditorState();
     imported.lastImportedMachine = {

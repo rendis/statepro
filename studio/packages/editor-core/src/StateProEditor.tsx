@@ -35,7 +35,6 @@ import { StudioTooltip, TooltipIconButton, TruncatedWithTooltip } from "./compon
 import {
   applyStudioLayoutDocument,
   buildBehaviorSourceIndex,
-  buildEditorStateFromExternalValue,
   isBuiltinBehaviorSource,
   mergeBehaviorRegistryWithExternal,
   normalizeBehaviorRegistry,
@@ -43,6 +42,7 @@ import {
   deserializeStatePro,
   serializeStatePro,
   serializeStudioLayout,
+  tryBuildEditorStateFromExternalValue,
 } from "./model";
 import {
   createHistorySnapshot,
@@ -345,18 +345,16 @@ function StateProEditorInner({
   const changeSourceRef = useRef<"user" | "external-sync">("user");
 
   const buildInitialState = useCallback((): EditorState => {
-    if (value) {
-      return buildEditorStateFromExternalValue(value, {
+    const externalValue = value || defaultValue;
+    if (externalValue) {
+      const result = tryBuildEditorStateFromExternalValue(externalValue, {
         libraryBehaviors,
         locale: initialLocale,
       });
-    }
-
-    if (defaultValue) {
-      return buildEditorStateFromExternalValue(defaultValue, {
-        libraryBehaviors,
-        locale: initialLocale,
-      });
+      if (result.state) {
+        return result.state;
+      }
+      console.error("Ignoring invalid StatePro Studio external value", result.error);
     }
 
     const initialState = createInitialEditorState(initialLocale);
@@ -775,10 +773,16 @@ function StateProEditorInner({
     }
 
     lastControlledValueSignatureRef.current = nextSignature;
-    const nextState = buildEditorStateFromExternalValue(value, {
+    const result = tryBuildEditorStateFromExternalValue(value, {
       libraryBehaviors,
       locale,
     });
+    if (!result.state) {
+      // Keep the current graph rather than replacing it with an empty machine.
+      console.error("Ignoring invalid StatePro Studio external value", result.error);
+      return;
+    }
+    const nextState = result.state;
     changeSourceRef.current = "external-sync";
     resetHistoryWith(nextState);
     lastExternalBehaviorSourcesRef.current = collectRegistrySources(
