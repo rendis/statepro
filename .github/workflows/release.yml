@@ -1,13 +1,20 @@
 name: Release
 
-# Manual release: validates the repository, tags `main`, creates the GitHub
-# release from the CHANGELOG section, and publishes the Studio packages to npm
-# through npm Trusted Publishing (OIDC, no stored npm token).
+# Releases the latest CHANGELOG version: validates the repository, tags `main`,
+# creates the GitHub release from the CHANGELOG section, and publishes the
+# Studio packages to npm through npm Trusted Publishing (OIDC, no stored token).
+#
+# On every push to main it releases automatically when the newest
+# `## [X.Y.Z]` section of CHANGELOG.md has no `vX.Y.Z` tag yet, or publishes to
+# npm when that version is tagged but the Studio package versions are not on npm.
+# Otherwise it does nothing. It can also be run manually.
 #
 # Each step is idempotent: an existing tag or release is kept, and package
 # versions already on npm are skipped, so a failed run can be re-run safely.
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       version:
@@ -41,7 +48,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+      target: ${{ steps.plan.outputs.target }}
+      dry_run: ${{ steps.plan.outputs.dry_run }}
     steps:
       - name: Require main
         if: github.ref != 'refs/heads/main'
@@ -49,36 +59,76 @@ jobs:
           echo "::error::Run the release workflow from main (got ${GITHUB_REF})."
           exit 1
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Validate version and CHANGELOG
-        id: meta
+      - name: Plan release
+        id: plan
         env:
-          VERSION: ${{ inputs.version }}
+          EVENT: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_TARGET: ${{ inputs.target }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::Version '$VERSION' is not semver without a leading v."
-            exit 1
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            version="$INPUT_VERSION"
+            target="$INPUT_TARGET"
+            dry_run="$INPUT_DRY_RUN"
+          else
+            # Newest released section; [Unreleased] is not matched.
+            version=$(grep -m1 -oE '^## \[[0-9]+\.[0-9]+\.[0-9]+[^]]*\]' CHANGELOG.md | sed -E 's/^## \[(.*)\]$/\1/')
+            dry_run=false
+            if [ -z "$version" ]; then
+              echo "No released CHANGELOG section; nothing to do."
+              target=none
+            elif ! git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+              echo "v$version is not tagged yet; releasing."
+              target=all
+            else
+              target=none
+              for dir in studio/packages/editor-core studio/packages/web-component; do
+                name=$(node -p "require('./$dir/package.json').name")
+                pkg_version=$(node -p "require('./$dir/package.json').version")
+                if ! npm view "$name@$pkg_version" version >/dev/null 2>&1; then
+                  echo "$name@$pkg_version is not on npm; publishing."
+                  target=npm
+                fi
+              done
+              if [ "$target" = "none" ]; then
+                echo "v$version is tagged and the Studio packages are on npm; nothing to do."
+              fi
+            fi
           fi
-          if ! grep -qF "## [$VERSION]" CHANGELOG.md; then
-            echo "::error::CHANGELOG.md has no '## [$VERSION]' section."
-            exit 1
+          if [ "$target" != "none" ]; then
+            if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+              echo "::error::Version '$version' is not semver without a leading v."
+              exit 1
+            fi
+            if ! grep -qF "## [$version]" CHANGELOG.md; then
+              echo "::error::CHANGELOG.md has no '## [$version]' section."
+              exit 1
+            fi
           fi
-          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=$version"
+            echo "tag=v$version"
+            echo "target=$target"
+            echo "dry_run=$dry_run"
+          } >> "$GITHUB_OUTPUT"
 
   quality:
     needs: prepare
+    if: needs.prepare.outputs.target != 'none'
     uses: ./.github/workflows/quality.yml
 
   github:
     needs: [prepare, quality]
-    if: inputs.target == 'all' || inputs.target == 'github'
+    if: needs.prepare.outputs.target == 'all' || needs.prepare.outputs.target == 'github'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
     env:
       TAG: ${{ needs.prepare.outputs.tag }}
-      VERSION: ${{ inputs.version }}
-      DRY_RUN: ${{ inputs.dry_run }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      DRY_RUN: ${{ needs.prepare.outputs.dry_run }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -132,7 +182,7 @@ jobs:
       !cancelled()
       && needs.quality.result == 'success'
       && (needs.github.result == 'success' || needs.github.result == 'skipped')
-      && (inputs.target == 'all' || inputs.target == 'npm')
+      && (needs.prepare.outputs.target == 'all' || needs.prepare.outputs.target == 'npm')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -140,7 +190,7 @@ jobs:
       id-token: write # npm Trusted Publishing and provenance
     env:
       TAG: ${{ needs.prepare.outputs.tag }}
-      DRY_RUN: ${{ inputs.dry_run }}
+      DRY_RUN: ${{ needs.prepare.outputs.dry_run }}
     steps:
       - name: Resolve source ref
         id: source
