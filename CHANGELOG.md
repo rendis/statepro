@@ -20,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Runtime: honor cancellation while waiting for execution locks and between synchronous callbacks; preserve bounded tracking during failed entry rollback.
+- Runtime: honor cancellation while waiting for execution locks and at admission; once admitted, an operation runs to completion instead of aborting between callbacks after side effects. Preserve bounded tracking during failed entry rollback.
+- Runtime: `MaxConcurrentInvokes` reserves capacity for every invoke of a transition step (transition, exit, and target entry) before its first callback, instead of rejecting midway after actions ran and earlier invokes started.
 - CLI: avoid reflection panics when copying contexts with private fields or typed nil pointers; handle empty lists and history independently of saved checkpoints.
 - Studio: reject malformed JSON without throwing and resolve definition references only from own properties, while allowing explicitly declared names such as `constructor`.
 - Web Component: support registering multiple tag names and cover attributes, properties, lifecycle, and DOM events with integration tests.

@@ -219,7 +219,7 @@ construction; negative numeric limits are rejected. The experimental constructor
 
 | Policy | Behavior |
 | --- | --- |
-| `MaxConcurrentInvokes` | One pool for the entire machine, including machine constants, universe constants, and reality/transition invokes. At capacity, reject immediately with `*instrumentation.ResourceLimitError`; do not enqueue or spawn the rejected task. Slots release on completion or panic, not merely on a cancellation request. |
+| `MaxConcurrentInvokes` | One pool for the entire machine, including machine constants, universe constants, and reality/transition invokes. Before a step runs its first callback, reserve room for every invoke it can launch: a transition step counts transition, exit, and target entry invokes; an entry counts its entry invokes. When they do not fit, reject the step with `*instrumentation.ResourceLimitError` before any action runs or any invoke starts; nothing is enqueued. A later step of the same cascade (an `always` transition) is checked again from the stable reality it starts in. Slots release on completion or panic, not merely on a cancellation request. |
 | `CancelInvokesOnExit` | Request cancellation of existing invokes associated with a successfully exited reality, before launching exit invokes. Also cancel affected universes on valid snapshot replacement or static positioning. Rejected snapshot restoration does not cancel existing tasks. |
 | `MaxAccumulatedEvents` | Per-universe entry budget, counting separate copies for different realities. Reserve worst-case fan-out before callbacks or appending entries, even if an early observer might approve. Reject over-budget snapshots before applying them. This is an entry limit, not a byte limit. |
 | `MaxTrackingEntries` | Retain the most recent entries per universe, including restored tracking. Failed entry rollback preserves the previous bounded history. |
@@ -233,11 +233,15 @@ arrange its own cancellation. Serialize `Run` and history access at the applicat
 
 ### Cancellation, reentry, and shutdown
 
-Operations with a context can cancel while waiting for the machine lock. Cancellation is checked
-between synchronous callbacks and after each returns. A running callback must cooperate with its
-context: Go cannot safely interrupt arbitrary user code or undo its external side effects.
-Earlier actions, events in other universes, or admitted invokes may already have executed when an
-operation returns an error. Resource admission and cancellation do not make execution transactional.
+Operations with a context can cancel while waiting for the machine lock, and are rejected if the
+context is already done once the lock is acquired. After that admission point, the operation runs
+to completion: cancellation does not abort a transition between callbacks, because earlier actions
+may already have produced external side effects and stopping halfway would leave the universe in an
+intermediate state. Callbacks receive the context and may observe cancellation themselves; a
+callback that returns an error (including `ctx.Err()`) fails the operation like any other callback
+error. Invokes launched after cancellation are skipped, since they would only see a done context.
+Go cannot safely interrupt arbitrary user code or undo its external side effects, so admission
+checks and cancellation do not make execution transactional across callback errors.
 
 Calling the owning machine from a synchronous callback using the callback context (or a derived
 context) returns `ErrReentrantCall`. This includes nested synchronous callbacks across machines.
