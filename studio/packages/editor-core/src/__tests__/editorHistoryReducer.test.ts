@@ -9,6 +9,7 @@ import {
   editorHistoryReducer,
 } from "../state";
 import type { EditorHistoryState } from "../state";
+import { markHistoryOwned } from "../state/historyOwnership";
 
 const applyMachineId = (
   state: EditorHistoryState,
@@ -73,19 +74,30 @@ describe("editorHistoryReducer", () => {
     expect(universe(edited.past[0].nodes).data.id).toBe(originalId);
   });
 
-  it("commit-snapshot toma propiedad del checkpoint desacoplado sin clonarlo de nuevo", () => {
+  it("commit-snapshot copia checkpoints publicos: mutarlos despues no corrompe el undo", () => {
     const initial = createInitialEditorState();
+    const originalId = initial.machineConfig.id;
     const captured = createHistorySnapshot(initial);
     const edited = applyMachineId(createInitialEditorHistoryState(initial), "edited", "silent");
     const committed = editorHistoryReducer(edited, { type: "commit-snapshot", payload: captured });
-    expect(committed.past).toHaveLength(1);
-    expect(committed.past[0]).toBe(captured);
+    expect(committed.past[0]).not.toBe(captured);
 
-    // Plain payloads are not owned by the history and are still cloned.
-    const external = { ...createHistorySnapshot(initial) };
-    const committedExternal = editorHistoryReducer(edited, { type: "commit-snapshot", payload: external });
-    expect(committedExternal.past[0]).not.toBe(external);
-    expect(committedExternal.past[0]).toEqual(external);
+    captured.machineConfig.id = "consumer-mutated";
+    const restored = editorHistoryReducer(committed, { type: "undo" });
+    expect(restored.present.machineConfig.id).toBe(originalId);
+  });
+
+  it("commit-snapshot toma propiedad de checkpoints internos del editor sin clonarlos", () => {
+    const initial = createInitialEditorState();
+    const owned = markHistoryOwned(createHistorySnapshot(initial));
+    const edited = applyMachineId(createInitialEditorHistoryState(initial), "edited", "silent");
+    const committed = editorHistoryReducer(edited, { type: "commit-snapshot", payload: owned });
+    expect(committed.past).toHaveLength(1);
+    expect(committed.past[0]).toBe(owned);
+
+    // Ownership transfers once; committing the same object again copies it.
+    const again = editorHistoryReducer(edited, { type: "commit-snapshot", payload: owned });
+    expect(again.past[0]).not.toBe(owned);
   });
 
   it("permite cambios visuales sin marcar dirty-from-import cuando se indica explícitamente", () => {
