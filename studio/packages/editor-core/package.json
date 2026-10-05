@@ -39,8 +39,7 @@
     "ajv": "^8.17.1",
     "elkjs": "^0.11.0",
     "lucide-react": "^0.468.0",
-    "react-zoom-pan-pinch": "^3.7.0",
-    "fast-deep-equal": "^3.1.3"
+    "react-zoom-pan-pinch": "^3.7.0"
   },
   "devDependencies": {
     "@stryker-mutator/core": "^10.0.0",

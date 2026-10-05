@@ -21,7 +21,14 @@ func (m *contextMutex) init() {
 	m.once.Do(func() { m.token = make(chan struct{}, 1); m.token <- struct{}{} })
 }
 func (m *contextMutex) Lock()   { m.init(); <-m.token }
-func (m *contextMutex) Unlock() { m.token <- struct{}{} }
+func (m *contextMutex) Unlock() {
+	select {
+	case m.token <- struct{}{}:
+	default:
+		// Match sync.Mutex: unlocking an unlocked mutex is a bug, not a deadlock.
+		panic("statepro: unlock of unlocked contextMutex")
+	}
+}
 func (m *contextMutex) LockContext(ctx context.Context) error {
 	if ctx == nil {
 		return fmt.Errorf("context must not be nil")

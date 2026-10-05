@@ -17,10 +17,16 @@ export const METADATA_PACK_MACHINE_ENTITY_REF = "machine";
 
 const METADATA_SCOPES: MetadataScope[] = ["machine", "universe", "reality", "transition"];
 
-const createValidatorCompiler = () => new Ajv2020({
+// One shared compiler instead of a new Ajv instance per schema. addUsedSchema:
+// false keeps compiled schemas out of the $id registry, so edited schemas can
+// reuse a previous $id; validateBindingWithPack also drops each schema from
+// Ajv's identity cache, so edits made in place recompile and memory stays
+// bounded by validatorCache.
+const validatorCompiler = new Ajv2020({
   allErrors: true,
   strict: false,
   allowUnionTypes: true,
+  addUsedSchema: false,
 });
 
 const VALIDATOR_CACHE_LIMIT = 128;
@@ -698,8 +704,11 @@ export const validateBindingWithPack = (
   const cacheKey = JSON.stringify(pack.schema);
   let validator = validatorCache.get(cacheKey);
   if (!validator) {
-    // Isolate $id registrations so edited schemas can reuse their previous ID.
-    validator = createValidatorCompiler().compile(pack.schema as object);
+    try {
+      validator = validatorCompiler.compile(pack.schema as object);
+    } finally {
+      validatorCompiler.removeSchema(pack.schema as object);
+    }
   } else {
     validatorCache.delete(cacheKey);
   }

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Studio: metadata pack schemas are compiled with one shared Ajv instance instead of one instance per schema (128 distinct schemas: about 1.4 s to 60 ms). Edited schemas are still recompiled.
+- Studio: `@rendis/statepro-studio-react` no longer depends on `fast-deep-equal`.
+
+### Fixed
+
+- Runtime: unlocking the machine mutex when it is not locked panics, like `sync.Mutex`, instead of blocking forever.
+- Studio: an edit whose patch only sets absent fields to `undefined` no longer records an undo step that changes nothing.
+
 ## [3.4.0] - 2026-10-05
 
 ### Added
