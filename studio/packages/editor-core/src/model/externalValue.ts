@@ -52,3 +52,34 @@ export const buildEditorStateFromExternalValue = (
 
   return state;
 };
+
+export type ExternalValueBuildResult = {
+  /** Null when the value was rejected; `error` then explains why. */
+  state: EditorState | null;
+  error: unknown;
+};
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * Host-provided values are untrusted. A definition that is not a machine object, or
+ * that cannot be deserialized, is reported instead of crashing the editor; callers
+ * decide which state to keep. Semantically invalid machines still load so they can
+ * be fixed in the editor.
+ */
+export const tryBuildEditorStateFromExternalValue = (
+  value: StudioExternalValue,
+  options: BuildEditorStateFromExternalValueOptions = {},
+): ExternalValueBuildResult => {
+  const definition: unknown = isPlainObject(value) ? value.definition : undefined;
+  if (!isPlainObject(definition) || !isPlainObject(definition.universes)) {
+    return { state: null, error: new TypeError("definition must be an object with a universes map") };
+  }
+
+  try {
+    return { state: buildEditorStateFromExternalValue(value, options), error: null };
+  } catch (error) {
+    return { state: null, error };
+  }
+};

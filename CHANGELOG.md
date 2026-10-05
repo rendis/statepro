@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Studio: prevent unchanged node measurements from creating render cycles; stabilize the measurement callback and preserve reducer identity for no-op updates.
 - Studio: recompile changed metadata schemas even when pack IDs are reused, isolate schema IDs, and bound the validator cache to 128 entries.
 - Studio: include SVG declarations when typechecking the Web Component against editor-core source.
+- Studio: a malformed `value`/`defaultValue` definition no longer crashes the editor. The initial render falls back to an empty machine, a controlled update keeps the current graph, and both report the error through `console.error`.
+- Studio: `@rendis/statepro-studio-react/styles.css` no longer contains `@tailwind` directives. The host app's Tailwind entry generates the utilities, as documented; under Tailwind 4 the directives emitted extra utilities outside any cascade layer.
+- Studio: committing a gesture checkpoint created by `createHistorySnapshot` no longer clones the graph a second time.
 
 ## [3.3.1] - 2026-08-25
 

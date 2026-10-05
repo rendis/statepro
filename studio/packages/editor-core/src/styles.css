@@ -1,6 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/*
+ * Studio-specific styles only. Tailwind utilities come from the host app's own
+ * Tailwind entry (see README "CSS + Tailwind Requirement"). Emitting them here
+ * would produce unlayered utilities under Tailwind v4 that override responsive
+ * variants such as `hidden sm:inline`.
+ */
 
 html,
 body {
