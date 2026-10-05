@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Studio: include SVG declarations when typechecking the Web Component against editor-core source.
 - Studio: a malformed `value`/`defaultValue` definition no longer crashes the editor. The initial render falls back to an empty machine, a controlled update keeps the current graph, and both report the error through `console.error`.
 - Studio: `@rendis/statepro-studio-react/styles.css` no longer contains `@tailwind` directives. The host app's Tailwind entry generates the utilities, as documented; under Tailwind 4 the directives emitted extra utilities outside any cascade layer.
+- Studio: the ELK layout worker is reused across layouts instead of being created and initialized per request, and released after 60 seconds idle. If the worker cannot load or start (missing asset, CSP, cross-origin URL), layout falls back to the bundled engine on the main thread instead of failing.
 - Studio: committing the editor's internal drag/gesture checkpoint no longer clones the graph a second time. Checkpoints from the public `createHistorySnapshot` remain caller-owned and are still copied on `commit-snapshot`.
 
 ## [3.3.1] - 2026-08-25
