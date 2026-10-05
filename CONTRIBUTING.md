@@ -382,21 +382,22 @@ For new features, include:
 
 ## Releasing
 
-Releases are cut by maintainers with the **Release** workflow (`.github/workflows/release.yml`).
+Releases are driven by `CHANGELOG.md` and the **Release** workflow (`.github/workflows/release.yml`).
 
 1. Open a PR that moves the `[Unreleased]` entries in `CHANGELOG.md` to a `## [X.Y.Z] - YYYY-MM-DD`
    section, updates the compare links, and bumps the Studio package versions when they changed.
-   Merge it to `main`.
-2. Run **Actions → Release → Run workflow** on `main` with the version `X.Y.Z` and `dry_run` enabled.
-   Check the previewed notes and the npm dry-run output.
-3. Run it again with `dry_run` disabled. The workflow runs the Quality checks, creates the annotated
-   tag `vX.Y.Z` on `main`, creates the GitHub release from the CHANGELOG section, and publishes the
-   Studio packages to npm with provenance.
+2. Merge it to `main`. On that push the workflow sees that the newest CHANGELOG version has no
+   `vX.Y.Z` tag, runs the Quality checks, creates the annotated tag on the merge commit, creates the
+   GitHub release from the CHANGELOG section, and publishes the Studio packages to npm with provenance.
 
-`target` limits the run to `github` (tag and release only, for example a Go-only release) or `npm`
-(publish an existing tag). Every step is idempotent: an existing tag or release is kept and package
-versions already on npm are skipped, so a failed run can be re-run. The Go module needs no extra step;
-the tag is enough for `go get`.
+On other pushes to `main` the workflow does nothing, unless the newest version is tagged but its
+Studio package versions are missing from npm; then it only publishes them. Every step is idempotent:
+an existing tag or release is kept and package versions already on npm are skipped. The Go module
+needs no extra step; the tag is enough for `go get`.
+
+The workflow can also be run manually (**Actions → Release → Run workflow**) with a `version`, a
+`target` (`all`, `github` for tag and release only, or `npm`), and `dry_run` to preview the notes
+and the npm packages without creating anything.
 
 npm publishing uses [Trusted Publishing](https://docs.npmjs.com/trusted-publishers), so no npm token is
 stored. Each package needs a one-time trusted publisher on npmjs.com (package **Settings → Trusted
