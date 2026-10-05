@@ -72,31 +72,167 @@ const getElk = (): Promise<ElkInstance> => {
   return elkPromise;
 };
 
-// Each request owns its worker and releases it when finished or timed out.
-// Failed workers are never shared with another layout request.
+const LAYOUT_WORKER_TIMEOUT_MS = 30_000;
+const LAYOUT_WORKER_IDLE_MS = 60_000;
+
+/** The worker could not run layouts; the request falls back to the bundled engine. */
+class LayoutWorkerUnavailableError extends Error {}
+/** The worker was released on purpose (idle or URL change); its URL is still usable. */
+class LayoutWorkerReleasedError extends LayoutWorkerUnavailableError {}
+class LayoutWorkerTimeoutError extends Error {}
+
+interface WorkerEngine {
+  worker: Worker;
+  elk: ElkInstance;
+  /** Rejects once the worker is discarded, so in-flight requests stop waiting on it. */
+  discarded: Promise<never>;
+  discard: (error: Error) => void;
+  pending: number;
+  /** Set after the first completed layout; later failures are crashes, not load failures. */
+  succeeded: boolean;
+  idleTimer?: ReturnType<typeof setTimeout>;
+}
+
+interface WorkerEngineEntry {
+  url: string;
+  promise: Promise<WorkerEngine>;
+  engine?: WorkerEngine;
+}
+
+// One worker per URL is reused across layouts: elk-api tags each request with an id,
+// so concurrent layouts share it safely and ELK is initialized only once.
+let workerEngineEntry: WorkerEngineEntry | undefined;
+// URLs whose worker never completed a layout (404, CSP, cross-origin). Later layouts
+// go straight to the bundled engine instead of failing or retrying the same URL.
+const unavailableWorkerUrls = new Set<string>();
+
+const createWorkerEngine = async (entry: WorkerEngineEntry): Promise<WorkerEngine> => {
+  let ElkConstructor: ElkConstructorLike;
+  let worker: Worker;
+  try {
+    ElkConstructor = await getWorkerConstructor();
+    worker = new Worker(entry.url);
+  } catch (error) {
+    throw new LayoutWorkerUnavailableError(`StatePro Studio: layout worker could not start: ${String(error)}`);
+  }
+
+  let rejectDiscarded!: (error: Error) => void;
+  const discarded = new Promise<never>((_, reject) => { rejectDiscarded = reject; });
+  discarded.catch(() => {});
+  const onError = () => engine.discard(
+    new LayoutWorkerUnavailableError("StatePro Studio: layout worker failed to load or execute."),
+  );
+  const engine: WorkerEngine = {
+    worker,
+    elk: undefined as unknown as ElkInstance,
+    discarded,
+    pending: 0,
+    succeeded: false,
+    discard: (error) => {
+      if (workerEngineEntry?.engine === engine) workerEngineEntry = undefined;
+      clearTimeout(engine.idleTimer);
+      worker.removeEventListener("error", onError);
+      worker.removeEventListener("messageerror", onError);
+      worker.terminate();
+      rejectDiscarded(error);
+    },
+  };
+  entry.engine = engine;
+  worker.addEventListener("error", onError);
+  worker.addEventListener("messageerror", onError);
+  try {
+    engine.elk = new ElkConstructor({ workerFactory: () => worker, algorithms: ["layered"] });
+  } catch (error) {
+    const unavailable = new LayoutWorkerUnavailableError(
+      `StatePro Studio: layout worker could not start: ${String(error)}`,
+    );
+    engine.discard(unavailable);
+    throw unavailable;
+  }
+  return engine;
+};
+
+const getWorkerEngine = (url: string): Promise<WorkerEngine> => {
+  if (workerEngineEntry?.url !== url) {
+    workerEngineEntry?.engine?.discard(
+      new LayoutWorkerReleasedError("StatePro Studio: layout worker URL changed."),
+    );
+    const entry: WorkerEngineEntry = { url, promise: undefined as unknown as Promise<WorkerEngine> };
+    entry.promise = createWorkerEngine(entry);
+    entry.promise.catch(() => {
+      if (workerEngineEntry === entry) workerEngineEntry = undefined;
+    });
+    workerEngineEntry = entry;
+  }
+  return workerEngineEntry.promise;
+};
+
+const runOnBundledEngine = async <T>(
+  run: (elk: ElkInstance) => Promise<T>,
+  reason?: unknown,
+): Promise<T> => {
+  if (reason) {
+    console.warn("StatePro Studio: falling back to main-thread layout.", reason);
+  }
+  return run(await getElk());
+};
+
+// Layout runs in the host-provided worker when available. If the worker cannot load
+// or crashes, the request falls back to the bundled engine on the main thread. A
+// timeout rejects instead: running a stuck graph on the main thread would freeze the UI.
 const withLayoutEngine = async <T>(
   workerUrl: string | undefined,
   run: (elk: ElkInstance) => Promise<T>,
 ): Promise<T> => {
-  if (!workerUrl) return run(await getElk());
+  if (!workerUrl || typeof Worker === "undefined" || unavailableWorkerUrls.has(workerUrl)) {
+    return runOnBundledEngine(run);
+  }
 
-  const ElkConstructor = await getWorkerConstructor();
-  const worker = new Worker(workerUrl);
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  let rejectFailure: (error: Error) => void;
-  const unavailable = new Promise<never>((_, reject) => { rejectFailure = reject; });
-  const onError = () => rejectFailure(new Error("StatePro Studio: layout worker failed to load or execute."));
-  worker.addEventListener("error", onError);
-  worker.addEventListener("messageerror", onError);
+  let engine: WorkerEngine;
   try {
-    const elk = new ElkConstructor({ workerFactory: () => worker, algorithms: ["layered"] });
-    timer = setTimeout(() => rejectFailure(new Error("StatePro Studio: layout worker timed out after 30 seconds.")), 30_000);
-    return await Promise.race([run(elk), unavailable]);
+    engine = await getWorkerEngine(workerUrl);
+  } catch (error) {
+    unavailableWorkerUrls.add(workerUrl);
+    return runOnBundledEngine(run, error);
+  }
+
+  clearTimeout(engine.idleTimer);
+  engine.pending += 1;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new LayoutWorkerTimeoutError(
+        `StatePro Studio: layout worker timed out after ${LAYOUT_WORKER_TIMEOUT_MS / 1000} seconds.`,
+      )),
+      LAYOUT_WORKER_TIMEOUT_MS,
+    );
+  });
+  try {
+    const result = await Promise.race([run(engine.elk), engine.discarded, timeout]);
+    engine.succeeded = true;
+    return result;
+  } catch (error) {
+    if (error instanceof LayoutWorkerUnavailableError) {
+      if (!engine.succeeded && !(error instanceof LayoutWorkerReleasedError)) {
+        unavailableWorkerUrls.add(workerUrl);
+      }
+      return runOnBundledEngine(run, error);
+    }
+    if (error instanceof LayoutWorkerTimeoutError) {
+      // A stuck worker is never reused; the next layout starts a fresh one.
+      engine.discard(error);
+    }
+    throw error;
   } finally {
     clearTimeout(timer);
-    worker.removeEventListener("error", onError);
-    worker.removeEventListener("messageerror", onError);
-    worker.terminate();
+    engine.pending -= 1;
+    if (engine.pending === 0 && workerEngineEntry?.engine === engine) {
+      // Release the worker (and ELK's memory) once the editor stops requesting layouts.
+      engine.idleTimer = setTimeout(
+        () => engine.discard(new LayoutWorkerReleasedError("StatePro Studio: idle layout worker released.")),
+        LAYOUT_WORKER_IDLE_MS,
+      );
+    }
   }
 };
 

@@ -49,6 +49,7 @@ import {
   createInitialEditorHistoryState,
   editorHistoryReducer,
 } from "./state";
+import { markHistoryOwned } from "./state/historyOwnership";
 import type {
   EditorAction,
   EditorHistorySnapshot,
@@ -831,7 +832,8 @@ function StateProEditorInner({
   }, [isControlled, libraryBehaviors, locale]);
 
   const captureGestureBaseSnapshot = useCallback(() => {
-    gestureBaseSnapshotRef.current = createHistorySnapshot(editorState);
+    // Private copy, never exposed: the history can keep it without cloning again.
+    gestureBaseSnapshotRef.current = markHistoryOwned(createHistorySnapshot(editorState));
   }, [editorState]);
 
   const commitGestureHistoryStep = useCallback(() => {

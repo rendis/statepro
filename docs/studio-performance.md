@@ -36,11 +36,18 @@ element.autoLayoutWorkerUrl = "/assets/elk-worker.min.js";
 ```
 
 Without a worker URL, editor-core retains its lazily imported bundled ELK implementation.
-Both paths preserve the layered layout algorithm and graph anchoring. Each worker-backed
-request owns one worker, uses it for internal and external layout, and terminates it on
-completion or failure. Load/message errors reject promptly. A request that does not finish
-within 30 seconds rejects and terminates its worker. Failed imports of the lightweight API
-can be retried. Workers are not retained globally after an editor has finished a request.
+Both paths preserve the layered layout algorithm and graph anchoring. One worker per URL is
+reused across layout requests, including concurrent ones (ELK tags each request), so the
+engine is parsed and initialized once instead of on every layout. It is released after
+60 seconds without layout requests and recreated on demand.
+
+If the worker cannot start or load (missing asset, `worker-src` CSP, a cross-origin URL,
+or no `Worker` global), the request falls back to the bundled engine on the main thread
+and logs a warning; that URL is not retried for the rest of the page session. A worker that
+crashes after completing layouts is discarded, its in-flight requests fall back, and the next
+request starts a new worker. A request that does not finish within 30 seconds rejects and
+discards the worker without falling back, since rerunning a stuck graph on the main thread
+would freeze the UI. ELK errors for an invalid graph are returned as-is.
 
 Moving ELK off the UI thread does **not** reduce its download. The worker asset is about
 1.61 MB before HTTP compression (about 467 kB gzip in the local build); the API chunk is

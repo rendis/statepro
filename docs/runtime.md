@@ -260,8 +260,9 @@ The exported helpers `instrumentation.GetSnapshotContext(ctx, qm)` and
 `instrumentation.LoadSnapshotContext(ctx, qm, snapshot, machineContext)` select that capability
 without a type assertion at each call site. Capture falls back to checked capture and then the
 legacy method for custom implementations, rejects nil snapshots, and checks cancellation before
-and after capture. Legacy fallbacks cannot interrupt lock waiting or detect reentry. Context-free
-machine snapshot methods are deprecated; checked action args remain supported.
+and after capture. Legacy fallbacks cannot interrupt lock waiting or detect reentry. The machine's
+`GetSnapshot` and `LoadSnapshot` methods are deprecated; checked capture with `GetSnapshotWithError`
+and checked action args remain supported.
 
 For a compiled application example with explicit budgets, callback-safe capture, a cooperative
 invoke, and bounded shutdown, see [`ExampleNewQuantumMachineWithOptions`](../runtime_example_test.go).

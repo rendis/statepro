@@ -235,7 +235,8 @@ type UniversesResume struct {
 
 Snapshots are safe to serialize and reload using `instrumentation.LoadSnapshotContext`.
 Inside a synchronous action, capture through `instrumentation.GetSnapshotWithError(args)`.
-The machine's context-free snapshot methods are deprecated; callback args remain supported.
+The machine's `GetSnapshot` and `LoadSnapshot` methods are deprecated; checked capture with
+`GetSnapshotWithError` and callback args remain supported.
 
 ## Putting the Interfaces to Work
 
