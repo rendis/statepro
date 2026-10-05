@@ -7,11 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-10-05
+
 ### Added
 
-- Runtime: optional shared invoke concurrency budgets, cooperative cancellation on exit and shutdown, per-universe accumulator and tracking limits, and strict observer registration checks. Existing constructors preserve zero-value policies.
-- Runtime: optional context-aware snapshot capture/restoration and invoke lifecycle interfaces; reject synchronous callback reentry when callers preserve the callback context.
-- Debugger bot: cancellable event processing, checked snapshot errors, and an optional history retention limit.
+- Runtime: `statepro.NewQuantumMachineWithOptions` and `experimental.NewExQuantumMachineWithOptions` accept `instrumentation.RuntimeOptions`: a shared `MaxConcurrentInvokes` budget, `CancelInvokesOnExit`, per-universe `MaxAccumulatedEvents` and `MaxTrackingEntries`, and `StrictObservers`. Existing constructors keep the previous unlimited, permissive behavior.
+- Runtime: invoke capacity is reserved for a whole transition step (transition, exit, and target entry invokes) before its first callback, so a `ResourceLimitError` never leaves a transition half-applied.
+- Runtime: context-aware execution. Operations cancel while waiting for the machine lock and are rejected if the context is already done at admission; once admitted they run to completion. Synchronous callbacks that reenter their owning machine with the callback context get `ErrReentrantCall` instead of deadlocking.
+- Runtime: optional `instrumentation.RuntimeLifecycle` (`Close`, `WaitInvokes`) and `instrumentation.ContextSnapshotProvider` (`GetSnapshotContext`, `LoadSnapshotContext`) capabilities, plus the `instrumentation.GetSnapshotContext` and `instrumentation.LoadSnapshotContext` helpers that pick the best capability of any machine.
+- Runtime: checked snapshot capture through the optional `instrumentation.SnapshotProvider` capability and the `instrumentation.GetSnapshotWithError` helper, usable from synchronous action args without reacquiring the machine lock.
+- Debugger bot: cancellable event processing, checked snapshot errors, and an optional history retention limit (`bot.WithHistoryLimit`).
+- Studio: optional `autoLayoutWorkerUrl` prop (`auto-layout-worker-url` attribute on the Web Component) to run ELK layout in a Web Worker. One worker is reused across layouts and released after 60 seconds idle; if it cannot load or start (missing asset, CSP, cross-origin URL), layout falls back to the bundled engine on the main thread. The standalone app enables it.
+- Docs: compiled `ExampleNewQuantumMachineWithOptions` showing budgets, callback-safe capture, a cooperative invoke, and bounded shutdown.
+
+### Changed
+
+- Runtime: snapshot capture, `json.Unmarshal` into `MachineSnapshot`, and `LoadSnapshot` keep `json.Number` for metadata and event data numbers that would change through `float64` (large integers, long decimals). Values that round-trip exactly stay `float64`. Consumers of untyped metadata must accept both.
+- Runtime: the legacy `GetSnapshot()` logs capture failures (for example unsupported JSON values in metadata) and returns `nil` instead of a partial snapshot.
+- Studio: `@rendis/statepro-studio-react/styles.css` no longer contains `@tailwind` directives. The host app's Tailwind setup generates the utilities, as documented; under Tailwind 4 the directives emitted extra utilities outside any cascade layer.
+- Studio: ELK is loaded on demand instead of in the main bundle (main JavaScript of the standalone app drops from about 2.3 MB to 0.8 MB minified).
+- Studio: faster undo history. Unchanged sections are compared by identity before deep comparison instead of serializing the graph, transitions are grouped by source once during serialization, and committing the editor's own drag checkpoint no longer clones the graph twice. Checkpoints from the public `createHistorySnapshot` remain caller-owned and are copied on `commit-snapshot`.
+- Studio: the development workspace requires Node 22 or later; the standalone app uses Tailwind 4's Vite plugin; tests run on Vitest 4; ESLint enforces React hook ordering. A `Quality` workflow runs Go build, vet, race tests and fuzz smoke, and Studio lint, typecheck, tests, Stryker dry-run, build and dependency audit.
+- Studio: `@rendis/statepro-studio-react` bumped to `0.2.0` and `@rendis/statepro-studio-web-component` to `0.2.0`.
 
 ### Deprecated
 
@@ -20,28 +37,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - Studio: metadata pointer writes and object merges use own data properties, preserving JSON keys without traversing inherited properties.
-- Studio: update compatible dependency overrides, including `fast-uri` to `^3.1.8`.
+- Studio: update compatible dependency overrides, including `fast-uri` to `^3.1.8`, and remove the Tailwind 3 watcher chain that pulled in a vulnerable `braces`.
 
 ### Fixed
 
-- Runtime: honor cancellation while waiting for execution locks and at admission; once admitted, an operation runs to completion instead of aborting between callbacks after side effects. Preserve bounded tracking during failed entry rollback.
-- Runtime: `MaxConcurrentInvokes` reserves capacity for every invoke of a transition step (transition, exit, and target entry) before its first callback, instead of rejecting midway after actions ran and earlier invokes started.
-- CLI: avoid reflection panics when copying contexts with private fields or typed nil pointers; handle empty lists and history independently of saved checkpoints.
-- Studio: reject malformed JSON without throwing and resolve definition references only from own properties, while allowing explicitly declared names such as `constructor`.
-- Web Component: support registering multiple tag names and cover attributes, properties, lifecycle, and DOM events with integration tests.
-- Studio: fit header, machine panel, and search controls within mobile viewports. Keep Babel 7 overrides scoped to Babel 7 so the Stryker 10 instrumenter can use Babel 8.
-- Studio tests: exclude Stryker sandboxes from normal Vitest discovery to prevent duplicate or instrumented suites from running as application tests.
 - Runtime: validate all included universe snapshots before applying them; restore metadata and tracking instead of retaining newer entries, synchronize metadata restoration with invokes, and reconstruct empty superposition accumulators and final-state flags.
 - Runtime: synchronize custom executor registration and lookup; accept custom implementations of the public `Event` interface in accumulators.
-- Runtime: return errors for nil machine/universe models and nil events; reject already-canceled `SendEvent` calls before event admission, including cancellation while waiting for the machine lock.
+- Runtime: return errors for nil machine/universe models and nil events.
+- Runtime: preserve bounded tracking during failed entry rollback.
+- CLI: avoid reflection panics when copying contexts with private fields or typed nil pointers; handle empty lists and history independently of saved checkpoints; show event, restore and capture errors in the interface instead of printing them.
+- Studio: reject malformed JSON without throwing and resolve definition references only from own properties, while allowing explicitly declared names such as `constructor`.
+- Studio: a malformed `value`/`defaultValue` definition no longer crashes the editor. The initial render falls back to an empty machine, a controlled update keeps the current graph, and both report the error through `console.error`.
 - Studio: preserve condition order, arguments, and repeated executors during import/export and validation, matching runtime semantics.
 - Studio: prevent unchanged node measurements from creating render cycles; stabilize the measurement callback and preserve reducer identity for no-op updates.
 - Studio: recompile changed metadata schemas even when pack IDs are reused, isolate schema IDs, and bound the validator cache to 128 entries.
-- Studio: include SVG declarations when typechecking the Web Component against editor-core source.
-- Studio: a malformed `value`/`defaultValue` definition no longer crashes the editor. The initial render falls back to an empty machine, a controlled update keeps the current graph, and both report the error through `console.error`.
-- Studio: `@rendis/statepro-studio-react/styles.css` no longer contains `@tailwind` directives. The host app's Tailwind entry generates the utilities, as documented; under Tailwind 4 the directives emitted extra utilities outside any cascade layer.
-- Studio: the ELK layout worker is reused across layouts instead of being created and initialized per request, and released after 60 seconds idle. If the worker cannot load or start (missing asset, CSP, cross-origin URL), layout falls back to the bundled engine on the main thread instead of failing.
-- Studio: committing the editor's internal drag/gesture checkpoint no longer clones the graph a second time. Checkpoints from the public `createHistorySnapshot` remain caller-owned and are still copied on `commit-snapshot`.
+- Studio: fix hook order in `PropertiesModal` and `JsonIOModal`, which could change across renders.
+- Studio: fit header, machine panel, and search controls within mobile viewports.
+- Web Component: support registering multiple tag names and cover attributes, properties, lifecycle, and DOM events with integration tests.
+- Studio tooling: include SVG declarations when typechecking the Web Component against editor-core source; exclude Stryker sandboxes from normal Vitest discovery; keep Babel 7 overrides scoped to Babel 7 so the Stryker 10 instrumenter can use Babel 8.
 
 ## [3.3.1] - 2026-08-25
 
@@ -213,7 +226,8 @@ universes, realities, superposition, observers, and accumulators.
 
 See the GitHub release page for the full v3.0.0 release notes.
 
-[Unreleased]: https://github.com/rendis/statepro/compare/v3.3.1...HEAD
+[Unreleased]: https://github.com/rendis/statepro/compare/v3.4.0...HEAD
+[3.4.0]: https://github.com/rendis/statepro/compare/v3.3.1...v3.4.0
 [3.3.1]: https://github.com/rendis/statepro/compare/v3.3.0...v3.3.1
 [3.3.0]: https://github.com/rendis/statepro/compare/v3.2.2...v3.3.0
 [3.2.2]: https://github.com/rendis/statepro/compare/v3.2.1...v3.2.2
