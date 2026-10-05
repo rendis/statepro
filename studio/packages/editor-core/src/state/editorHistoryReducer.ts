@@ -81,11 +81,16 @@ const snapshotsEqual = (
   );
 };
 
+// Snapshots from createHistorySnapshot are already detached copies. The first
+// commit takes ownership of them instead of cloning the whole graph again.
+const detachedSnapshots = new WeakSet<EditorHistorySnapshot>();
+
 const pushPast = (
   past: EditorHistorySnapshot[],
   snapshot: EditorHistorySnapshot,
 ): EditorHistorySnapshot[] => {
-  const nextPast = [...past, clone(snapshot)];
+  const stored = detachedSnapshots.delete(snapshot) ? snapshot : clone(snapshot);
+  const nextPast = [...past, stored];
   if (nextPast.length <= HISTORY_LIMIT) {
     return nextPast;
   }
@@ -158,8 +163,15 @@ const shouldAutoMarkDirtyFromImport = (
   }
 };
 
-export const createHistorySnapshot = (state: EditorState): EditorHistorySnapshot =>
-  clone(toSnapshot(state));
+/**
+ * Returns a snapshot detached from `state`. Committing it with `commit-snapshot`
+ * transfers ownership to the history without another clone; do not mutate it afterwards.
+ */
+export const createHistorySnapshot = (state: EditorState): EditorHistorySnapshot => {
+  const snapshot = clone(toSnapshot(state));
+  detachedSnapshots.add(snapshot);
+  return snapshot;
+};
 
 export const createInitialEditorHistoryState = (
   initialState: EditorState = createInitialEditorState(),

@@ -120,9 +120,6 @@ func (qm *ExQuantumMachine) SendEvent(ctx context.Context, event instrumentation
 	}
 
 	for _, u := range activeUniverses {
-		if err := ctx.Err(); err != nil {
-			return true, err
-		}
 		externalTargets, err := u.handleEvent(ctx, nil, event, qm.machineContext)
 		if err != nil {
 			return true, err
@@ -532,9 +529,6 @@ func (qm *ExQuantumMachine) init(ctx context.Context, machineContext any, event 
 	var pairs []util.Pair[instrumentation.Event, []string]
 
 	for _, ref := range qm.model.Initials {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
 		// get reference type and parts
 		refT, parts, err := processReference(ref)
 		if err != nil {
@@ -616,16 +610,9 @@ func (qm *ExQuantumMachine) executeAction(ctx context.Context, model *theoretica
 	}
 
 	if fn := builtin.GetAction(model.Src); fn != nil {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
 		callbackCtx, done := qm.callbackContext(ctx)
 		defer done()
-		err := fn(callbackCtx, a)
-		if err != nil {
-			return err
-		}
-		return ctx.Err()
+		return fn(callbackCtx, a)
 	}
 
 	slog.WarnContext(ctx, "action not found", "src", model.Src)
@@ -670,9 +657,6 @@ func (qm *ExQuantumMachine) executeExternalTargetPairs(ctx context.Context, pair
 
 	var jobs []cascadeJob
 	for _, pair := range pairs {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
 		evt, targets := pair.GetAll()
 		if len(targets) == 0 {
 			continue
@@ -711,9 +695,6 @@ func (qm *ExQuantumMachine) executeTransitions(ctx context.Context, event instru
 	var newTargets []string
 
 	for _, target := range targets {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
 		refT, parts, err := processReference(target)
 		if err != nil {
 			return nil, err

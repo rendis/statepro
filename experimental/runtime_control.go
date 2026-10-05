@@ -102,8 +102,10 @@ func newInvokeManager(limit int) *invokeManager {
 }
 
 func (m *invokeManager) start(ctx context.Context, universe, reality, src string, run func(context.Context)) error {
-	if err := ctx.Err(); err != nil {
-		return err
+	if ctx.Err() != nil {
+		// The invoke would only observe a cancelled context. Skipping it must not
+		// abort the synchronous transition that already ran its callbacks.
+		return nil
 	}
 	m.mu.Lock()
 	if m.closed {
@@ -154,6 +156,7 @@ func (m *invokeManager) cancel(universe, reality string) {
 	}
 }
 func (m *invokeManager) isClosed() bool { m.mu.Lock(); defer m.mu.Unlock(); return m.closed }
+func (m *invokeManager) running() int   { m.mu.Lock(); defer m.mu.Unlock(); return len(m.tasks) }
 func (m *invokeManager) close() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
