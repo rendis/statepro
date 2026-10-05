@@ -213,6 +213,8 @@ export interface StateProEditorProps {
   showLocaleSwitcher?: boolean;
   logoSrc?: string;
   logoAlt?: string;
+  /** Optional same-origin URL to elkjs/lib/elk-worker.min.js. Layout runs off the UI thread. */
+  autoLayoutWorkerUrl?: string;
 }
 
 interface StateProEditorInnerProps {
@@ -220,6 +222,7 @@ interface StateProEditorInnerProps {
   showLocaleSwitcher: boolean;
   logoSrc?: string;
   logoAlt?: string;
+  autoLayoutWorkerUrl?: string;
   value?: StudioExternalValue;
   defaultValue?: StudioExternalValue;
   onChange?: (payload: StudioChangePayload) => void;
@@ -265,6 +268,7 @@ export function StateProEditor({
   showLocaleSwitcher = true,
   logoSrc,
   logoAlt,
+  autoLayoutWorkerUrl,
 }: StateProEditorProps = {}) {
   const initialLocale = resolveInitialStudioLocale({
     locale,
@@ -307,6 +311,7 @@ export function StateProEditor({
         showLocaleSwitcher={showLocaleSwitcher}
         logoSrc={logoSrc}
         logoAlt={logoAlt}
+        autoLayoutWorkerUrl={autoLayoutWorkerUrl}
         value={value}
         defaultValue={defaultValue}
         onChange={onChange}
@@ -324,6 +329,7 @@ function StateProEditorInner({
   showLocaleSwitcher,
   logoSrc,
   logoAlt,
+  autoLayoutWorkerUrl,
   value,
   defaultValue,
   onChange,
@@ -1234,6 +1240,7 @@ function StateProEditorInner({
           baseState.nodes,
           baseState.transitions,
           baseState.nodeSizes,
+          autoLayoutWorkerUrl,
         );
         if (!isMountedRef.current || autoLayoutRunIdRef.current !== runId) {
           return;
@@ -1264,7 +1271,7 @@ function StateProEditorInner({
     };
 
     void applyInitialAutoLayout();
-  }, [beginAutoLayoutRun, endAutoLayoutRun]);
+  }, [autoLayoutWorkerUrl, beginAutoLayoutRun, endAutoLayoutRun]);
 
   useEffect(() => {
     if (didInitialAutoFitRef.current) {
@@ -4067,7 +4074,7 @@ function StateProEditorInner({
     let applied = false;
 
     try {
-      const nextNodes = await computeAutoLayout(nodes, transitions, nodeSizes);
+      const nextNodes = await computeAutoLayout(nodes, transitions, nodeSizes, autoLayoutWorkerUrl);
       const latestState = latestEditorStateRef.current;
       const canApply = latestState.nodes === nodes && latestState.transitions === transitions;
       if (!canApply) {
@@ -4113,6 +4120,7 @@ function StateProEditorInner({
       }
     }
   }, [
+    autoLayoutWorkerUrl,
     beginAutoLayoutRun,
     endAutoLayoutRun,
     isAutoLayouting,
@@ -4137,6 +4145,7 @@ function StateProEditorInner({
         importedState.nodes,
         importedState.transitions,
         importedState.nodeSizes,
+        autoLayoutWorkerUrl,
       );
       nextState = {
         ...importedState,

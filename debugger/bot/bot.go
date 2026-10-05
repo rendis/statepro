@@ -94,22 +94,7 @@ func WithHistoryLimit(limit int) BotOption {
 }
 
 func captureSnapshot(ctx context.Context, qm instrumentation.QuantumMachine) (*instrumentation.MachineSnapshot, error) {
-	var snapshot *instrumentation.MachineSnapshot
-	var err error
-	if contextual, ok := qm.(instrumentation.ContextSnapshotProvider); ok {
-		snapshot, err = contextual.GetSnapshotContext(ctx)
-	} else if checked, ok := qm.(instrumentation.SnapshotProvider); ok {
-		snapshot, err = checked.GetSnapshotWithError()
-	} else {
-		snapshot = qm.GetSnapshot()
-	}
-	if err != nil {
-		return nil, err
-	}
-	if snapshot == nil {
-		return nil, fmt.Errorf("snapshot capture returned nil")
-	}
-	return snapshot, nil
+	return instrumentation.GetSnapshotContext(ctx, qm)
 }
 
 func (b *bot) Run(ctx context.Context, machineContext any) error {
@@ -120,12 +105,7 @@ func (b *bot) Run(ctx context.Context, machineContext any) error {
 		return err
 	}
 	b.history = nil
-	var restoreErr error
-	if contextual, ok := b.qm.(instrumentation.ContextSnapshotProvider); ok {
-		restoreErr = contextual.LoadSnapshotContext(ctx, b.initialSnapshot, machineContext)
-	} else {
-		restoreErr = b.qm.LoadSnapshot(b.initialSnapshot, machineContext)
-	}
+	restoreErr := instrumentation.LoadSnapshotContext(ctx, b.qm, b.initialSnapshot, machineContext)
 	if restoreErr != nil {
 		return fmt.Errorf("error loading initial snapshot: %w", restoreErr)
 	}

@@ -24,7 +24,9 @@ type QuantumMachine interface {
 
 - `Init` / `InitWithEvent`: Boot the machine using `initials` references. `InitWithEvent` lets you inject custom metadata during startup.
 - `SendEvent`: Route an event to active universes. Returns `false` when no universe accepts it.
-- `LoadSnapshot` / `GetSnapshot`: Persist and restore complete machine state.
+- `LoadSnapshot` / `GetSnapshot`: Legacy methods for complete machine state; prefer
+  `instrumentation.LoadSnapshotContext(ctx, qm, snapshot, machineContext)` and
+  `instrumentation.GetSnapshotContext(ctx, qm)`.
 - `ReplayOnEntry`: Re-execute entry actions without changing current realities.
 - `PositionMachine*`: Manually position the machine in specific states. Use `executeFlow=false` for testing or `executeFlow=true` to run full entry logic.
 
@@ -231,7 +233,9 @@ type UniversesResume struct {
   `GetTracking`
 - `ToJson()` — human-readable JSON string (for logging or persistence)
 
-Snapshots are safe to serialize and reload using `QuantumMachine.LoadSnapshot`.
+Snapshots are safe to serialize and reload using `instrumentation.LoadSnapshotContext`.
+Inside a synchronous action, capture through `instrumentation.GetSnapshotWithError(args)`.
+The machine's context-free snapshot methods are deprecated; callback args remain supported.
 
 ## Putting the Interfaces to Work
 

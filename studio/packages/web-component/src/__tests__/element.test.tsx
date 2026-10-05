@@ -29,18 +29,25 @@ describe("StateProStudioElement", () => {
       element.setAttribute("show-locale-switcher", "false");
       element.setAttribute("persist-locale", "");
       element.setAttribute("change-debounce-ms", "125");
+      element.setAttribute("auto-layout-worker-url", "/elk-worker.js");
       element.features = { json: { import: false, export: true } };
     });
     expect(renderState.props).toMatchObject({ locale: "es", showLocaleSwitcher: false, persistLocale: true, changeDebounceMs: 125 });
     expect(renderState.props?.features).toEqual(element.features);
+    expect(element.autoLayoutWorkerUrl).toBe("/elk-worker.js");
+    expect(renderState.props?.autoLayoutWorkerUrl).toBe("/elk-worker.js");
     await act(async () => {
       element.removeAttribute("locale");
       element.setAttribute("change-debounce-ms", "invalid");
       element.setAttribute("persist-locale", "invalid");
+      element.removeAttribute("auto-layout-worker-url");
     });
     expect(renderState.props?.locale).toBeUndefined();
     expect(renderState.props?.changeDebounceMs).toBeUndefined();
     expect(renderState.props?.persistLocale).toBeUndefined();
+    expect(renderState.props?.autoLayoutWorkerUrl).toBeUndefined();
+    await act(async () => { element.autoLayoutWorkerUrl = "/other-worker.js"; });
+    expect(renderState.props?.autoLayoutWorkerUrl).toBe("/other-worker.js");
     await act(async () => { element.remove(); });
     expect(element.querySelector("button")).toBeNull();
     await act(async () => { document.body.append(element); });

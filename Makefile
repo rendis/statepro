@@ -12,7 +12,7 @@ export PATH := $(GOPATH_BIN):$(PATH)
 GREMLINS ?= gremlins
 FUZZTIME ?= 15s
 
-.PHONY: tools test test-race test-fuzz test-fuzz-smoke test-mutation test-mutation-dry test-mutation-builtin test-mutation-experimental test-mutation-root test-mutation-bot test-mutation-studio
+.PHONY: tools test test-race test-fuzz test-fuzz-smoke test-mutation test-mutation-dry test-mutation-builtin test-mutation-experimental test-mutation-root test-mutation-bot test-mutation-cli test-mutation-studio
 
 tools: ## Install mutation tooling (gremlins)
 	$(GO) install github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0
@@ -42,6 +42,7 @@ test-mutation-dry: tools ## Discover mutants (per package, dry-run)
 	$(GREMLINS) unleash --dry-run ./builtin
 	$(GREMLINS) unleash --dry-run ./experimental
 	$(GREMLINS) unleash --dry-run ./debugger/bot
+	$(GREMLINS) unleash --dry-run ./debugger/cli
 	$(GREMLINS) unleash --dry-run .
 
 test-mutation-builtin: tools ## Mutation test builtin (fast gate)
@@ -55,6 +56,9 @@ test-mutation-root: tools ## Mutation test root package (serde/validation)
 
 test-mutation-bot: tools ## Mutation test debugger bot
 	$(GREMLINS) unleash --workers 2 --timeout-coefficient 3 --threshold-efficacy 70 ./debugger/bot
+
+test-mutation-cli: tools ## Mutation test debugger CLI
+	$(GREMLINS) unleash --workers 2 --timeout-coefficient 5 --threshold-efficacy 70 ./debugger/cli
 
 test-mutation: test-mutation-builtin test-mutation-bot test-mutation-root ## Core Go mutation gates (builtin+bot+root)
 	@echo "Core mutation gates done. For runtime: make test-mutation-experimental"

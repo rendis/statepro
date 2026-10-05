@@ -11,9 +11,8 @@ unleash:
     # Soft floor while the adversarial suite matures; raise over time.
     efficacy: 60
     mutant-coverage: 50
-  # Skip TUI / examples; package selection is handled by Makefile targets.
+  # Skip examples; package selection is handled by Makefile targets.
   exclude-files:
-    - "debugger/cli/.*"
     - "example/.*"
     - ".*_test\\.go"
     - "package_test\\.go"

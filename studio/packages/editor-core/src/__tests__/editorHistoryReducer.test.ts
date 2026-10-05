@@ -33,6 +33,32 @@ const applyMachineId = (
 };
 
 describe("editorHistoryReducer", () => {
+  it("undo y redo aislan todas las secciones y conservan datos clonables", () => {
+    const initial = createInitialEditorState();
+    initial.lastImportedMachine = {
+      id: "machine", canonicalName: "machine", version: "1.0.0", universes: {},
+    };
+    initial.machineConfig.metadata = JSON.stringify({ payload: "original" });
+    const edited = applyMachineId(createInitialEditorHistoryState(initial), "edited");
+    const restored = editorHistoryReducer(edited, { type: "undo" });
+    restored.present.machineConfig.metadata = "changed";
+    restored.present.lastImportedMachine!.id = "changed";
+    expect(edited.past[0].machineConfig.metadata).toBe(initial.machineConfig.metadata);
+    expect(edited.past[0].lastImportedMachine!.id).toBe("machine");
+    const redone = editorHistoryReducer(restored, { type: "redo" });
+    redone.present.lastImportedMachine!.id = "changed again";
+    expect(restored.future[0].lastImportedMachine!.id).toBe("machine");
+    expect(redone.present.machineConfig.id).toBe("edited");
+  });
+
+  it("restaurar un checkpoint sin importacion limpia el modelo importado anterior", () => {
+    const initial = createInitialEditorState();
+    const checkpoint = createHistorySnapshot(initial);
+    delete checkpoint.lastImportedMachine;
+    initial.lastImportedMachine = { id: "imported", canonicalName: "imported", version: "1.0.0", universes: {} };
+    const committed = editorHistoryReducer(createInitialEditorHistoryState(initial), { type: "commit-snapshot", payload: checkpoint });
+    expect(editorHistoryReducer(committed, { type: "undo" }).present.lastImportedMachine).toBeUndefined();
+  });
   it("aisla checkpoints y undo de mutaciones en datos del consumidor", () => {
     const initial = createInitialEditorState();
     const universe = (nodes: typeof initial.nodes) => nodes.find(node => node.type === "universe")!;

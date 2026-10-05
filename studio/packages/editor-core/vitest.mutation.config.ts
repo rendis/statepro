@@ -8,6 +8,7 @@ export default defineConfig({
     include: [
       "src/__tests__/validateStatePro.test.ts",
       "src/__tests__/validateStatePro.inputs.test.ts",
+      "src/__tests__/validateStatePro.diagnostics.test.ts",
       "src/__tests__/identifiers.test.ts",
       "src/__tests__/transitionRules.test.ts",
       "src/__tests__/issueMapping.test.ts",

@@ -46,6 +46,19 @@ const resolveElkConstructor = (bundle: unknown): ElkConstructorLike => {
 };
 
 let elkPromise: Promise<ElkInstance> | undefined;
+let workerConstructorPromise: Promise<ElkConstructorLike> | undefined;
+
+const getWorkerConstructor = (): Promise<ElkConstructorLike> => {
+  if (!workerConstructorPromise) {
+    workerConstructorPromise = import("elkjs/lib/elk-api.js")
+      .then(resolveElkConstructor)
+      .catch(error => {
+        workerConstructorPromise = undefined;
+        throw error;
+      });
+  }
+  return workerConstructorPromise;
+};
 
 const getElk = (): Promise<ElkInstance> => {
   if (!elkPromise) {
@@ -57,6 +70,34 @@ const getElk = (): Promise<ElkInstance> => {
       });
   }
   return elkPromise;
+};
+
+// Each request owns its worker and releases it when finished or timed out.
+// Failed workers are never shared with another layout request.
+const withLayoutEngine = async <T>(
+  workerUrl: string | undefined,
+  run: (elk: ElkInstance) => Promise<T>,
+): Promise<T> => {
+  if (!workerUrl) return run(await getElk());
+
+  const ElkConstructor = await getWorkerConstructor();
+  const worker = new Worker(workerUrl);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let rejectFailure: (error: Error) => void;
+  const unavailable = new Promise<never>((_, reject) => { rejectFailure = reject; });
+  const onError = () => rejectFailure(new Error("StatePro Studio: layout worker failed to load or execute."));
+  worker.addEventListener("error", onError);
+  worker.addEventListener("messageerror", onError);
+  try {
+    const elk = new ElkConstructor({ workerFactory: () => worker, algorithms: ["layered"] });
+    timer = setTimeout(() => rejectFailure(new Error("StatePro Studio: layout worker timed out after 30 seconds.")), 30_000);
+    return await Promise.race([run(elk), unavailable]);
+  } finally {
+    clearTimeout(timer);
+    worker.removeEventListener("error", onError);
+    worker.removeEventListener("messageerror", onError);
+    worker.terminate();
+  }
 };
 
 type UniverseNode = Extract<EditorNode, { type: "universe" }>;
@@ -292,6 +333,7 @@ const computeInternalUniverseLayout = async (
   nodes: EditorNode[],
   nodeSizes: NodeSizeMap,
   index: NodeReferenceIndex,
+  elk: ElkInstance,
 ): Promise<InternalUniverseLayout> => {
   if (realities.length === 0) {
     return {
@@ -344,7 +386,6 @@ const computeInternalUniverseLayout = async (
     edges,
   };
 
-  const elk = await getElk();
   const result = await elk.layout(graph, { measureExecutionTime: true });
   const childById = new Map((result.children || []).map((child) => [child.id, child]));
 
@@ -537,6 +578,7 @@ export const computeAutoLayout = async (
   nodes: EditorNode[],
   transitions: EditorTransition[],
   nodeSizes: NodeSizeMap,
+  workerUrl?: string,
 ): Promise<EditorNode[]> => {
   const universes = nodes
     .filter((node): node is UniverseNode => node.type === "universe")
@@ -546,6 +588,16 @@ export const computeAutoLayout = async (
     return nodes;
   }
 
+  return withLayoutEngine(workerUrl, elk => computeLayoutWithEngine(nodes, transitions, nodeSizes, universes, elk));
+};
+
+const computeLayoutWithEngine = async (
+  nodes: EditorNode[],
+  transitions: EditorTransition[],
+  nodeSizes: NodeSizeMap,
+  universes: UniverseNode[],
+  elk: ElkInstance,
+): Promise<EditorNode[]> => {
   const realities = nodes.filter((node): node is RealityNode => node.type === "reality");
   const realitiesByUniverse = new Map<string, RealityNode[]>();
   universes.forEach((universe) => realitiesByUniverse.set(universe.id, []));
@@ -567,6 +619,7 @@ export const computeAutoLayout = async (
         nodes,
         nodeSizes,
         referenceIndex,
+        elk,
       ),
     ),
   );
@@ -599,7 +652,6 @@ export const computeAutoLayout = async (
     edges: externalEdges,
   };
 
-  const elk = await getElk();
   const externalLayout = await elk.layout(externalGraph, { measureExecutionTime: true });
   const externalById = new Map((externalLayout.children || []).map((child) => [child.id, child]));
 

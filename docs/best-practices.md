@@ -394,7 +394,8 @@ func TestUserOnboardingFlow(t *testing.T) {
     }
 
     // Verify final state
-    snapshot := qm.GetSnapshot()
+    snapshot, err := instrumentation.GetSnapshotContext(context.Background(), qm)
+    require.NoError(t, err)
     resume := snapshot.GetResume()
 
     // Should end in onboarding-complete universe
@@ -423,7 +424,8 @@ func TestStateMachineInvariants(t *testing.T) {
             assert.NoError(t, err, "Event processing should never error")
 
             // Invariant: Active universes should never be empty after init
-            snapshot := qm.GetSnapshot()
+            snapshot, err := instrumentation.GetSnapshotContext(context.Background(), qm)
+            require.NoError(t, err)
             resume := snapshot.GetResume()
             assert.NotEmpty(t, resume.ActiveUniverses, "Should always have active universes")
         }

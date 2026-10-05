@@ -1,10 +1,13 @@
 package cli
 
 import (
+	"context"
+	"fmt"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/rendis/statepro/v3/instrumentation"
 )
 
 var loadSnapshotKeys = []key.Binding{
@@ -100,13 +103,20 @@ func loadSnapshotModelUpdate(m *model, teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			dn := item.obj.(*debuggerSnapshot)
-			if err := m.container.qm.LoadSnapshot(dn.Snapshot, m.container.smContext); err != nil {
+			if err := instrumentation.LoadSnapshotContext(context.Background(), m.container.qm, dn.Snapshot, m.container.smContext); err != nil {
+				m.err = err
 				return m, nil
 			}
+			snapshot, err := instrumentation.GetSnapshotContext(context.Background(), m.container.qm)
+			if err != nil {
+				m.err = fmt.Errorf("snapshot restored, but capture failed: %w", err)
+				return m, nil
+			}
+			m.err = nil
 
 			m.container.history = []*containerHistory{
 				{
-					snapshot: m.container.qm.GetSnapshot(),
+					snapshot: snapshot,
 					context:  copyStructPointer(m.container.smContext),
 					event:    getSnapshotEvent(),
 					pos:      0,

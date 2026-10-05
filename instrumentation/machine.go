@@ -4,7 +4,6 @@ import (
 	"context"
 )
 
-
 type QuantumMachine interface {
 	// Init initializes the quantum machine by processing all initial universe references.
 	// For each reference in the machine model's Initials, it determines whether the reference
@@ -49,16 +48,22 @@ type QuantumMachine interface {
 	//   - snapshot: Snapshot containing the state to restore (nil snapshot is safely ignored)
 	//   - machineContext: Machine context to set after loading the snapshot
 	// Returns error if any universe fails to load its snapshot
+	//
+	// Deprecated: use instrumentation.LoadSnapshotContext with the caller's context.
+	// This context-free method can deadlock when called from its owner's synchronous callback.
 	LoadSnapshot(snapshot *MachineSnapshot, machineContext any) error
 
 	// GetSnapshot captures the current complete state of the quantum machine.
 	// The experimental runtime logs serialization failures and returns nil. Use
-	// GetSnapshotWithError for checked capture when the provider supports it.
+	// GetSnapshotContext for checked capture with the caller's context.
 	// The snapshot includes for each universe: current reality, superposition state, tracking history,
 	// and categorization into active universes (running), finalized universes (in final state),
 	// or superposition universes (awaiting collapse).
 	// Returns:
 	//   - MachineSnapshot: Complete snapshot of the machine's current state
+	//
+	// Deprecated: use instrumentation.GetSnapshotContext outside callbacks, or
+	// instrumentation.GetSnapshotWithError(args) inside a synchronous action.
 	GetSnapshot() *MachineSnapshot
 
 	// ReplayOnEntry re-executes entry actions for the current realities of all active universes.
