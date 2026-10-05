@@ -217,8 +217,8 @@ func (qm *ExQuantumMachine) GetSnapshot() *instrumentation.MachineSnapshot {
 }
 
 // GetSnapshotWithError returns a complete snapshot or an error, never a partial snapshot.
-//
-// Deprecated: use GetSnapshotContext for cancellable waiting and callback reentry detection.
+// It waits for the machine lock without a context; use GetSnapshotContext when the caller
+// needs cancellable waiting or callback reentry detection.
 func (qm *ExQuantumMachine) GetSnapshotWithError() (*instrumentation.MachineSnapshot, error) {
 	if qm == nil {
 		return nil, fmt.Errorf("quantum machine must not be nil")

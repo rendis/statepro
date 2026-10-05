@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Runtime: optional context-aware snapshot capture/restoration and invoke lifecycle interfaces; reject synchronous callback reentry when callers preserve the callback context.
 - Debugger bot: cancellable event processing, checked snapshot errors, and an optional history retention limit.
 
+### Deprecated
+
+- Runtime: the context-free machine `GetSnapshot` and `LoadSnapshot` methods. Use `instrumentation.GetSnapshotContext` and `instrumentation.LoadSnapshotContext` outside callbacks, or `instrumentation.GetSnapshotWithError(args)` inside a synchronous action. Checked capture with `GetSnapshotWithError` remains supported.
+
 ### Security
 
 - Studio: metadata pointer writes and object merges use own data properties, preserving JSON keys without traversing inherited properties.
