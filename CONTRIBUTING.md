@@ -15,6 +15,7 @@ Thank you for your interest in contributing to StatePro! This guide outlines how
 - [Documentation](#documentation)
 - [Pull Request Process](#pull-request-process)
 - [Reporting Issues](#reporting-issues)
+- [Releasing](#releasing)
 - [Getting Help](#getting-help)
 - [Recognition](#recognition)
 
@@ -378,6 +379,29 @@ For new features, include:
 - `good first issue`: Good for newcomers
 - `help wanted`: Community contribution needed
 - `question`: Questions and discussions
+
+## Releasing
+
+Releases are cut by maintainers with the **Release** workflow (`.github/workflows/release.yml`).
+
+1. Open a PR that moves the `[Unreleased]` entries in `CHANGELOG.md` to a `## [X.Y.Z] - YYYY-MM-DD`
+   section, updates the compare links, and bumps the Studio package versions when they changed.
+   Merge it to `main`.
+2. Run **Actions → Release → Run workflow** on `main` with the version `X.Y.Z` and `dry_run` enabled.
+   Check the previewed notes and the npm dry-run output.
+3. Run it again with `dry_run` disabled. The workflow runs the Quality checks, creates the annotated
+   tag `vX.Y.Z` on `main`, creates the GitHub release from the CHANGELOG section, and publishes the
+   Studio packages to npm with provenance.
+
+`target` limits the run to `github` (tag and release only, for example a Go-only release) or `npm`
+(publish an existing tag). Every step is idempotent: an existing tag or release is kept and package
+versions already on npm are skipped, so a failed run can be re-run. The Go module needs no extra step;
+the tag is enough for `go get`.
+
+npm publishing uses [Trusted Publishing](https://docs.npmjs.com/trusted-publishers), so no npm token is
+stored. Each package needs a one-time trusted publisher on npmjs.com (package **Settings → Trusted
+Publisher → GitHub Actions**) with organization `rendis`, repository `statepro`, and workflow
+`release.yml`.
 
 ## Getting Help
 
