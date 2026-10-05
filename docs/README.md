@@ -12,6 +12,7 @@ Welcome to the comprehensive StatePro documentation. This collection of guides w
 - 📝 **[Modeling Guide](modeling.md)** - Comprehensive JSON reference and step-by-step examples
 - 🏛️ **[Best Practices](best-practices.md)** - Design patterns, performance tips, and architectural guidance
 - 🔄 **[Runtime & Execution](runtime.md)** - Deep dive into the experimental runtime engine
+- **[Studio Performance](studio-performance.md)** - Worker-backed layout, checkpoint isolation, and reproducible benchmarks
 
 ### Development & Integration
 - ⚙️ **[API Reference](api-reference.md)** - Complete Go API documentation with examples

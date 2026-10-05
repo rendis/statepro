@@ -407,6 +407,7 @@ el.addEventListener(STUDIO_LOCALE_EVENT, (event) => {
 | `show-locale-switcher` | boolean-like string | Show/hide language toggle in header            |
 | `persist-locale`       | boolean-like string | Enable/disable localStorage locale persistence |
 | `change-debounce-ms`   | number-like string  | Debounce for emitted change payloads           |
+| `auto-layout-worker-url` | string | Same-origin ELK worker asset; see [performance guidance](../docs/studio-performance.md). |
 
 ### Supported JS Properties
 
@@ -417,6 +418,7 @@ el.addEventListener(STUDIO_LOCALE_EVENT, (event) => {
 | `universeTemplates` | `StateProEditorProps["universeTemplates"]` |
 | `libraryBehaviors`  | `StateProEditorProps["libraryBehaviors"]`  |
 | `features`          | `StateProEditorProps["features"]`          |
+| `autoLayoutWorkerUrl` | `StateProEditorProps["autoLayoutWorkerUrl"]` |
 | `onChange`          | `StateProEditorProps["onChange"]`          |
 | `onLocaleChange`    | `StateProEditorProps["onLocaleChange"]`    |
 
@@ -516,6 +518,7 @@ If your Vue build complains about unknown custom elements, configure compiler cu
 | `defaultValue`       | `StudioExternalValue`                    | `undefined`                | Initial value for uncontrolled mode.                     |
 | `onChange`           | `(payload: StudioChangePayload) => void` | `undefined`                | Called after debounced serialization/validation updates. |
 | `changeDebounceMs`   | `number`                                 | `250`                      | Debounce window for `onChange`.                          |
+| `autoLayoutWorkerUrl` | `string` | `undefined` | Optional ELK worker URL; the standalone app enables this. See [layout and history performance](../docs/studio-performance.md). |
 | `universeTemplates`  | `StudioUniverseTemplate[]`               | `[]`                       | Enables template-based universe creation in toolbar.     |
 | `libraryBehaviors`   | `BehaviorRegistryItem[]`                 | `undefined`                | External behavior catalog merged with built-ins and user entries. |
 | `features`           | `StudioFeatureFlags`                     | JSON/library enabled + performance `auto` | Enables/disables capabilities and configures adaptive performance mode. |

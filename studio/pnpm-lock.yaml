@@ -48,6 +48,9 @@ importers:
       '@rendis/statepro-studio-react':
         specifier: workspace:*
         version: link:../packages/editor-core
+      elkjs:
+        specifier: ^0.11.0
+        version: 0.11.0
       react:
         specifier: ^19.2.4
         version: 19.2.4

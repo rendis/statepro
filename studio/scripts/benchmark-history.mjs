@@ -4,7 +4,8 @@ import { createRequire } from "node:module";
 import { performance } from "node:perf_hooks";
 
 const require = createRequire(import.meta.url);
-const editor = require("../packages/editor-core/dist/index.cjs");
+// Point to a baseline build when comparing changes with the same fixture/runtime.
+const editor = require(process.env.STATEPRO_BENCHMARK_ENTRY || "../packages/editor-core/dist/index.cjs");
 const results = [];
 
 for (const count of [100, 1000, 5000]) {

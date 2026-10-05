@@ -16,6 +16,7 @@ Config: [`.gremlins.yaml`](../.gremlins.yaml)
 make tools                     # installs gremlins
 make test-mutation-builtin     # fast gate (~5s)
 make test-mutation-bot
+make test-mutation-cli         # includes CLI startup, errors, and history workflows
 make test-mutation-root        # serde + validators (+ deps)
 make test-mutation-experimental
 make test-mutation             # builtin + bot + root
@@ -70,6 +71,13 @@ Stryker ran the expanded 59-test suite against 845 mutants: 489 killed, 2 timed 
 on 804 mutants; both test scope and guarded source changed, so the totals differ.
 Gremlins efficacy excludes timeout results; Stryker includes timeouts in detected mutants.
 Covered scores exclude uncovered mutants and are not comparable to statement coverage.
+
+On 2026-10-05, the same 845 Studio mutants scored **85.56% total / 88.17% covered** after
+adding diagnostic cases: 721 killed, 2 timed out, 97 survived, and 25 uncovered. Validator score
+increased from 45.65% to 86.86%. CLI mutation execution is now available through
+`make test-mutation-cli`: 69 killed, zero survivors among executed mutants, and 60 uncovered
+(100% efficacy / 53.49% mutant coverage). See the [follow-up review](reviews/2026-10-05-validation-api-performance.md)
+for scope, instrumentation results, regression evidence, and remaining limits.
 
 The normal Vitest configuration excludes `.stryker-tmp` to avoid discovering duplicated or
 instrumented test files. Babel overrides retain the major version required by the Stryker

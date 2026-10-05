@@ -44,6 +44,7 @@ export class StateProStudioElement extends HTMLElement {
       "show-locale-switcher",
       "persist-locale",
       "change-debounce-ms",
+      "auto-layout-worker-url",
     ];
   }
 
@@ -100,6 +101,10 @@ export class StateProStudioElement extends HTMLElement {
       this.props.changeDebounceMs = parseNumberAttribute(newValue);
     }
 
+    if (name === "auto-layout-worker-url") {
+      this.props.autoLayoutWorkerUrl = newValue || undefined;
+    }
+
     this.renderReactTree();
   }
 
@@ -141,6 +146,15 @@ export class StateProStudioElement extends HTMLElement {
 
   get features() {
     return this.props.features;
+  }
+
+  get autoLayoutWorkerUrl() {
+    return this.props.autoLayoutWorkerUrl;
+  }
+
+  set autoLayoutWorkerUrl(nextValue: StateProEditorProps["autoLayoutWorkerUrl"]) {
+    this.props.autoLayoutWorkerUrl = nextValue;
+    this.renderReactTree();
   }
 
   set features(nextValue: StateProEditorProps["features"]) {

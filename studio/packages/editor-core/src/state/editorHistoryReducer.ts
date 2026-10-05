@@ -73,7 +73,10 @@ const snapshotsEqual = (
 ): boolean => {
   // Unchanged graph sections keep their identity across immutable reducer edits.
   // Only traverse sections which actually changed, rather than serializing the graph.
-  return (Object.keys(left) as Array<keyof EditorHistorySnapshot>).every(
+  // Optional fields may be absent from a supplied checkpoint. Comparing only
+  // its own keys would miss a present imported model that must be cleared.
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  return (Array.from(keys) as Array<keyof EditorHistorySnapshot>).every(
     (key) => Object.is(left[key], right[key]) || deepEqual(left[key], right[key]),
   );
 };
@@ -111,21 +114,20 @@ const applySnapshotToPresent = (
   present: EditorState,
   snapshot: EditorHistorySnapshot,
 ): EditorState => {
-  const nextNodes = clone(snapshot.nodes);
-  const nextTransitions = clone(snapshot.transitions);
+  // Clone the checkpoint once, including all graph sections. The restored editor
+  // still owns a detached copy; mutating it cannot change past/future entries.
+  const restored = clone(snapshot);
   return {
     ...present,
-    nodes: nextNodes,
-    transitions: nextTransitions,
-    machineConfig: clone(snapshot.machineConfig),
-    registry: clone(snapshot.registry),
-    metadataPackRegistry: clone(snapshot.metadataPackRegistry),
-    metadataPackBindings: clone(snapshot.metadataPackBindings),
-    lastImportedMachine: snapshot.lastImportedMachine
-      ? clone(snapshot.lastImportedMachine)
-      : undefined,
-    isDirtyFromImport: snapshot.isDirtyFromImport,
-    selectedElement: validateSelectedElement(present.selectedElement, nextNodes, nextTransitions),
+    nodes: restored.nodes,
+    transitions: restored.transitions,
+    machineConfig: restored.machineConfig,
+    registry: restored.registry,
+    metadataPackRegistry: restored.metadataPackRegistry,
+    metadataPackBindings: restored.metadataPackBindings,
+    lastImportedMachine: restored.lastImportedMachine,
+    isDirtyFromImport: restored.isDirtyFromImport,
+    selectedElement: validateSelectedElement(present.selectedElement, restored.nodes, restored.transitions),
   };
 };
 
