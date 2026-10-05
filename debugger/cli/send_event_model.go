@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/rendis/statepro/v3"
+	"github.com/rendis/statepro/v3/instrumentation"
 	"sort"
 )
 
@@ -149,7 +150,7 @@ func sendEventModelUpdate(m *model, teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 
 			success, err := m.container.qm.SendEvent(context.Background(), evt)
 			if err != nil {
-				fmt.Printf("error sending event: %v\n", err)
+				m.err = fmt.Errorf("error sending event: %w", err)
 				return m, nil
 			}
 
@@ -159,9 +160,15 @@ func sendEventModelUpdate(m *model, teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			event.Sent = true
+			snapshot, err := instrumentation.GetSnapshotContext(context.Background(), m.container.qm)
+			if err != nil {
+				m.err = fmt.Errorf("event handled, but snapshot capture failed: %w", err)
+				return m, nil
+			}
+			m.err = nil
 			m.container.history = append(m.container.history, &containerHistory{
 				event:    event,
-				snapshot: m.container.qm.GetSnapshot(),
+				snapshot: snapshot,
 				context:  copyStructPointer(m.container.smContext),
 				pos:      len(m.container.history),
 			})

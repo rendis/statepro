@@ -31,7 +31,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	snapshot := qm.GetSnapshot()
+	snapshot, err := instrumentation.GetSnapshotContext(ctx, qm)
+	if err != nil {
+		log.Fatal(err)
+	}
 	log.Printf("Snapshot generated: %+v", snapshot.Tracking)
 
 	// fill-form
@@ -40,7 +43,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	snapshot = qm.GetSnapshot()
+	snapshot, err = instrumentation.GetSnapshotContext(ctx, qm)
+	if err != nil {
+		log.Fatal(err)
+	}
 	log.Printf("Snapshot generated: %+v", snapshot.Tracking)
 
 	// sign
@@ -49,7 +55,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	snapshot = qm.GetSnapshot()
+	snapshot, err = instrumentation.GetSnapshotContext(ctx, qm)
+	if err != nil {
+		log.Fatal(err)
+	}
 	log.Printf("Snapshot generated: %+v", snapshot.Tracking)
 
 	// sign
@@ -58,7 +67,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	snapshot = qm.GetSnapshot()
+	snapshot, err = instrumentation.GetSnapshotContext(ctx, qm)
+	if err != nil {
+		log.Fatal(err)
+	}
 	log.Printf("Snapshot generated: %+v", snapshot.Tracking)
 
 	// cancel
@@ -67,7 +79,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	snapshot = qm.GetSnapshot()
+	snapshot, err = instrumentation.GetSnapshotContext(ctx, qm)
+	if err != nil {
+		log.Fatal(err)
+	}
 	log.Printf("Snapshot generated: %+v", snapshot.Tracking)
 
 	// replay cancel entry actions

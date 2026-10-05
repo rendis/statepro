@@ -114,7 +114,7 @@ func main() {
     }
 
     // Display initial state
-    displayCurrentState(qm)
+    displayCurrentState(ctx, qm)
 
     // Simulate traffic light cycles
     for i := 0; i < 6; i++ {
@@ -131,20 +131,22 @@ func main() {
             log.Println("Timer event was not handled")
         }
 
-        displayCurrentState(qm)
+        displayCurrentState(ctx, qm)
     }
 }
 
-func displayCurrentState(qm instrumentation.QuantumMachine) {
-    snapshot := qm.GetSnapshot()
+func displayCurrentState(ctx context.Context, qm instrumentation.QuantumMachine) {
+    snapshot, err := instrumentation.GetSnapshotContext(ctx, qm)
+    if err != nil {
+        log.Printf("Cannot capture current state: %v", err)
+        return
+    }
     resume := snapshot.GetResume()
 
     fmt.Printf("🚦 Current State: %v\n", resume.ActiveUniverses)
 
-    for universe, realities := range resume.ActiveUniverses {
-        for _, reality := range realities {
-            fmt.Printf("   Universe: %s, Reality: %s\n", universe, reality)
-        }
+    for universe, reality := range resume.ActiveUniverses {
+        fmt.Printf("   Universe: %s, Reality: %s\n", universe, reality)
     }
     fmt.Println("---")
 }

@@ -2,6 +2,7 @@ package instrumentation
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 
@@ -21,6 +22,53 @@ func GetSnapshotWithError(source interface{ GetSnapshot() *MachineSnapshot }) (*
 		return provider.GetSnapshotWithError()
 	}
 	return nil, errors.New("snapshot provider does not support capture errors")
+}
+
+// GetSnapshotContext prefers contextual capture, then checked capture, and finally
+// the legacy method for third-party implementations. Only contextual providers
+// can cancel lock waiting or detect owner reentry. Inside an action, pass its args
+// to GetSnapshotWithError instead of capturing the owner.
+func GetSnapshotContext(ctx context.Context, source interface{ GetSnapshot() *MachineSnapshot }) (*MachineSnapshot, error) {
+	if ctx == nil {
+		return nil, errors.New("context must not be nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	var snapshot *MachineSnapshot
+	var err error
+	if provider, ok := source.(ContextSnapshotProvider); ok {
+		snapshot, err = provider.GetSnapshotContext(ctx)
+	} else if provider, ok := source.(SnapshotProvider); ok {
+		snapshot, err = provider.GetSnapshotWithError()
+	} else {
+		snapshot = source.GetSnapshot()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if snapshot == nil {
+		return nil, errors.New("snapshot capture returned nil")
+	}
+	return snapshot, nil
+}
+
+// LoadSnapshotContext prefers contextual restoration. Legacy providers retain
+// their existing blocking contract; cancellation is checked before admission.
+func LoadSnapshotContext(ctx context.Context, machine QuantumMachine, snapshot *MachineSnapshot, machineContext any) error {
+	if ctx == nil {
+		return errors.New("context must not be nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if provider, ok := machine.(ContextSnapshotProvider); ok {
+		return provider.LoadSnapshotContext(ctx, snapshot, machineContext)
+	}
+	return machine.LoadSnapshot(snapshot, machineContext)
 }
 
 type SerializedUniverseSnapshot map[string]any

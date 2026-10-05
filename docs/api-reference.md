@@ -277,9 +277,12 @@ Restores the quantum machine state from a snapshot. Loads the current reality, s
 **Example:**
 
 ```go
-snapshot := qm.GetSnapshot()
+snapshot, err := instrumentation.GetSnapshotContext(ctx, qm)
+if err != nil {
+    return err
+}
 // ... later or in another process ...
-err := qm.LoadSnapshot(snapshot, machineContext)
+err = instrumentation.LoadSnapshotContext(ctx, qm, snapshot, machineContext)
 ```
 
 ##### `GetSnapshot`
@@ -289,6 +292,13 @@ Captures the current complete state of the quantum machine, including current re
 **Returns:**
 
 - `*MachineSnapshot` - Complete snapshot of the machine's current state
+
+The context-free machine `GetSnapshot` and `LoadSnapshot` methods are deprecated.
+These helpers prefer the optional contextual capability, preserve checked errors,
+and retain fallback compatibility for custom machines. Only contextual providers
+can cancel lock waiting and detect owner reentry.
+Inside a synchronous action, use `instrumentation.GetSnapshotWithError(args)`;
+calling the owner with the callback context returns `ErrReentrantCall`.
 
 ##### `ReplayOnEntry`
 

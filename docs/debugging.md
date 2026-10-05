@@ -35,7 +35,8 @@ debugger.Run(nil)
 Tips:
 
 - Provide `events.json` as a list of objects with `name`, optional `data`, and optional flags.
-- `snapshots.json` can preload earlier runs—use `qm.GetSnapshot()` and `ToJson()` to generate it.
+- `snapshots.json` can preload earlier runs—use `instrumentation.GetSnapshotContext(ctx, qm)`,
+  check its error, and serialize with `ToJson()` to generate it.
 
 ## Automation Bot
 

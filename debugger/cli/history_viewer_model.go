@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -109,10 +110,11 @@ func historyViewerModelUpdate(m *model, teaMsg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			h := item.obj.(*containerHistory)
-			if err := m.container.qm.LoadSnapshot(h.snapshot, m.container.smContext); err != nil {
+			if err := instrumentation.LoadSnapshotContext(context.Background(), m.container.qm, h.snapshot, m.container.smContext); err != nil {
 				m.err = err
 				return m, nil
 			}
+			m.err = nil
 			m.container.history = m.container.history[:h.pos+1]
 			markEventsFromHistory(m.container)
 			return m.prevModel, nil

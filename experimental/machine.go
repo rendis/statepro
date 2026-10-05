@@ -149,6 +149,9 @@ func isNilEvent(event instrumentation.Event) bool {
 	}
 }
 
+// LoadSnapshot restores without cancellable lock waiting or callback reentry detection.
+//
+// Deprecated: use LoadSnapshotContext with the caller's context.
 func (qm *ExQuantumMachine) LoadSnapshot(snapshot *instrumentation.MachineSnapshot, machineContext any) error {
 	qm.quantumMachineMtx.Lock()
 	defer qm.quantumMachineMtx.Unlock()
@@ -205,6 +208,9 @@ func (qm *ExQuantumMachine) loadSnapshotUnlocked(ctx context.Context, snapshot *
 	return nil
 }
 
+// GetSnapshot logs capture errors and returns nil on failure.
+//
+// Deprecated: use GetSnapshotContext outside callbacks, or checked action args inside an action.
 func (qm *ExQuantumMachine) GetSnapshot() *instrumentation.MachineSnapshot {
 	snapshot, err := qm.GetSnapshotWithError()
 	if err != nil {
@@ -214,6 +220,8 @@ func (qm *ExQuantumMachine) GetSnapshot() *instrumentation.MachineSnapshot {
 }
 
 // GetSnapshotWithError returns a complete snapshot or an error, never a partial snapshot.
+//
+// Deprecated: use GetSnapshotContext for cancellable waiting and callback reentry detection.
 func (qm *ExQuantumMachine) GetSnapshotWithError() (*instrumentation.MachineSnapshot, error) {
 	if qm == nil {
 		return nil, fmt.Errorf("quantum machine must not be nil")

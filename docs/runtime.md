@@ -122,19 +122,19 @@ Zero changes to the JSON definition. The existing `on.create-form` transition wi
 
 ## Snapshots
 
-`qm.GetSnapshot()` returns an `instrumentation.MachineSnapshot` containing:
+`instrumentation.GetSnapshotContext(ctx, qm)` returns an `instrumentation.MachineSnapshot` containing:
 
 - `Resume`: active, finalized, and superposition universes grouped by canonical name.
 - `Snapshots`: serialized per-universe state (including accumulators and metadata).
 - `Tracking`: ordered history of realities visited per universe.
 
-Use `qm.LoadSnapshot(snapshot, machineContext)` to restore a machine. Snapshots capture the latest
+Use `instrumentation.LoadSnapshotContext(ctx, qm, snapshot, machineContext)` to restore a machine. Snapshots capture the latest
 machine context metadata but you must provide any external context objects when reloading.
 
 For persistence, use the optional checked capture capability:
 
 ```go
-snapshot, err := instrumentation.GetSnapshotWithError(qm)
+snapshot, err := instrumentation.GetSnapshotContext(ctx, qm)
 if err != nil {
     return err
 }
@@ -163,7 +163,7 @@ changing reality assignments. This is useful when you need to re-run side effect
 
 **Loading Snapshots:**
 
-Use `qm.LoadSnapshot(snapshot, machineContext)` to restore a machine from a previous snapshot. This replaces:
+Use `instrumentation.LoadSnapshotContext(ctx, qm, snapshot, machineContext)` to restore a machine from a previous snapshot. This replaces:
 
 - All universe states (current realities, superposition states)
 - Event accumulators and their statistics
@@ -251,6 +251,19 @@ The optional `instrumentation.ContextSnapshotProvider` adds `GetSnapshotContext(
 The legacy context-free machine snapshot methods cannot identify a callback's caller and can still
 deadlock if called directly inside its owning synchronous callback. Replacing the callback context
 with `context.Background()` also bypasses reentry detection. Preserve the supplied context.
+
+The exported helpers `instrumentation.GetSnapshotContext(ctx, qm)` and
+`instrumentation.LoadSnapshotContext(ctx, qm, snapshot, machineContext)` select that capability
+without a type assertion at each call site. Capture falls back to checked capture and then the
+legacy method for custom implementations, rejects nil snapshots, and checks cancellation before
+and after capture. Legacy fallbacks cannot interrupt lock waiting or detect reentry. Context-free
+machine snapshot methods are deprecated; checked action args remain supported.
+
+For a compiled application example with explicit budgets, callback-safe capture, a cooperative
+invoke, and bounded shutdown, see [`ExampleNewQuantumMachineWithOptions`](../runtime_example_test.go).
+Register every custom observer before constructing machines that enable `StrictObservers`;
+handle `ErrUnknownObserver`, `*ResourceLimitError`, and context errors at the application boundary.
+The example budgets are illustrative; consumers choose values appropriate to their workloads.
 
 The optional `instrumentation.RuntimeLifecycle` provides:
 

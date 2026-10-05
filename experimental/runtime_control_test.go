@@ -83,6 +83,12 @@ func TestRuntime_ReentradaDetectadaYContextoReutilizableTrasCallback(t *testing.
 		if err := qm.LoadSnapshotContext(ctx, nil, nil); !errors.Is(err, instrumentation.ErrReentrantCall) {
 			return errors.New("restauracion reentrante no rechazada")
 		}
+		if _, err := instrumentation.GetSnapshotContext(ctx, qm); !errors.Is(err, instrumentation.ErrReentrantCall) {
+			return errors.New("helper de captura oculta reentrada")
+		}
+		if err := instrumentation.LoadSnapshotContext(ctx, qm, nil, nil); !errors.Is(err, instrumentation.ErrReentrantCall) {
+			return errors.New("helper de restauracion oculta reentrada")
+		}
 		if err := qm.WaitInvokes(ctx); !errors.Is(err, instrumentation.ErrReentrantCall) {
 			return errors.New("espera reentrante no rechazada")
 		}

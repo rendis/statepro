@@ -52,9 +52,13 @@ func buildContainer(opt *debuggerOptions) (*smContainer, error) {
 	}
 
 	if container.qm != nil {
+		snapshot, captureErr := instrumentation.GetSnapshotContext(context.Background(), container.qm)
+		if captureErr != nil {
+			return nil, fmt.Errorf("error capturing initial snapshot: %w", captureErr)
+		}
 		container.history = []*containerHistory{
 			{
-				snapshot: container.qm.GetSnapshot(),
+				snapshot: snapshot,
 				context:  copyStructPointer(container.smContext),
 				event:    getSnapshotEvent(),
 				pos:      0,
@@ -65,15 +69,25 @@ func buildContainer(opt *debuggerOptions) (*smContainer, error) {
 	if err = loadJSON(&container.events, opt.eventsPath, true); err != nil {
 		return nil, fmt.Errorf("error loading events: %w", err)
 	}
-	for _, event := range container.events {
+	for i, event := range container.events {
+		if event == nil {
+			return nil, fmt.Errorf("event %d must not be null", i+1)
+		}
 		event.uid = uuid.New()
 	}
 
 	if err = loadJSON(&container.snapshots, opt.snapshotsPath, true); err != nil {
 		return nil, fmt.Errorf("error loading snapshots: %w", err)
 	}
+	for i, snapshot := range container.snapshots {
+		if snapshot == nil {
+			return nil, fmt.Errorf("snapshot %d must not be null", i+1)
+		}
+	}
 
-	setDefaultSnapshot(&container)
+	if err := setDefaultSnapshot(&container); err != nil {
+		return nil, err
+	}
 	setSnapshotsTitle(&container)
 	return &container, nil
 }
@@ -101,18 +115,22 @@ func loadDefinition(path string, smContext any) (instrumentation.QuantumMachine,
 	return qm, nil
 }
 
-func setDefaultSnapshot(container *smContainer) {
+func setDefaultSnapshot(container *smContainer) error {
 	if container.qm == nil {
-		return
+		return nil
 	}
 
-	first := container.qm.GetSnapshot()
+	first, err := instrumentation.GetSnapshotContext(context.Background(), container.qm)
+	if err != nil {
+		return fmt.Errorf("error capturing default snapshot: %w", err)
+	}
 	debuggerSnap := &debuggerSnapshot{
 		Title:    "Reset state machine (default)",
 		Snapshot: first,
 	}
 
 	container.snapshots = append([]*debuggerSnapshot{debuggerSnap}, container.snapshots...)
+	return nil
 }
 
 func setSnapshotsTitle(container *smContainer) {
