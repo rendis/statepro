@@ -37,5 +37,10 @@
     "typescript": "^5.7.3",
     "vitest": "^4.1.11",
     "jsdom": "^26.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rendis/statepro",
+    "directory": "studio/packages/web-component"
   }
 }
