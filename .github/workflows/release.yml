@@ -58,7 +58,7 @@ jobs:
         run: |
           echo "::error::Run the release workflow from main (got ${GITHUB_REF})."
           exit 1
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Plan release
         id: plan
         env:
@@ -131,7 +131,7 @@ jobs:
       DRY_RUN: ${{ needs.prepare.outputs.dry_run }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Extract release notes
@@ -204,18 +204,19 @@ jobs:
             echo "::error::Tag $TAG does not exist. Run with target 'all' or 'github' first."
             exit 1
           fi
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.source.outputs.ref }}
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: 10.11.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
           registry-url: https://registry.npmjs.org
-          cache: pnpm
-          cache-dependency-path: studio/pnpm-lock.yaml
+          # No dependency cache in a job that can publish: a poisoned cache
+          # entry must not reach a released package.
+          package-manager-cache: false
       - name: Use an npm that supports Trusted Publishing
         run: npm install -g npm@^11.5.1
       - name: Build Studio packages
