@@ -653,11 +653,11 @@ func (u *ExUniverse) doCyclicTransition(
 	visitedTargets := map[string]int{}
 
 	for {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
 		if approvedTransition == nil || len(approvedTransition.Targets) == 0 {
 			return nil
+		}
+		if err := u.checkInvokeCapacity(u.transitionStepInvokes(approvedTransition)); err != nil {
+			return err
 		}
 
 		args := instrumentation.QuantumMachineExecutorArgs{
@@ -753,9 +753,6 @@ func (u *ExUniverse) getApprovedTransition(
 	}
 
 	for _, transition := range transitionModels {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
 		var conditions []*theoretical.ConditionModel
 
 		if transition.Condition != nil {
@@ -856,6 +853,9 @@ func (u *ExUniverse) executeOnEntryProcess(ctx context.Context, event instrument
 	if err != nil {
 		return err
 	}
+	if err := u.checkInvokeCapacity(u.phaseInvokes("entry", realityModel.EntryInvokes)); err != nil {
+		return err
+	}
 
 	// collector for emitted events from entry actions
 	var emittedEvents []instrumentation.EmittedEvent
@@ -947,9 +947,6 @@ func (u *ExUniverse) processEmittedEvents(
 	}
 
 	for _, emitted := range emittedEvents {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
 		transitions, ok := realityModel.On[emitted.Name]
 		if !ok {
 			continue
@@ -1044,9 +1041,6 @@ func (u *ExUniverse) executeActions(
 
 	// execute actions
 	for _, action := range actionModels {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
 		args := &actionExecutorArgs{
 			context:                u.universeContext,
 			realityName:            *u.currentReality,
@@ -1160,9 +1154,6 @@ func (u *ExUniverse) executeObservers(
 	var firstErr error
 
 	for _, observer := range realityModel.Observers {
-		if err := ctx.Err(); err != nil {
-			return false, err
-		}
 		args := &observerExecutorArgs{
 			context:               u.universeContext,
 			realityName:           realityModel.ID,
@@ -1215,20 +1206,10 @@ func (u *ExUniverse) runObserverExecutor(ctx context.Context, src string, args *
 		return true, nil
 	}
 
-	if err := ctx.Err(); err != nil {
-		return false, err
-	}
 	if fn := builtin.GetObserver(src); fn != nil {
 		callbackCtx, done := u.owner.callbackContext(ctx)
 		defer done()
-		approved, err := fn(callbackCtx, args)
-		if err != nil {
-			return false, err
-		}
-		if err := ctx.Err(); err != nil {
-			return false, err
-		}
-		return approved, nil
+		return fn(callbackCtx, args)
 	}
 
 	slog.WarnContext(ctx, "observer not found (default: return true)", "src", src)
@@ -1240,17 +1221,10 @@ func (u *ExUniverse) runActionExecutor(ctx context.Context, src string, args *ac
 		return nil
 	}
 
-	if err := ctx.Err(); err != nil {
-		return err
-	}
 	if fn := builtin.GetAction(src); fn != nil {
 		callbackCtx, done := u.owner.callbackContext(ctx)
 		defer done()
-		err := fn(callbackCtx, args)
-		if err != nil {
-			return err
-		}
-		return ctx.Err()
+		return fn(callbackCtx, args)
 	}
 
 	slog.WarnContext(ctx, "action not found", "src", src)
@@ -1275,9 +1249,6 @@ func (u *ExUniverse) runInvokeExecutor(ctx context.Context, args *invokeExecutor
 }
 
 func (u *ExUniverse) executeInvokeGroup(ctx context.Context, phase string, invokes []*theoretical.InvokeModel, event instrumentation.Event, args *instrumentation.QuantumMachineExecutorArgs) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
 	u.invokeError = nil
 	switch phase {
 	case "entry":
@@ -1290,6 +1261,60 @@ func (u *ExUniverse) executeInvokeGroup(ctx context.Context, phase string, invok
 	u.executeUniverseConstantInvokes(ctx, phase, event)
 	u.executeInvokes(ctx, invokes, event)
 	return u.invokeError
+}
+
+// phaseInvokes lists every invoke group a phase launches: machine constants,
+// universe constants, and the reality or transition invokes.
+func (u *ExUniverse) phaseInvokes(phase string, invokes []*theoretical.InvokeModel) [][]*theoretical.InvokeModel {
+	var machineInvokes []*theoretical.InvokeModel
+	if u.owner != nil && u.owner.model != nil {
+		machineInvokes = constantInvokes(u.owner.model.UniversalConstants, phase)
+	}
+	return [][]*theoretical.InvokeModel{machineInvokes, constantInvokes(u.universeConstants(), phase), invokes}
+}
+
+// transitionStepInvokes lists the invokes a single transition step can launch
+// before reaching a stable reality: transition, exit, and target entry invokes.
+func (u *ExUniverse) transitionStepInvokes(transition *theoretical.TransitionModel) [][]*theoretical.InvokeModel {
+	groups := u.phaseInvokes("transition", transition.Invokes)
+	if transition.IsNotification() || u.currentReality == nil {
+		return groups
+	}
+	if current, err := u.getRealityModel(*u.currentReality); err == nil && current != nil {
+		groups = append(groups, u.phaseInvokes("exit", current.ExitInvokes)...)
+	}
+	if len(transition.Targets) != 1 {
+		return groups
+	}
+	if refType, _, err := processReference(transition.Targets[0]); err != nil || refType != RefTypeReality {
+		return groups
+	}
+	if target, err := u.getRealityModel(transition.Targets[0]); err == nil && target != nil {
+		groups = append(groups, u.phaseInvokes("entry", target.EntryInvokes)...)
+	}
+	return groups
+}
+
+// checkInvokeCapacity rejects a step before its first callback when the invokes it
+// can launch do not fit in the free pool capacity. The machine lock is held, so
+// running tasks can only finish until the step launches its own invokes.
+func (u *ExUniverse) checkInvokeCapacity(groups [][]*theoretical.InvokeModel) error {
+	limit := u.options.MaxConcurrentInvokes
+	if limit == 0 || u.invokes == nil {
+		return nil
+	}
+	needed := 0
+	for _, group := range groups {
+		for _, invoke := range group {
+			if invoke != nil && invoke.Src != "" && builtin.GetInvoke(invoke.Src) != nil {
+				needed++
+			}
+		}
+	}
+	if needed > 0 && needed > limit-u.invokes.running() {
+		return &instrumentation.ResourceLimitError{Resource: "concurrent invokes", Limit: limit}
+	}
+	return nil
 }
 
 func (u *ExUniverse) validateObservers(model *theoretical.RealityModel) error {
@@ -1320,20 +1345,10 @@ func (u *ExUniverse) runConditionExecutor(ctx context.Context, args *conditionEx
 		return true, nil
 	}
 
-	if err := ctx.Err(); err != nil {
-		return false, err
-	}
 	if fn := builtin.GetCondition(args.condition.Src); fn != nil {
 		callbackCtx, done := u.owner.callbackContext(ctx)
 		defer done()
-		approved, err := fn(callbackCtx, args)
-		if err != nil {
-			return false, err
-		}
-		if err := ctx.Err(); err != nil {
-			return false, err
-		}
-		return approved, nil
+		return fn(callbackCtx, args)
 	}
 
 	slog.WarnContext(ctx, "condition not found (default: return false)", "src", args.condition.Src)
@@ -1402,20 +1417,20 @@ func (u *ExUniverse) executeUniverseConstantActions(
 }
 
 func (u *ExUniverse) executeUniverseConstantInvokes(ctx context.Context, kind string, event instrumentation.Event) {
-	uc := u.universeConstants()
-	if uc == nil {
-		return
-	}
+	u.executeInvokes(ctx, constantInvokes(u.universeConstants(), kind), event)
+}
 
-	var invokes []*theoretical.InvokeModel
+func constantInvokes(constants *theoretical.UniversalConstantsModel, kind string) []*theoretical.InvokeModel {
+	if constants == nil {
+		return nil
+	}
 	switch kind {
 	case "entry":
-		invokes = uc.EntryInvokes
+		return constants.EntryInvokes
 	case "exit":
-		invokes = uc.ExitInvokes
+		return constants.ExitInvokes
 	case "transition":
-		invokes = uc.InvokesOnTransition
+		return constants.InvokesOnTransition
 	}
-
-	u.executeInvokes(ctx, invokes, event)
+	return nil
 }
