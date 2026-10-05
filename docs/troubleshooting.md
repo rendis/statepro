@@ -52,7 +52,11 @@ builtin.RegisterObserver("observer:businessHours", func(ctx context.Context, arg
 Verify that universes are properly initialized:
 
 ```go
-snapshot := qm.GetSnapshot()
+snapshot, err := instrumentation.GetSnapshotContext(ctx, qm)
+if err != nil {
+    log.Printf("Cannot capture state: %v", err)
+    return
+}
 resume := snapshot.GetResume()
 log.Printf("Active universes: %v", resume.ActiveUniverses)
 ```
@@ -172,8 +176,12 @@ Superposition occurs when:
 
 #### Monitor Active States
 ```go
-func debugActiveStates(qm instrumentation.QuantumMachine) {
-    snapshot := qm.GetSnapshot()
+func debugActiveStates(ctx context.Context, qm instrumentation.QuantumMachine) {
+    snapshot, err := instrumentation.GetSnapshotContext(ctx, qm)
+    if err != nil {
+        log.Printf("Cannot capture state: %v", err)
+        return
+    }
     resume := snapshot.GetResume()
 
     for universe, realities := range resume.ActiveUniverses {
