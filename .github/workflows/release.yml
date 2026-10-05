@@ -234,6 +234,12 @@ jobs:
               echo "$name@$version is already on npm; skipping."
               continue
             fi
+            # npm provenance requires repository.url to match this repository.
+            # Set it on the runner copy so tags made before the field existed
+            # can still be published.
+            (cd "$dir" && npm pkg set repository.type=git \
+              "repository.url=https://github.com/${GITHUB_REPOSITORY}" \
+              "repository.directory=$dir")
             # pnpm pack rewrites workspace:* to the real version.
             tarball=$(cd "$dir" && pnpm pack --pack-destination "$RUNNER_TEMP/packages" | tail -1)
             if tar -xOzf "$tarball" package/package.json | grep -q '"workspace:'; then
