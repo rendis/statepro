@@ -154,6 +154,24 @@ describe("editorHistoryReducer", () => {
     expect(domainNext.present.isDirtyFromImport).toBe(true);
   });
 
+  it("un patch con propiedades undefined que no cambia el JSON no crea un paso de historial", () => {
+    const initial = createInitialEditorHistoryState(createInitialEditorState());
+    const node = initial.present.nodes[0];
+    const next = editorHistoryReducer(initial, {
+      type: "apply-editor-action",
+      mode: "record",
+      action: { type: "update-node-data", payload: { nodeId: node.id, patch: { notAField: undefined } } },
+    });
+    expect(next.past).toHaveLength(0);
+
+    const changed = editorHistoryReducer(initial, {
+      type: "apply-editor-action",
+      mode: "record",
+      action: { type: "update-node-data", payload: { nodeId: node.id, patch: { notAField: "value" } } },
+    });
+    expect(changed.past).toHaveLength(1);
+  });
+
   it("record apila en past y limpia future", () => {
     const initial = createInitialEditorHistoryState(createInitialEditorState());
     const first = applyMachineId(initial, "machine-a", "record");

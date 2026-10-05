@@ -468,3 +468,15 @@ func TestRuntime_TrackingLimitadoPreservaRollback(t *testing.T) {
 		t.Fatalf("historial sin limite: %v", u.tracking)
 	}
 }
+
+func TestRuntime_UnlockSinLockEntraEnPanicEnVezDeBloquear(t *testing.T) {
+	var mtx contextMutex
+	mtx.Lock()
+	mtx.Unlock()
+	defer func() {
+		if recover() == nil {
+			t.Fatal("se esperaba panic al desbloquear un mutex libre")
+		}
+	}()
+	mtx.Unlock()
+}

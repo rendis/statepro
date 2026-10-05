@@ -12,7 +12,6 @@ import type {
 } from "../types";
 import { editorReducer, type EditorAction } from "./editorReducer";
 import { takeHistoryOwnership } from "./historyOwnership";
-import deepEqual from "fast-deep-equal";
 
 export const HISTORY_LIMIT = 100;
 export const COALESCE_WINDOW_MS = 600;
@@ -68,6 +67,32 @@ const toSnapshot = (state: EditorState): EditorHistorySnapshot => ({
   isDirtyFromImport: state.isDirtyFromImport,
 });
 
+const definedKeys = (value: Record<string, unknown>): string[] =>
+  Object.keys(value).filter((key) => value[key] !== undefined);
+
+// Snapshot data is JSON. Compare it with JSON semantics: a property set to
+// undefined equals a missing one, so a patch like { field: undefined } on an
+// object without that field does not record an undo step that changes nothing.
+const jsonEqual = (left: unknown, right: unknown): boolean => {
+  if (Object.is(left, right)) {
+    return true;
+  }
+  if (typeof left !== "object" || typeof right !== "object" || left === null || right === null) {
+    return false;
+  }
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left)
+      && Array.isArray(right)
+      && left.length === right.length
+      && left.every((item, index) => jsonEqual(item, right[index]));
+  }
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  const leftKeys = definedKeys(leftRecord);
+  return leftKeys.length === definedKeys(rightRecord).length
+    && leftKeys.every((key) => jsonEqual(leftRecord[key], rightRecord[key]));
+};
+
 const snapshotsEqual = (
   left: EditorHistorySnapshot,
   right: EditorHistorySnapshot,
@@ -78,7 +103,7 @@ const snapshotsEqual = (
   // its own keys would miss a present imported model that must be cleared.
   const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
   return (Array.from(keys) as Array<keyof EditorHistorySnapshot>).every(
-    (key) => Object.is(left[key], right[key]) || deepEqual(left[key], right[key]),
+    (key) => jsonEqual(left[key], right[key]),
   );
 };
 
