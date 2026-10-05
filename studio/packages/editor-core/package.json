@@ -1,6 +1,6 @@
 {
   "name": "@rendis/statepro-studio-react",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "private": false,
   "type": "module",
   "main": "dist/index.cjs",
